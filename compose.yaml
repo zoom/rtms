@@ -1,0 +1,10 @@
+services:
+  rtms-js-sdk: &rtms-js-sdk
+    build: ./
+    platform: linux/amd64
+    volumes:
+      - .:/tmp/rtms-js-sdk
+    develop:
+      watch:
+        - action: rebuild
+          path: .
