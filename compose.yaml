@@ -1,9 +1,9 @@
 services:
-  rtms-js-sdk: &rtms-js-sdk
+  rtms-sdk:
     build: ./
     platform: linux/amd64
     volumes:
-      - .:/tmp/rtms-js-sdk
+      - .:/tmp/rtms-sdk
     develop:
       watch:
         - action: rebuild
