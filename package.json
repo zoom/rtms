@@ -1,15 +1,16 @@
 {
-  "name": "rtms-js-sdk",
+  "name": "rtms-sdk",
   "version": "1.0.0",
   "description": "A Node.js wrapper for the Zoom RTMS CSDK",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "install": "cmake-js compile",
-    "test": "node index.js"
+    "test": "node --env-file=.env test.js"
   },
   "dependencies": {
-    "bindings": "^1.5.0",
     "cmake-js": "^7.3.0",
+    "jsonwebtoken": "^9.0.2",
     "node-addon-api": "^8.3.0"
   },
   "binary": {
@@ -19,7 +20,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/zoom/rtms-js-sdk.git"
+    "url": "git+https://github.com/zoom/rtms-sdk.git"
   },
   "keywords": [
     "zoom",
@@ -31,7 +32,7 @@
   ],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/zoom/rtms-js-sdk/issues"
+    "url": "https://github.com/zoom/rtms-sdk/issues"
   },
-  "homepage": "https://github.com/zoom/rtms-js-sdk#readme"
+  "homepage": "https://github.com/zoom/rtms-sdk#readme"
 }

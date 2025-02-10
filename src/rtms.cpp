@@ -1,27 +1,39 @@
 #include "rtms.h"
 
+#include <utility>
 
-RTMS::RTMS(const string& ca_path) {
+
+RTMS::RTMS() {
     m_mediaParam.audio_param = &m_audioParam;
     m_mediaParam.video_param = &m_videoParam;
-
-    char* ca = const_cast<char*>(ca_path.c_str());
-    rtms_init(ca);
-
-    //m_sdk = rtms_alloc();
 }
 
-int RTMS::join(const string& uuid, const string& session_id, const string& signature, const string& signal_url,
-               const int& timeout) {
+int RTMS::init(const string &ca_path) {
+    if (ca_path.empty())
+        throw invalid_argument("CA path cannot be empty");
 
-    char* c_uuid = const_cast<char*>(uuid.c_str());
-    char* c_session = const_cast<char*>(session_id.c_str());
-    char* c_signature = const_cast<char*>(signature.c_str());
-    char* c_signal = const_cast<char*>(signal_url.c_str());
+    auto ret = rtms_init(ca_path.c_str());
 
-    const int ret = rtms_join(m_sdk, c_uuid, c_session, c_signature, c_signal, timeout);
+    if (ret != RTMS_SDK_OK)
+        throw runtime_error("failed to initialize RTMS SDK");
 
-    while (m_isRunning)
+    m_sdk = rtms_alloc();
+
+    return ret;
+}
+
+int RTMS::join(const string &uuid, const string &session_id, const string &signature, const string &signal_url,
+               const int &timeout) {
+
+    auto _uuid = uuid.c_str();
+    auto _session = session_id.c_str();
+    auto _signature = signature.c_str();
+    auto _signal = signal_url.c_str();
+
+    auto ret = rtms_join(m_sdk, _uuid, _session, _signature, _signal, timeout);
+    auto status = ret == RTMS_SDK_OK;
+
+    while (status && m_isRunning)
         rtms_poll(m_sdk);
 
     return ret;
@@ -31,6 +43,7 @@ RTMS::~RTMS() {
     rtms_release(m_sdk);
     rtms_uninit();
 }
+
 void RTMS::setMediaTypes(bool audio, bool video = false, bool transcript = false) {
     enableAudio(audio);
     enableVideo(video);
@@ -49,11 +62,11 @@ void RTMS::enableVideo(bool use_video) {
     m_useVideo = use_video;
 }
 
-void RTMS::setAudioParam(const audio_parameters& param) {
+void RTMS::setAudioParam(const audio_parameters &param) {
     m_audioParam = param;
 }
 
-void RTMS::setVideoParam(const video_parameters& param) {
+void RTMS::setVideoParam(const video_parameters &param) {
     m_videoParam = param;
 }
 

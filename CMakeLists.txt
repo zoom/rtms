@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25.1)
-project (rtms_js_sdk)
+project (rtms-sdk)
 set(CMAKE_CXX_STANDARD 20)
 
 cmake_policy(SET CMP0091 NEW)

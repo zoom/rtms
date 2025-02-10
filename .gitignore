@@ -6,8 +6,10 @@ lib/rtms_csdk/**
 
 *.pem
 
-# ignore js files
+# ignore all other js files
 **.js
+!index.js
+
 
 # ignore C files (development)
 *.c

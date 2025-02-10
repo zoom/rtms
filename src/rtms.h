@@ -8,12 +8,12 @@
 
 using namespace std;
 
-
-
 class RTMS {
 public:
-    RTMS(const string& ca_path);
+    RTMS();
     ~RTMS();
+
+    int init(const string& ca_path);
 
     int join(const string& uuid, const string& session_id, const string& signature, const string& signal_url, const int& timeout = -1);
 
@@ -52,6 +52,8 @@ private:
     onVideoDataFunc m_onVideoData;
     onTranscriptDataFunc m_onTranscriptData;
     onLeaveFunc m_onLeave;
+
+    function<void(const rtms_csdk*,int)> m_jc;
 
     bool m_isRunning;
     bool m_useVideo;
