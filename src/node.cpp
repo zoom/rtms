@@ -46,6 +46,8 @@ Value join (const CallbackInfo& info) {
 
 
 void onJoinConfirm(struct rtms_csdk* sdk, int reason) {
+
+
     auto callback = [&]( Napi::Env env, Function jsCallback) {
         jsCallback.Call({Number::New( env, reason )});
     };
@@ -54,6 +56,11 @@ void onJoinConfirm(struct rtms_csdk* sdk, int reason) {
         cb_onJoinConfirm.tsfn.BlockingCall(callback);
         cb_onJoinConfirm.tsfn.Release();
     });
+
+    if (reason != RTMS_SDK_OK) {
+        RTMS::checkErr(reason, "failed to join");
+        return rtms.stop();
+    }
 }
 
 

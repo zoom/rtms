@@ -1,8 +1,5 @@
 #include "rtms.h"
 
-#include <utility>
-
-
 RTMS::RTMS() {
     _mediaParam.audio_param = &_audioParam;
     _mediaParam.video_param = &_videoParam;
@@ -33,18 +30,18 @@ int RTMS::init(const string &ca_path) {
 int RTMS::join(const string &uuid, const string &session_id, const string &signature, const string &signal_url,
                const int &timeout) {
 
-    auto _uuid = uuid.c_str();
-    auto _session = session_id.c_str();
-    auto _signature = signature.c_str();
-    auto _signal = signal_url.c_str();
+    auto ret = rtms_join(_sdk, uuid.c_str(), session_id.c_str(), signature.c_str(), signal_url.c_str(), timeout);
 
-    auto ret = rtms_join(_sdk, _uuid, _session, _signature, _signal, timeout);
-    checkErr(ret, "failed to join meeting " + uuid);
+    _isRunning = checkErr(ret, "failed to join event " + uuid);
 
     while (_isRunning)
-        rtms_poll(_sdk);
+        checkErr(rtms_poll(_sdk), "unable to poll RTMS CSDK");
 
     return ret;
+}
+
+void RTMS::stop() {
+    _isRunning = false;
 }
 
 RTMS::~RTMS() {
