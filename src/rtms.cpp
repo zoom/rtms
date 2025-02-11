@@ -4,20 +4,28 @@
 
 
 RTMS::RTMS() {
-    m_mediaParam.audio_param = &m_audioParam;
-    m_mediaParam.video_param = &m_videoParam;
+    _mediaParam.audio_param = &_audioParam;
+    _mediaParam.video_param = &_videoParam;
 }
 
 int RTMS::init(const string &ca_path) {
-    if (ca_path.empty())
-        throw invalid_argument("CA path cannot be empty");
-
     auto ret = rtms_init(ca_path.c_str());
+    checkErr(ret, "failed to init RTMS CSDK");
 
-    if (ret != RTMS_SDK_OK)
-        throw runtime_error("failed to initialize RTMS SDK");
+    _sdk = rtms_alloc();
 
-    m_sdk = rtms_alloc();
+    ret = rtms_config(_sdk, NULL, SDK_ALL, 0);
+    checkErr(ret, "failed to configure RTMS CSDK");
+
+    _options.on_join_confirm = _onJoinConfirm;
+    _options.on_session_update = _onSessionUpdate;
+    _options.on_audio_data = _onAudioData;
+    _options.on_video_data = _onVideoData;
+    _options.on_transcript_data = _onTranscriptData;
+    _options.on_leave = _onLeave;
+
+    rtms_set_callbacks(_sdk, &_options);
+    checkErr(ret, "failed to set callbacks for RTMS CSDK");
 
     return ret;
 }
@@ -30,17 +38,17 @@ int RTMS::join(const string &uuid, const string &session_id, const string &signa
     auto _signature = signature.c_str();
     auto _signal = signal_url.c_str();
 
-    auto ret = rtms_join(m_sdk, _uuid, _session, _signature, _signal, timeout);
-    auto status = ret == RTMS_SDK_OK;
+    auto ret = rtms_join(_sdk, _uuid, _session, _signature, _signal, timeout);
+    checkErr(ret, "failed to join meeting " + uuid);
 
-    while (status && m_isRunning)
-        rtms_poll(m_sdk);
+    while (_isRunning)
+        rtms_poll(_sdk);
 
     return ret;
 }
 
 RTMS::~RTMS() {
-    rtms_release(m_sdk);
+    rtms_release(_sdk);
     rtms_uninit();
 }
 
@@ -51,39 +59,53 @@ void RTMS::setMediaTypes(bool audio, bool video = false, bool transcript = false
 }
 
 void RTMS::enableTranscript(bool useTranscript) {
-    m_useTranscript = useTranscript;
+    _useTranscript = useTranscript;
 }
 
 void RTMS::enableAudio(bool use_audio) {
-    m_useAudio = use_audio;
+    _useAudio = use_audio;
 }
 
 void RTMS::enableVideo(bool use_video) {
-    m_useVideo = use_video;
+    _useVideo = use_video;
 }
 
 void RTMS::setAudioParam(const audio_parameters &param) {
-    m_audioParam = param;
+    _audioParam = param;
 }
 
 void RTMS::setVideoParam(const video_parameters &param) {
-    m_videoParam = param;
-}
-
-RTMS::onJoinConfirmFunc RTMS::getOnJoinConfirm() const {
-    return m_onJoinConfirm;
+    _videoParam = param;
 }
 
 void RTMS::setOnJoinConfirm(RTMS::onJoinConfirmFunc f) {
-    m_onJoinConfirm = f;
-}
-
-RTMS::onSessionUpdateFunc RTMS::getSessionUpdate() const {
-    return m_onSessionUpdate;
+    _onJoinConfirm = f;
+    _options.on_join_confirm = _onJoinConfirm;
 }
 
 void RTMS::setOnSessionUpdate(RTMS::onSessionUpdateFunc f) {
-    m_onSessionUpdate = f;
+    _onSessionUpdate = f;
+    _options.on_session_update = _onSessionUpdate;
+}
+
+void RTMS::setOnAudioData(RTMS::onAudioDataFunc f) {
+    _onAudioData = f;
+    _options.on_audio_data = _onAudioData;
+}
+
+void RTMS::setOnVideoData(RTMS::onVideoDataFunc f) {
+    _onVideoData = f;
+    _options.on_video_data = _onVideoData;
+}
+
+void RTMS::setOnTranscriptData(RTMS::onTranscriptDataFunc f) {
+    _onTranscriptData = f;
+    _options.on_transcript_data = _onTranscriptData;
+}
+
+void RTMS::setOnLeave(RTMS::onLeaveFunc f) {
+    _onLeave = f;
+    _options.on_leave = _onLeave;
 }
 
 

@@ -19,12 +19,11 @@ include_directories(node_modules/node-addon-api)
 
 link_directories(${RTMS_LIB} ${RTMS_LIB})
 
-file(GLOB SOURCE_FILES "src/node.cpp")
+file(GLOB SOURCE_FILES "src/node/node.cpp")
 
 add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES} ${CMAKE_JS_SRC}
         src/rtms.h
         src/rtms.cpp
-        src/common.h
         src/node.cpp
 )
 set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "" SUFFIX ".node")

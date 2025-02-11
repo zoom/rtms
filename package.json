@@ -5,13 +5,13 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "install": "cmake-js compile",
+    "install": "cmake-js build",
     "test": "node --env-file=.env test.js"
   },
   "dependencies": {
     "cmake-js": "^7.3.0",
-    "jsonwebtoken": "^9.0.2",
-    "node-addon-api": "^8.3.0"
+    "node-addon-api": "^8.3.0",
+    "ws": "^8.18.0"
   },
   "binary": {
     "napi_versions": [
