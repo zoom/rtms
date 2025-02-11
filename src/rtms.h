@@ -2,13 +2,52 @@
 #ifndef RTMS_JS_SDK_RTMS_H
 #define RTMS_JS_SDK_RTMS_H
 
-#include "napi.h"
+#include <napi.h>
 #include <functional>
+#include <sstream>
 #include "rtms_csdk.h"
 
 using namespace std;
 
 class RTMS {
+
+    typedef void (*onJoinConfirmFunc)(struct rtms_csdk *sdk, int reason);
+    typedef void (*onSessionUpdateFunc)(struct rtms_csdk *sdk, int op, struct session_info *sess);
+    typedef void (*onAudioDataFunc)(struct rtms_csdk *sdk, unsigned char *buf, int size, unsigned int timestamp, struct rtms_metadata *md);
+    typedef void (*onVideoDataFunc)(struct rtms_csdk *sdk, unsigned char *buf, int size, unsigned int timestamp, const char *rtms_session_id, struct rtms_metadata *md);
+    typedef void (*onTranscriptDataFunc)(struct rtms_csdk *sdk, unsigned char *buf, int size, unsigned int timestamp, struct rtms_metadata *md);
+    typedef void (*onLeaveFunc)(struct rtms_csdk *sdk, int reason);
+
+    static bool checkErr(const int& code, const string& message, bool except=true) {
+        auto isOk = code == RTMS_SDK_OK;
+        ostringstream out;
+        out << "error (" << code << "): " << message << endl;
+
+        if (!isOk && except)
+            throw logic_error(out.str());
+
+        return isOk;
+    };
+
+    rtms_csdk *_sdk;
+    media_parameters _mediaParam;
+    audio_parameters _audioParam;
+    video_parameters _videoParam;
+
+    rtms_csdk_ops _options;
+
+    onJoinConfirmFunc _onJoinConfirm;
+    onSessionUpdateFunc _onSessionUpdate;
+    onAudioDataFunc _onAudioData;
+    onVideoDataFunc _onVideoData;
+    onTranscriptDataFunc _onTranscriptData;
+    onLeaveFunc _onLeave;
+
+    bool _isRunning;
+    bool _useVideo;
+    bool _useAudio;
+    bool _useTranscript;
+
 public:
     RTMS();
     ~RTMS();
@@ -25,40 +64,12 @@ public:
     void setAudioParam(const audio_parameters& param);
     void setVideoParam(const video_parameters& param);
 
-    typedef void (*onJoinConfirmFunc)(struct rtms_csdk *sdk, int reason);
-    typedef void (*onSessionUpdateFunc)(struct rtms_csdk *sdk, int op, struct session_info *sess);
-    typedef void (*onAudioDataFunc)(struct rtms_csdk *sdk, unsigned char *buf, int size, unsigned int timestamp, const char *user_name, int user_id);
-    typedef void (*onVideoDataFunc)(struct rtms_csdk *sdk, unsigned char *buf, int size, unsigned int timestamp, const char *user_name, int user_id, const char *rtms_session_id);
-    typedef void (*onTranscriptDataFunc)(struct rtms_csdk *sdk, unsigned char *buf, int size, unsigned int timestamp, const char *user_name, int user_id);
-    typedef void (*onLeaveFunc)(struct rtms_csdk *sdk, int reason);
-
-    [[nodiscard]] onJoinConfirmFunc getOnJoinConfirm() const;
     void setOnJoinConfirm(onJoinConfirmFunc f);
-
-    [[nodiscard]] onSessionUpdateFunc getSessionUpdate() const;
     void setOnSessionUpdate(onSessionUpdateFunc f);
-
-private:
-    rtms_csdk *m_sdk;
-    media_parameters m_mediaParam;
-    audio_parameters m_audioParam;
-    video_parameters m_videoParam;
-
-    rtms_csdk_ops m_options;
-
-    onJoinConfirmFunc m_onJoinConfirm;
-    onSessionUpdateFunc m_onSessionUpdate;
-    onAudioDataFunc m_onAudioData;
-    onVideoDataFunc m_onVideoData;
-    onTranscriptDataFunc m_onTranscriptData;
-    onLeaveFunc m_onLeave;
-
-    function<void(const rtms_csdk*,int)> m_jc;
-
-    bool m_isRunning;
-    bool m_useVideo;
-    bool m_useAudio;
-    bool m_useTranscript;
+    void setOnAudioData(onAudioDataFunc f);
+    void setOnVideoData(onVideoDataFunc f);
+    void setOnTranscriptData(onTranscriptDataFunc f);
+    void setOnLeave(onLeaveFunc f);
 };
 
 
