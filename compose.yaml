@@ -4,6 +4,10 @@ services:
     platform: linux/amd64
     volumes:
       - .:/tmp/rtms-sdk
+      - ./logs:/tmp/rtms-sdk/logs
+    ports:
+      - ${PORT}:${PORT}
+      - 8080:8080
     develop:
       watch:
         - action: rebuild

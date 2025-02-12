@@ -1,1 +1,0 @@
-module.exports = require('./build/Release/rtms-sdk.node')

@@ -18,17 +18,6 @@ class RTMS {
     typedef void (*onTranscriptDataFunc)(struct rtms_csdk *sdk, unsigned char *buf, int size, unsigned int timestamp, struct rtms_metadata *md);
     typedef void (*onLeaveFunc)(struct rtms_csdk *sdk, int reason);
 
-    static bool checkErr(const int& code, const string& message, bool except=true) {
-        auto isOk = code == RTMS_SDK_OK;
-        ostringstream out;
-        out << "error (" << code << "): " << message << endl;
-
-        if (!isOk && except)
-            throw logic_error(out.str());
-
-        return isOk;
-    };
-
     rtms_csdk *_sdk;
     media_parameters _mediaParam;
     audio_parameters _audioParam;
@@ -56,6 +45,8 @@ public:
 
     int join(const string& uuid, const string& session_id, const string& signature, const string& signal_url, const int& timeout = -1);
 
+    void stop();
+
     void enableTranscript(bool useTranscript);
     void enableAudio(bool use_audio);
     void enableVideo(bool use_video);
@@ -70,6 +61,17 @@ public:
     void setOnVideoData(onVideoDataFunc f);
     void setOnTranscriptData(onTranscriptDataFunc f);
     void setOnLeave(onLeaveFunc f);
+
+    static bool checkErr(const int& code, const string& message, bool except=true) {
+        auto isOk = code == RTMS_SDK_OK;
+        ostringstream out;
+        out << "error (" << code << "): " << message << endl;
+
+        if (!isOk && except)
+            throw logic_error(out.str());
+
+        return isOk;
+    };
 };
 
 
