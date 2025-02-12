@@ -6,18 +6,15 @@ WORKDIR $CWD
 RUN apt-get update  \
     && apt-get install -y \
         cmake \
-        curl \
         python3-full \
         python3-pip \
+        pipx \
         tini \
-        unzip \
-        zip \
     && chmod +x /usr/bin/tini \
-    && npm install -g cmake-js \
     && python3 -m venv /opt/venv
 
 ENV PATH="/opt/venv/bin:$PATH"
-RUN pip install pybind11
+RUN pip install "pybind11[global]"  
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 

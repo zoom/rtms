@@ -17,6 +17,7 @@ lib/rtms_csdk/**
 
 # all C files (development)
 *.c
+.DS_Store
 
 ### C++ template
 # Prerequisites

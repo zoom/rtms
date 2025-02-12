@@ -1,19 +1,19 @@
 {
   "name": "rtms-sdk",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "A Node.js wrapper for the Zoom RTMS CSDK",
   "main": "index.js",
   "type": "module",
   "scripts": {
     "install": "cmake-js configure",
-    
-    "build-js": "cmake-js build --CDNODEJS=true",
+
+    "build-js": "cmake-js build --CDNODE=true",
     "test-js": "node --env-file=.env test.js",
 
-    "build-py": "cmake-js build --CDPYTHON=true",
-    "test-py": "python3 test.py",
+    "build-py": "pipx run build",
+    "test-py": "pip install --force dist/*.whl && python3 test.py",
 
-    "build-go": "",
+    "build-go": "cmake-js configure --CDGO=true",
     "test-go": ""
   },
   "dependencies": {
