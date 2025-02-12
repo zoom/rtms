@@ -7,12 +7,15 @@ lib/rtms_csdk/**
 
 *.pem
 
-# ignore all other js files
+# most js files
 **.js
 !index.js
 
+# all python files
+*.py
 
-# ignore C files (development)
+
+# all C files (development)
 *.c
 
 ### C++ template

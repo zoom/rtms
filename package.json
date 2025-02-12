@@ -6,8 +6,15 @@
   "type": "module",
   "scripts": {
     "install": "cmake-js configure",
-    "build-node": "cmake-js build --CDNODEJS=true",
-    "test": "node --env-file=.env test.js"
+    
+    "build-js": "cmake-js build --CDNODEJS=true",
+    "test-js": "node --env-file=.env test.js",
+
+    "build-py": "cmake-js build --CDPYTHON=true",
+    "test-py": "python3 test.py",
+
+    "build-go": "",
+    "test-go": ""
   },
   "dependencies": {
     "cmake-js": "^7.3.0",

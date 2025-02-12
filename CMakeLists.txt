@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25.1)
-project (rtms-sdk)
-set(CMAKE_CXX_STANDARD 20)
+project (rtms-sdk VERSION 0.0.1 LANGUAGES CXX)
 
+set(CMAKE_CXX_STANDARD 20)
 cmake_policy(SET CMP0091 NEW)
 cmake_policy(SET CMP0042 NEW)
 
@@ -37,16 +37,17 @@ if(NODEJS)
     endif()
 
 elseif(PYTHON)
-    find_package(Python3 COMPONENTS Interpreter Development)
+    find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 
-    add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES} ${CMAKE_JS_SRC}
-            src/rtms.h
-            src/rtms.cpp
-            src/python.cpp
-    )
+    set(PYBIND11_FINDPYTHON ON)
+    find_package(pybind11 CONFIG REQUIRED)
 
+    pybind11_add_module(rtms-sdk src/python.cpp)
+    install(TARGETS rtms-sdk DESTINATION .)
+    
     set_target_properties(${PROJECT_NAME})
-
+elseif(GOLANG)
+    
 endif()
 
 target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB} ${RTMS_LIB})
