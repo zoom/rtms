@@ -11,18 +11,18 @@ services:
   js:
     <<: *base
     environment:
-      - RTMS_SDK_LANG=js
+      - LANG=js
     ports:
       - 8080:8080
   py:
     <<: *base
     environment:
-      - RTMS_SDK_LANG=py
+      - LANG=py
     ports:
       - 8081:8080
   go:
     <<: *base
     environment:
-      - RTMS_SDK_LANG=go
+      - LANG=go
     ports:
       - 8082:8080
