@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
-npm install && npm test
+set -e
+
+[ -d "node_modules" ] || npm install;
+
+npm run build-node && npm test
 
 exit

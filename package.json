@@ -5,23 +5,28 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "install": "cmake-js build",
+    "install": "cmake-js configure",
+    "build-node": "cmake-js build --CDNODEJS=true",
     "test": "node --env-file=.env test.js"
   },
   "dependencies": {
     "cmake-js": "^7.3.0",
-    "node-addon-api": "^8.3.0",
-    "ws": "^8.18.0"
+    "node-addon-api": "^8.3.0"
   },
   "binary": {
     "napi_versions": [
       4
     ]
   },
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/zoom/rtms-sdk.git"
   },
+  "bugs": {
+    "url": "https://github.com/zoom/rtms-sdk/issues"
+  },
+  "homepage": "https://github.com/zoom/rtms-sdk#readme",
   "keywords": [
     "zoom",
     "rtms",
@@ -29,10 +34,5 @@
     "realtime",
     "media",
     "streaming"
-  ],
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/zoom/rtms-sdk/issues"
-  },
-  "homepage": "https://github.com/zoom/rtms-sdk#readme"
+  ]
 }

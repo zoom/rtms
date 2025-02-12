@@ -1,5 +1,6 @@
 ### Build
 .idea
+.vscode
 build
 lib/rtms_csdk/**
 !lib/rtms_csdk/.gitkeep

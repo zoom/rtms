@@ -1,59 +1,67 @@
-import rtms from './rtms.cjs'
 import {createHmac} from 'crypto'
-import { WebSocketServer } from 'ws';
+import {createServer} from 'http'
 
-const socketMap = new Map();
-const wss = new WebSocketServer({ port: process.env.WS_PORT || 8080 });
+import { createRequire } from "module";
+const req = createRequire(import.meta.url);
+
+const rtms = req('./build/Release/rtms-sdk.node');
+
+const port = process.env['ZOOM_WEBHOOK_PORT'] || 8080;
+const path = process.env['ZOOM_WEBHOOK_PATH'] || '/'
+
+const headers = {
+    'Content-Type': 'text/plain'
+}
+
+let server;
+
+export const  onWebhookEvent = (callback) => {
+
+    if (server?.listening()) return;
+
+    server = createServer((req, res) => {
+        if (req.method !== 'POST' || req.url !== path) {
+            res.writeHead(404,  headers);
+            res.end("Not Found")
+            return
+        }
+
+        let body = '';
+
+        req.on('data', chunk => {
+            body += chunk.toString();
+        })
+
+        req.on('end', () => {
+            try {
+                const payload = JSON.parse(body);
+                
+                callback(payload);
+                
+                res.writeHead(200, headers)
+                res.end()
+            } catch (e) {
+                console.error("parsing webhook JSON", e);
+                res.writeHead(400, headers);
+                res.end("invalid JSON received")
+
+            }
+        })
+    })
+
+    server.listen(port, () => {
+        console.log(`listening for events at http://localhost:${port}${path}`)
+    })
+}
 
 export const generateSignature = (clientId, clientSecret, uuid, sessionId) =>
     createHmac('sha256', clientSecret)
     .update(`${clientId},${uuid},${sessionId}`)
     .digest('hex')
 
-
-export const join = (uuid, sessionId, signature, timeout=0) => {
-    wss.on('connection', ws => {
-        ws.on('message', message => {
-
-            const expected = "SIGNALING_HAND_SHAKE_RESP";
-            if (message.msg_type !== expected)
-                ws.close(1002, `Expected ${expected} msg_type`)
-
-            const code = message.status_code;
-            if (!code) {
-                const reason = message.reason
-                ws.close(1002, `failed with status_code ${code}: ${reason}`)
-            }
-
-            socketMap.set(uuid, {
-                ws,
-                mediaServer: message.media_server
-            });
-
-            ws.send({
-                msg_type: "CLIENT_READY_ACK",
-                rtms_stream_id: sessionId
-            })
-
-            rtms._join(uuid, sessionId, signature, ws.url, timeout);
-
-        });
-
-        ws.on('close', () => socketMap.delete(uuid));
-
-        ws.send({
-            msg_type: "SIGNALING_HAND_SHAKE_REQ",
-            protocol_version: 1,
-            sequence: 0,
-            meeting_uuid: uuid,
-            rtms_stream_id: sessionId,
-            signature: signature
-        });
-    });
-}
-
+    
 export default {
     generateSignature,
-    join,
+    onWebhookEvent,
     ...rtms
 }

@@ -46,21 +46,19 @@ Value join (const CallbackInfo& info) {
 
 
 void onJoinConfirm(struct rtms_csdk* sdk, int reason) {
-
-
     auto callback = [&]( Napi::Env env, Function jsCallback) {
         jsCallback.Call({Number::New( env, reason )});
     };
 
     cb_onJoinConfirm.thread = std::thread([&] {
+        if (reason != RTMS_SDK_OK) {
+            RTMS::checkErr(reason, "failed to join");
+            return rtms.stop();
+        }
+
         cb_onJoinConfirm.tsfn.BlockingCall(callback);
         cb_onJoinConfirm.tsfn.Release();
     });
-
-    if (reason != RTMS_SDK_OK) {
-        RTMS::checkErr(reason, "failed to join");
-        return rtms.stop();
-    }
 }
 
 
@@ -158,11 +156,34 @@ void onLeave(struct rtms_csdk *sdk, int reason){
     };
 
     cb_onJoinConfirm.thread = std::thread([&] {
+        rtms.stop();
+
         cb_onJoinConfirm.tsfn.BlockingCall(callback);
         cb_onJoinConfirm.tsfn.Release();
     });
+
 }
 
+Value setCallback(const string& name, CallbackThread& cbt, const CallbackInfo& info) {
+    auto env = info.Env();
+
+    if (!info.Length() || !info[0].IsFunction())
+        throw TypeError::New(env, "missing required callback argument");
+
+    auto fn = info[0].As<Function>();
+
+    cbt.tsfn = ThreadSafeFunction::New(
+            env,
+            fn,                       // JavaScript function called asynchronously
+            name,         // Name
+            0,                       // Unlimited queue
+            1,                       // Only one thread will use this initially
+            [&]( Napi::Env ) {        // Finalizer used to clean threads up
+                cbt.thread.join();
+            } );
+
+    return info.Env().Null();
+}
 
 Value init(const CallbackInfo& info) {
     auto env = info.Env();
@@ -183,27 +204,6 @@ Value init(const CallbackInfo& info) {
     rtms.setOnLeave(onLeave);
 
     rtms.init(ca);
-
-    return info.Env().Null();
-}
-
-Value setCallback(const string& name, CallbackThread& cbt, const CallbackInfo& info) {
-    auto env = info.Env();
-
-    if (!info.Length() || !info[0].IsFunction())
-        throw TypeError::New(env, "missing required callback argument");
-
-    auto fn = info[0].As<Function>();
-
-    cbt.tsfn = ThreadSafeFunction::New(
-            env,
-            fn,                       // JavaScript function called asynchronously
-            name,         // Name
-            0,                       // Unlimited queue
-            1,                       // Only one thread will use this initially
-            [&]( Napi::Env ) {        // Finalizer used to clean threads up
-                cbt.thread.join();
-            } );
 
     return info.Env().Null();
 }
@@ -238,7 +238,7 @@ Object Init(Env env, Object exports) {
     exports.Set(String::New(env, "init"),
                 Function::New(env, init));
 
-    exports.Set(String::New(env,"_join"),
+    exports.Set(String::New(env,"join"),
                 Function::New(env, join));
 
     exports.Set(String::New(env, "onJoinConfirm"),

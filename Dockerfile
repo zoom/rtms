@@ -1,11 +1,6 @@
 FROM node:latest AS base
 
-ARG DEBIAN_FRONTEND=noninteractive
-
-ENV PROJECT=rtms-sdk
-ENV CWD=/tmp/$PROJECT
-ENV TINI_DIR=/usr/bin/tini
-
+ENV CWD=/tmp/rtms-sdk
 WORKDIR $CWD
 
 RUN apt-get update  \
@@ -13,9 +8,12 @@ RUN apt-get update  \
     cmake \
     curl \
     tini \
+    python3 \
+    python3-pip \
+    python3-dev \
     unzip \
     zip \
-    && chmod +x ${TINI_DIR} \
+    && chmod +x /usr/bin/tini \
     && npm install -g cmake-js
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
