@@ -2,8 +2,17 @@
 
 set -e
 
-[ -d "node_modules" ] || npm install;
 
-npm run build-node && npm test
+lang="${LANG:-js}"
+
+
+if [ "$lang" == "js" ] && [ ! -d "node_modules" ]; then 
+    npm install;
+fi
+
+
+cmd="npm run build-$lang && npm run test-$lang" 
+
+eval $cmd
 
 exit

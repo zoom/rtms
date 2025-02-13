@@ -5,16 +5,21 @@ WORKDIR $CWD
 
 RUN apt-get update  \
     && apt-get install -y \
-    cmake \
-    curl \
-    tini \
-    python3 \
-    python3-pip \
-    python3-dev \
-    unzip \
-    zip \
+        cmake \
+        python3-full \
+        python3-pip \
+        pipx \
+        tini \
     && chmod +x /usr/bin/tini \
-    && npm install -g cmake-js
+    && npm config set update-notifier false \
+    && python3 -m venv /opt/venv
+    
+ENV PATH="/opt/venv/bin:$PATH"
+
+# we need to link to the C SDK when running our python module
+ENV LD_LIBRARY_PATH="${CWD}/lib/rtms_csdk/:$LD_LIBRARY_PATH"
+
+RUN pip install "pybind11[global]"  
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
