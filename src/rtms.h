@@ -2,7 +2,6 @@
 #ifndef RTMS_JS_SDK_RTMS_H
 #define RTMS_JS_SDK_RTMS_H
 
-#include <napi.h>
 #include <functional>
 #include <sstream>
 #include "rtms_csdk.h"
@@ -61,6 +60,13 @@ public:
     void setOnVideoData(onVideoDataFunc f);
     void setOnTranscriptData(onTranscriptDataFunc f);
     void setOnLeave(onLeaveFunc f);
+
+    typedef function<void(int)> onJoinConfirmFn;
+    typedef function<void(int, struct session_info* session)> onSessionUpdateFn;
+    typedef function<void(unsigned char*, int, unsigned int, struct rtms_metadata*)> onAudioDataFn;
+    typedef function<void(unsigned char*, int, unsigned int, const char*, struct rtms_metadata*)> onVideoDataFn;
+    typedef function<void(unsigned char*, int, unsigned int, struct rtms_metadata*)> onTranscriptDataFn;
+    typedef function<void(int)> onLeaveFn;
 
     static bool checkErr(const int& code, const string& message, bool except=true) {
         auto isOk = code == RTMS_SDK_OK;

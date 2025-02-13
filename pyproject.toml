@@ -1,0 +1,18 @@
+[project]
+name = "rtms_sdk"
+version = "0.0.1"
+
+[build-system]
+requires = ["scikit-build-core", "pybind11"]
+build-backend = "scikit_build_core.build"
+
+[tool.scikit-build]
+sdist.include = ["lib/**/*"]
+
+[tool.scikit-build.cmake.define]
+PYTHON = "true"
+
+
+
+
+
