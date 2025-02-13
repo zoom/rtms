@@ -14,29 +14,37 @@ include_directories(${CMAKE_JS_INC})
 include_directories(${RTMS_SDK})
 link_directories(${RTMS_LIB} ${RTMS_LIB})
 
-file(GLOB SOURCE_FILES "src/**/*.cpp")
-file(GLOB HEADER_FILES "src/**/*.h")
+file(GLOB SOURCE_FILES src/rtms.h src/rtms.cpp)
 
-if(NODEJS)
+
+if(NODE)
     add_definitions(-DNAPI_VERSION=4)
     add_definitions(-DNODE_ADDON_API_CPP_EXCEPTIONS)
     add_definitions(-DNODE_ADDON_API_CPP_EXCEPTIONS_ALL)
 
     include_directories(node_modules/node-addon-api)
-    add_library(${PROJECT_NAME} SHARED ${CMAKE_JS_SRC} ${SOURCE_FILES} ${HEADER_FILES}
-        src/node.cpp
-    ) 
 
-    set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "" SUFFIX ".node")  
+    add_library(${PROJECT_NAME} SHARED ${CMAKE_JS_SRC} ${SOURCE_FILES}
+            src/node.cpp
+    )
+
+    set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "" SUFFIX ".node")
+
+    if(MSVC AND CMAKE_JS_NODELIB_DEF AND CMAKE_JS_NODELIB_TARGET)
+        # Generate node.lib
+        execute_process(COMMAND ${CMAKE_AR} /def:${CMAKE_JS_NODELIB_DEF} /out:${CMAKE_JS_NODELIB_TARGET} ${CMAKE_STATIC_LINKER_FLAGS})
+    endif()
+
     target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB} ${RTMS_LIB})
-
 elseif(PYTHON)
     set(PYBIND11_FINDPYTHON ON)
     find_package(pybind11 CONFIG REQUIRED)
 
-    pybind11_add_module(${PROJECT_NAME}
+    pybind11_add_module(${PROJECT_NAME} ${SOURCE_FILES}
         src/python.cpp
     )
+
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${RTMS_LIB})
 
     install(TARGETS ${PROJECT_NAME} DESTINATION .)
 elseif(GOLANG)

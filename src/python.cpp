@@ -1,6 +1,9 @@
 #include <pybind11/pybind11.h>
+#include "rtms.h"
 
 namespace py = pybind11;
+
+RTMS rtms;
 
 
 int add(int i, int j) {

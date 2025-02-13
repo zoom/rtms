@@ -2,7 +2,6 @@
 #ifndef RTMS_JS_SDK_RTMS_H
 #define RTMS_JS_SDK_RTMS_H
 
-#include <napi.h>
 #include <functional>
 #include <sstream>
 #include "rtms_csdk.h"

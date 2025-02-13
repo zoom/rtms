@@ -14,6 +14,8 @@ RUN apt-get update  \
     && python3 -m venv /opt/venv
 
 ENV PATH="/opt/venv/bin:$PATH"
+ENV LD_LIBRARY_PATH="${CWD}/lib/rtms_csdk/:$LD_LIBRARY_PATH"
+
 RUN pip install "pybind11[global]"  
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
