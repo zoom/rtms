@@ -1,22 +1,30 @@
 ### Build
-.idea
-.vscode
 build
+*.pem
+
+### Zoom RTMS C SDK
 lib/rtms_csdk/**
 !lib/rtms_csdk/.gitkeep
-
-*.pem
 
 # most js files
 **.js
 !index.js
 
-# all python files
+# only allow files where we want them
 *.py
+!src/rtms_sdk/**/*.py
+
+*.js
+!bin/index.js
 
 
-# all C files (development)
 *.c
+
+### IDEs
+.idea
+.vscode
+
+# MacOS
 .DS_Store
 
 ### C++ template

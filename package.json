@@ -5,13 +5,12 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "install": "cmake-js configure",
-
-    "build-js": "cmake-js build --CDNODE=true",
+    "install": "cmake-js configure --out dist",
+    "build-js": "cmake-js build --out dist --CDNODE=true",
     "test-js": "node --env-file=.env test.js",
 
-    "build-py": "pipx run build",
-    "test-py": "pip install --force dist/*.whl && python3 test.py",
+    "build-py": "pipx run build --outdir dist/py",
+    "test-py": "pip install --force dist/py/*.whl && python3 test.py",
 
     "build-go": "cmake-js configure --CDGO=true",
     "test-go": ""

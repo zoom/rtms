@@ -4,7 +4,7 @@ import {createServer} from 'http'
 import { createRequire } from "module";
 const req = createRequire(import.meta.url);
 
-const rtms = req('./build/Release/rtms_sdk.node');
+const rtms = req('./rtms_sdk.node');
 
 const port = process.env['ZOOM_WEBHOOK_PORT'] || 8080;
 const path = process.env['ZOOM_WEBHOOK_PATH'] || '/'

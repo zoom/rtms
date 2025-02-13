@@ -16,20 +16,32 @@ link_directories(${RTMS_LIB} ${RTMS_LIB})
 
 file(GLOB SOURCE_FILES src/rtms.h src/rtms.cpp)
 
-
 if(NODE)
+    set(NODE_SRC ${CMAKE_SOURCE_DIR}/bin)
+    set(NODE_DIST ${CMAKE_SOURCE_DIR}/dist/js/rtms-sdk)
+
+    file(MAKE_DIRECTORY ${NODE_DIST})
+    file(COPY ${NODE_SRC}/index.js DESTINATION ${NODE_DIST})
+
+
     add_definitions(-DNAPI_VERSION=4)
     add_definitions(-DNODE_ADDON_API_CPP_EXCEPTIONS)
     add_definitions(-DNODE_ADDON_API_CPP_EXCEPTIONS_ALL)
 
     include_directories(node_modules/node-addon-api)
 
+
     add_library(${PROJECT_NAME} SHARED ${CMAKE_JS_SRC} ${SOURCE_FILES}
             src/node.cpp
     )
 
-    set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "" SUFFIX ".node")
+    set_target_properties(${PROJECT_NAME} 
+        PROPERTIES PREFIX "" SUFFIX ".node"
+        LIBRARY_OUTPUT_DIRECTORY ${NODE_DIST}
+        RUNTIME_OUTPUT_DIRECTORY ${NODE_DIST}
+    )
 
+    
     if(MSVC AND CMAKE_JS_NODELIB_DEF AND CMAKE_JS_NODELIB_TARGET)
         # Generate node.lib
         execute_process(COMMAND ${CMAKE_AR} /def:${CMAKE_JS_NODELIB_DEF} /out:${CMAKE_JS_NODELIB_TARGET} ${CMAKE_STATIC_LINKER_FLAGS})

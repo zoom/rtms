@@ -11,9 +11,12 @@ RUN apt-get update  \
         pipx \
         tini \
     && chmod +x /usr/bin/tini \
+    && npm config set update-notifier false \
     && python3 -m venv /opt/venv
-
+    
 ENV PATH="/opt/venv/bin:$PATH"
+
+# we need to link to the C SDK when running our python module
 ENV LD_LIBRARY_PATH="${CWD}/lib/rtms_csdk/:$LD_LIBRARY_PATH"
 
 RUN pip install "pybind11[global]"  
