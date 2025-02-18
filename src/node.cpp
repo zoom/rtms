@@ -231,7 +231,7 @@ Object Init(Env env, Object exports) {
     exports.Set(String::New(env, "init"),
                 Function::New(env, init));
 
-    exports.Set(String::New(env,"_join"),
+    exports.Set(String::New(env,"join"),
                 Function::New(env, join));
 
     exports.Set(String::New(env, "onJoinConfirm"),
