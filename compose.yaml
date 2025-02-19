@@ -1,4 +1,4 @@
-name: rtms-sdk
+name: rtms
 
 x-base: &base
   build: .
@@ -8,8 +8,8 @@ x-base: &base
   security_opt:
     - seccomp:unconfined
   volumes:
-    - .:/tmp/rtms-sdk
-    - ./logs:/tmp/rtms-sdk/logs
+    - .:/tmp/rtms
+    - ./logs:/tmp/rtms/logs
 
 services:
   js:

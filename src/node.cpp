@@ -255,4 +255,4 @@ Object Init(Env env, Object exports) {
     return exports;
 }
 
-NODE_API_MODULE(rtms-sdk, Init);
+NODE_API_MODULE(rtms, Init);

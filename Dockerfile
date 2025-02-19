@@ -1,6 +1,6 @@
 FROM node:latest AS base
 
-ENV CWD=/tmp/rtms-sdk
+ENV CWD=/tmp/rtms
 WORKDIR $CWD
 
 RUN apt-get update  \
