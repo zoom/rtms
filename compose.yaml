@@ -10,7 +10,15 @@ x-base: &base
   volumes:
     - .:/tmp/rtms
     - ./logs:/tmp/rtms/logs
-
+  develop:
+    watch:
+      - action: rebuild
+        path: ./
+        ignore: 
+          - dist
+          - logs
+          - node_modules
+        target: /tmp/rtms
 services:
   js:
     <<: *base

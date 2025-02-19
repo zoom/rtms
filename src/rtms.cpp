@@ -6,6 +6,9 @@ RTMS::RTMS() {
 }
 
 int RTMS::init(const string &ca_path) {
+    if (_isInit) 
+        return 0;
+
     auto ret = rtms_init(ca_path.c_str());
     checkErr(ret, "failed to init RTMS CSDK");
 
@@ -23,6 +26,8 @@ int RTMS::init(const string &ca_path) {
 
     rtms_set_callbacks(_sdk, &_options);
     checkErr(ret, "failed to set callbacks for RTMS CSDK");
+
+    _isInit = ret;
 
     return ret;
 }
@@ -42,6 +47,11 @@ int RTMS::join(const string &uuid, const string &session_id, const string &signa
 
 void RTMS::stop() {
     _isRunning = false;
+}
+
+bool RTMS::isInit() const
+{
+    return _isInit;
 }
 
 RTMS::~RTMS() {

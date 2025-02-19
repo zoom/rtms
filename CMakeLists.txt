@@ -21,7 +21,7 @@ if(NODE)
     set(NODE_DIST ${CMAKE_SOURCE_DIR}/dist/js/)
 
     file(MAKE_DIRECTORY ${NODE_DIST})
-    file(COPY ${NODE_SRC}/index.js DESTINATION ${NODE_DIST})
+    configure_file(${NODE_SRC}/index.js ${NODE_DIST} COPYONLY)
 
     add_definitions(-DNAPI_VERSION=4)
     add_definitions(-DNODE_ADDON_API_CPP_EXCEPTIONS)

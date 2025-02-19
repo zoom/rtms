@@ -13,7 +13,6 @@ fi
 
 cmd="npm run build-$lang && npm run test-$lang" 
 
-sleep 20000
 eval $cmd
 
 exit

@@ -180,6 +180,10 @@ Value init(const CallbackInfo& info) {
     return info.Env().Null();
 }
 
+Value isInit(const CallbackInfo& info) {
+    return Boolean::New(info.Env(), rtms.isInit());
+}
+
 Value setCallback(const string& name, CallbackThread& cbt, const CallbackInfo& info) {
     auto env = info.Env();
 
@@ -228,11 +232,14 @@ Value setOnLeave(const CallbackInfo& info) {
 
 
 Object Init(Env env, Object exports) {
-    exports.Set(String::New(env, "init"),
+    exports.Set(String::New(env, "_init"),
                 Function::New(env, init));
 
-    exports.Set(String::New(env,"join"),
+    exports.Set(String::New(env,"_join"),
                 Function::New(env, join));
+
+    exports.Set(String::New(env, "_isInit"),
+                Function::New(env, isInit));
 
     exports.Set(String::New(env, "onJoinConfirm"),
                 Function::New(env, setOnJoinConfirm));

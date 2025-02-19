@@ -4,10 +4,14 @@ import {createServer} from 'http'
 import { createRequire } from "module";
 const req = createRequire(import.meta.url);
 
-const rtms = req('./rtms_sdk.node');
+const rtms = req('./rtms.node');
 
-const port = process.env['ZOOM_WEBHOOK_PORT'] || 8080;
-const path = process.env['ZOOM_WEBHOOK_PATH'] || '/'
+const port = process.env['ZM_RTMS_PORT'] || 8080;
+const path = process.env['ZM_RTMS_PATH'] || '/'
+
+const clientId = process.env['ZM_RTMS_CLIENT']
+const clientSecret = process.env['ZM_RTMS_SECRET']
+const caCert = process.env['ZM_RTMS_CA']
 
 const headers = {
     'Content-Type': 'text/plain'
@@ -59,9 +63,25 @@ export const generateSignature = (clientId, clientSecret, uuid, sessionId) =>
     .update(`${clientId},${uuid},${sessionId}`)
     .digest('hex')
 
-    
+
+export const join = ({meeting_uuid, rtms_stream_id, server_url}, ca=caCert, client=clientId, secret=clientSecret) => {
+    if (!rtms._isInit())
+        rtms._init(ca || "ca.pem")
+
+    if (!client)
+        throw new ReferenceError("Zoom Client Id cannot be empty")
+
+    if (!secret)
+        throw new ReferenceError("Zooom Client Secret cannot be empty")
+
+    const signature = generateSignature(client, secret, meeting_uuid, rtms_stream_id);
+
+    rtms._join(meeting_uuid, rtms_stream_id, signature, server_url)
+}
+
 export default {
     generateSignature,
     onWebhookEvent,
+    join,
     ...rtms
 }

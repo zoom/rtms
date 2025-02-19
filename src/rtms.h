@@ -31,6 +31,7 @@ class RTMS {
     onTranscriptDataFunc _onTranscriptData;
     onLeaveFunc _onLeave;
 
+    bool _isInit;
     bool _isRunning;
     bool _useVideo;
     bool _useAudio;
@@ -45,6 +46,8 @@ public:
     int join(const string& uuid, const string& session_id, const string& signature, const string& signal_url, const int& timeout = -1);
 
     void stop();
+
+    bool isInit() const;
 
     void enableTranscript(bool useTranscript);
     void enableAudio(bool use_audio);
