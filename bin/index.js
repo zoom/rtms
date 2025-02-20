@@ -64,19 +64,19 @@ export const generateSignature = (clientId, clientSecret, uuid, sessionId) =>
     .digest('hex')
 
 
-export const join = ({meeting_uuid, rtms_stream_id, server_url}, ca=caCert, client=clientId, secret=clientSecret) => {
+export const join = ({meeting_uuid, rtms_stream_id, server_urls}, ca=caCert, client=clientId, secret=clientSecret) => {
     if (!rtms._isInit())
         rtms._init(ca || "ca.pem")
 
     if (!client)
-        throw new ReferenceError("Zoom Client Id cannot be empty")
+        throw new ReferenceError("ZM_RTMS_CLIENT cannot be empty")
 
     if (!secret)
-        throw new ReferenceError("Zooom Client Secret cannot be empty")
+        throw new ReferenceError("ZM_RTMS_SECRET cannot be empty")
 
     const signature = generateSignature(client, secret, meeting_uuid, rtms_stream_id);
 
-    rtms._join(meeting_uuid, rtms_stream_id, signature, server_url)
+    rtms._join(meeting_uuid, rtms_stream_id, signature, server_urls)
 }
 
 export default {

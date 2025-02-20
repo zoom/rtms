@@ -4,6 +4,7 @@
 
 #include <functional>
 #include <sstream>
+#include <thread>
 #include "rtms_csdk.h"
 
 using namespace std;
@@ -41,17 +42,18 @@ public:
     RTMS();
     ~RTMS();
 
-    int init(const string& ca_path);
+    int init(const string& ca);
 
-    int join(const string& uuid, const string& session_id, const string& signature, const string& signal_url, const int& timeout = -1);
+    int join(const string& uuid, const string& sessionId, const string& signature, const string& serverUrls, const int& timeout = -1);
 
     void stop();
 
     bool isInit() const;
+    bool isRunning() const;
 
     void enableTranscript(bool useTranscript);
-    void enableAudio(bool use_audio);
-    void enableVideo(bool use_video);
+    void enableAudio(bool useAudio);
+    void enableVideo(bool useVideo);
 
     void setMediaTypes(bool audio, bool video, bool transcript);
     void setAudioParam(const audio_parameters& param);
@@ -74,7 +76,7 @@ public:
     static bool checkErr(const int& code, const string& message, bool except=true) {
         auto isOk = code == RTMS_SDK_OK;
         ostringstream out;
-        out << "error (" << code << "): " << message << endl;
+        out << "(" << code << "): " << message << endl;
 
         if (!isOk && except)
             throw logic_error(out.str());
