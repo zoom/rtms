@@ -12,7 +12,7 @@ lib/rtms_csdk/**
 
 # only allow files where we want them
 *.py
-!src/rtms_sdk/**/*.py
+!src/rtms/**/*.py
 
 *.js
 !bin/index.js

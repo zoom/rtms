@@ -33,10 +33,10 @@ int RTMS::init(const string &ca) {
     return 0;
 }
 
-int RTMS::join(const string &uuid, const string &sessionId, const string &signature, const string &serverUrls,
+int RTMS::join(const string &uuid, const string &streamId, const string &signature, const string &serverUrls,
                const int &timeout) {
 
-    auto ret = rtms_join(_sdk, uuid.c_str(), sessionId.c_str(), signature.c_str(), serverUrls.c_str(), timeout);
+    auto ret = rtms_join(_sdk, uuid.c_str(), streamId.c_str(), signature.c_str(), serverUrls.c_str(), timeout);
 
     _isRunning = checkErr(ret, "failed to join event " + uuid);
 

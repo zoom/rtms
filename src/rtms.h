@@ -1,6 +1,6 @@
 
-#ifndef RTMS_JS_SDK_RTMS_H
-#define RTMS_JS_SDK_RTMS_H
+#ifndef RTMS_H
+#define RTMS_H
 
 #include <functional>
 #include <sstream>
@@ -10,6 +10,18 @@
 using namespace std;
 
 class RTMS {
+    rtms_csdk *_sdk;
+    media_parameters _mediaParam;
+    audio_parameters _audioParam;
+    video_parameters _videoParam;
+
+    rtms_csdk_ops _options;
+
+    bool _isInit;
+    bool _isRunning;
+    bool _useVideo;
+    bool _useAudio;
+    bool _useTranscript;
 
     typedef void (*onJoinConfirmFunc)(struct rtms_csdk *sdk, int reason);
     typedef void (*onSessionUpdateFunc)(struct rtms_csdk *sdk, int op, struct session_info *sess);
@@ -18,13 +30,6 @@ class RTMS {
     typedef void (*onTranscriptDataFunc)(struct rtms_csdk *sdk, unsigned char *buf, int size, unsigned int timestamp, struct rtms_metadata *md);
     typedef void (*onLeaveFunc)(struct rtms_csdk *sdk, int reason);
 
-    rtms_csdk *_sdk;
-    media_parameters _mediaParam;
-    audio_parameters _audioParam;
-    video_parameters _videoParam;
-
-    rtms_csdk_ops _options;
-
     onJoinConfirmFunc _onJoinConfirm;
     onSessionUpdateFunc _onSessionUpdate;
     onAudioDataFunc _onAudioData;
@@ -32,19 +37,13 @@ class RTMS {
     onTranscriptDataFunc _onTranscriptData;
     onLeaveFunc _onLeave;
 
-    bool _isInit;
-    bool _isRunning;
-    bool _useVideo;
-    bool _useAudio;
-    bool _useTranscript;
-
 public:
     RTMS();
     ~RTMS();
 
     int init(const string& ca);
 
-    int join(const string& uuid, const string& sessionId, const string& signature, const string& serverUrls, const int& timeout = -1);
+    int join(const string& uuid, const string& streamId, const string& signature, const string& serverUrls, const int& timeout = -1);
 
     void stop();
 
@@ -86,4 +85,4 @@ public:
 };
 
 
-#endif //RTMS_JS_SDK_RTMS_H
+#endif //RTMS_H
