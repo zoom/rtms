@@ -6,17 +6,12 @@ build
 lib/rtms_csdk/**
 !lib/rtms_csdk/.gitkeep
 
-# most js files
-**.js
-!index.js
-
 # only allow files where we want them
 *.py
 !src/rtms/**/*.py
 
 *.js
-!bin/index.js
-
+!src/rtms/**/*.js
 
 *.c
 
