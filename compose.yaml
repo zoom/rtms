@@ -23,18 +23,18 @@ services:
   js:
     <<: *base
     environment:
-      - LANG=js
+      - ZM_RTMS_LANG=js
     ports:
       - 8080:8080
   py:
     <<: *base
     environment:
-      - LANG=py
+      - ZM_RTMS_LANG=py
     ports:
       - 8081:8080
   go:
     <<: *base
     environment:
-      - LANG=go
+      - ZM_RTMS_LANG=go
     ports:
       - 8082:8080

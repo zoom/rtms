@@ -47,7 +47,6 @@ void onSessionUpdate(struct rtms_csdk* sdk, int op, struct session_info* session
 
     Object sessionInfo = Object::New(env);
     sessionInfo.Set("sessionId", string(session->session_id));
-    sessionInfo.Set("operatorId", string(session->operator_id));
     sessionInfo.Set("statTime", session->stat_time);
     sessionInfo.Set("status", session->status);
 

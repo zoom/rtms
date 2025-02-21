@@ -3,18 +3,13 @@ import {createServer} from 'http'
 
 import { createRequire } from "module";
 const req = createRequire(import.meta.url);
-const rtms = req('./rtms.node');
+const rtms = req('./_rtms.node');
 
-let server, port, path = "";
+let server, port, path;
 
-export const  onWebhookEvent = (callback) => {
+export const onWebhookEvent = (callback) => {
 
     if (server?.listening()) return;
-
-    const headers = {
-        'Content-Type': 'text/plain'
-    }
-    
 
     port = process.env['ZM_RTMS_PORT'] || 8080;
     path = process.env['ZM_RTMS_PATH'] || '/'
@@ -27,6 +22,10 @@ export const  onWebhookEvent = (callback) => {
         }
 
         let body = '';
+        const headers = {
+            'Content-Type': 'text/plain'
+        }
+        
 
         req.on('data', chunk => {
             body += chunk.toString();
@@ -49,14 +48,14 @@ export const  onWebhookEvent = (callback) => {
         })
     })
 
-    server.listen(port, () => {
+    server.listen(port, () =>
         console.log(`listening for events at http://localhost:${port}${path}`)
-    })
+    )
 }
 
-export const generateSignature = (clientId, clientSecret, uuid, streamId) => {
-    const clientId = process.env['ZM_RTMS_CLIENT'] || clientId
-    const clientSecret = process.env['ZM_RTMS_SECRET'] || clientSecret
+export const generateSignature = ({client, secret, uuid, streamId}) => {
+    const clientId = process.env['ZM_RTMS_CLIENT'] || client
+    const clientSecret = process.env['ZM_RTMS_SECRET'] || secret
 
     if (!clientId)
         throw new ReferenceError("Client Id cannot be blank")
@@ -70,14 +69,16 @@ export const generateSignature = (clientId, clientSecret, uuid, streamId) => {
 }
 
 
-export const join = ({meeting_uuid, rtms_stream_id, server_urls}, timeout= -1, ca="ca.pem", client="", secret="") => {
+export const join = ({meeting_uuid, rtms_stream_id, server_urls, timeout= -1, ca="ca.pem", client="", secret="", signature=""}) => {
     const caCert = process.env['ZM_RTMS_CA'] || ca
 
     if (!rtms._isInit())
         rtms._init(caCert)
 
-    const signature = generateSignature(client, secret, meeting_uuid, rtms_stream_id);
-    rtms._join(meeting_uuid, rtms_stream_id, signature, server_urls, timeout)
+    const sign = signature || generateSignature(client, secret, meeting_uuid, rtms_stream_id);
+
+    console.log("joining", meeting_uuid);
+    rtms._join(meeting_uuid, rtms_stream_id, sign, server_urls, timeout)
 }
 
 export default {

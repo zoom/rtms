@@ -5,7 +5,6 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "install": "cmake-js configure --out dist",
     "build-js": "cmake-js build --out dist --CDNODE=true",
     "test-js": "node --env-file=.env test.js",
 

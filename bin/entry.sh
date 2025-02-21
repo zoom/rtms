@@ -3,7 +3,7 @@
 set -e
 
 
-lang="${LANG:-js}"
+lang="${ZM_RTMS_LANG:-js}"
 
 
 if [ "$lang" == "js" ] && [ ! -d "node_modules" ]; then 

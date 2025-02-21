@@ -8,13 +8,18 @@ cmake_policy(SET CMP0042 NEW)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 set(RTMS_SDK ${CMAKE_SOURCE_DIR}/lib/rtms_csdk)
-set(RTMS_LIB ${RTMS_SDK}/librtmsdk.so)
+set(RTMS_LIB ${RTMS_SDK}/librtmsdk.so.0.0.1.20250219)
+
 
 include_directories(${CMAKE_JS_INC})
-include_directories(${RTMS_SDK})
-link_directories(${RTMS_LIB} ${RTMS_LIB})
+include_directories(${RTMS_SDK}/h)
 
 file(GLOB SOURCE_FILES src/rtms.h src/rtms.cpp)
+
+# Your-external "mylib", add GLOBAL if the imported library is located in directories above the current.
+add_library( rtmSdk SHARED IMPORTED )
+# You can define two import-locations: one for debug and one for release.
+set_target_properties( rtmSdk PROPERTIES IMPORTED_LOCATION ${RTMS_LIB} )
 
 if(NODE)
     set(NODE_SRC ${CMAKE_SOURCE_DIR}/src/rtms)
@@ -39,7 +44,7 @@ if(NODE)
         RUNTIME_OUTPUT_DIRECTORY ${NODE_DIST}
     )
 
-    target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB} ${RTMS_LIB})
+    target_link_libraries(${PROJECT_NAME} rtmSdk ${CMAKE_JS_LIB})
 elseif(PYTHON)
     set(PYBIND11_FINDPYTHON ON)
     find_package(pybind11 CONFIG REQUIRED)
