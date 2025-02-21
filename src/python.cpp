@@ -12,8 +12,6 @@ using namespace std;
 RTMS rtms;
 
 RTMS::onJoinConfirmFn fn_onJoinConfirm;
-thread t_onJoinConfirm;
-
 RTMS::onSessionUpdateFn fn_onSessionUpdate;
 RTMS::onAudioDataFn fn_onAudioData;
 RTMS::onVideoDataFn fn_onVideoData;
@@ -22,15 +20,7 @@ RTMS::onLeaveFn fn_onLeave;
 
 
 void onJoinConfirm(struct rtms_csdk* sdk, int reason) {
-    fn_onJoinConfirm(reason);
-
-     t_onJoinConfirm = thread([&]() {
-            py::gil_scoped_acquire acquire;
-            if (fn_onJoinConfirm) 
                 fn_onJoinConfirm(reason);
-            
-    });
-    t_onJoinConfirm.detach(); 
 }
 
 void onSessionUpdate(struct rtms_csdk* sdk,int op, struct session_info* session) {
@@ -63,20 +53,29 @@ void setOnLeave(const RTMS::onLeaveFn& fn) {
     fn_onLeave = fn;
 }
 
-bool init (const string& ca_path) {
+int init (const string& ca_path) {
     rtms.setOnJoinConfirm(onJoinConfirm);
     rtms.setOnSessionUpdate(onSessionUpdate);
     
-    return rtms.init(ca_path) == RTMS_SDK_OK;
+    return rtms.init(ca_path);
 }
 
+int join (const string& uuid, const string& streamId, const string& signature, const string& serverUrls, int timeout = -1) {
+    return rtms.join(uuid, streamId, signature, serverUrls, timeout);
+}
 
-PYBIND11_MODULE(rtms_sdk, m) {
-    m.doc() = "Zoom RTMS SDK Python Bindings"; // optional module docstring
+bool isInit() {
+    return rtms.isInit();
+}
 
-    m.def("init", &init);
+PYBIND11_MODULE(_rtms, m) {
+    m.doc() = "Zoom RTMS Python Bindings";
 
-    m.def("on_join_confirm", &setOnJoinConfirm, py::call_guard<py::gil_scoped_release>());
+    m.def("_init", &init);
+    m.def("_join", &join);
+    m.def("_is_init", &isInit);
+
+    m.def("on_join_confirm", &setOnJoinConfirm);
     m.def("on_session_update", &setOnSessionUpdate, py::call_guard<py::gil_scoped_release>());
     m.def("on_audio_data", &setOnAudioData, py::call_guard<py::gil_scoped_release>());
     m.def("on_video_data", &setOnVideoData, py::call_guard<py::gil_scoped_release>());

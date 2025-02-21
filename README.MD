@@ -1,4 +1,4 @@
-# RTMS SDK
+# Zoom Realtime Media Streaming
 
 The base project that builds the Zoom RTMS SDKs for Node.js, Python and Go.
 

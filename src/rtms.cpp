@@ -1,12 +1,18 @@
 #include "rtms.h"
+#include <iostream>
+#include <future>
+
 
 RTMS::RTMS() {
     _mediaParam.audio_param = &_audioParam;
     _mediaParam.video_param = &_videoParam;
 }
 
-int RTMS::init(const string &ca_path) {
-    auto ret = rtms_init(ca_path.c_str());
+int RTMS::init(const string &ca) {
+    if (_isInit) 
+        return 0;
+
+    auto ret = rtms_init(ca.c_str());
     checkErr(ret, "failed to init RTMS CSDK");
 
     _sdk = rtms_alloc();
@@ -21,27 +27,38 @@ int RTMS::init(const string &ca_path) {
     _options.on_transcript_data = _onTranscriptData;
     _options.on_leave = _onLeave;
 
-    rtms_set_callbacks(_sdk, &_options);
-    checkErr(ret, "failed to set callbacks for RTMS CSDK");
+    ret = rtms_set_callbacks(_sdk, &_options);
+    _isInit = checkErr(ret, "failed to set callbacks for RTMS CSDK");
 
-    return ret;
+    return 0;
 }
 
-int RTMS::join(const string &uuid, const string &session_id, const string &signature, const string &signal_url,
+int RTMS::join(const string &uuid, const string &streamId, const string &signature, const string &serverUrls,
                const int &timeout) {
 
-    auto ret = rtms_join(_sdk, uuid.c_str(), session_id.c_str(), signature.c_str(), signal_url.c_str(), timeout);
+    auto ret = rtms_join(_sdk, uuid.c_str(), streamId.c_str(), signature.c_str(), serverUrls.c_str(), timeout);
 
     _isRunning = checkErr(ret, "failed to join event " + uuid);
 
-    while (_isRunning)
-        checkErr(rtms_poll(_sdk), "unable to poll RTMS CSDK");
+    while(_isRunning)
+        _isRunning = checkErr(rtms_poll(_sdk), "failed to poll csdk");
 
-    return ret;
+    return 0;
 }
 
-void RTMS::stop() {
+void RTMS::stop() 
+{
     _isRunning = false;
+}
+
+bool RTMS::isInit() const
+{
+    return _isInit;
+}
+
+bool RTMS::isRunning() const
+{
+    return _isRunning;
 }
 
 RTMS::~RTMS() {
@@ -59,12 +76,12 @@ void RTMS::enableTranscript(bool useTranscript) {
     _useTranscript = useTranscript;
 }
 
-void RTMS::enableAudio(bool use_audio) {
-    _useAudio = use_audio;
+void RTMS::enableAudio(bool useAudio) {
+    _useAudio = useAudio;
 }
 
-void RTMS::enableVideo(bool use_video) {
-    _useVideo = use_video;
+void RTMS::enableVideo(bool useVideo) {
+    _useVideo = useVideo;
 }
 
 void RTMS::setAudioParam(const audio_parameters &param) {
@@ -77,7 +94,7 @@ void RTMS::setVideoParam(const video_parameters &param) {
 
 void RTMS::setOnJoinConfirm(RTMS::onJoinConfirmFunc f) {
     _onJoinConfirm = f;
-    _options.on_join_confirm = _onJoinConfirm;
+    _options.on_join_confirm = f;
 }
 
 void RTMS::setOnSessionUpdate(RTMS::onSessionUpdateFunc f) {

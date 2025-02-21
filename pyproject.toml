@@ -1,5 +1,5 @@
 [project]
-name = "rtms_sdk"
+name = "rtms"
 version = "0.0.1"
 
 [build-system]

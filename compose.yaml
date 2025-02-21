@@ -1,12 +1,24 @@
-name: rtms-sdk
+name: rtms
 
 x-base: &base
   build: .
   platform: linux/amd64
+  cap_add:
+    - SYS_PTRACE
+  security_opt:
+    - seccomp:unconfined
   volumes:
-    - .:/tmp/rtms-sdk
-    - ./logs:/tmp/rtms-sdk/logs
-
+    - .:/tmp/rtms
+    - ./logs:/tmp/rtms/logs
+  develop:
+    watch:
+      - action: rebuild
+        path: ./
+        ignore: 
+          - dist
+          - logs
+          - node_modules
+        target: /tmp/rtms
 services:
   js:
     <<: *base
