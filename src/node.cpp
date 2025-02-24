@@ -7,14 +7,20 @@
 
 using namespace Napi;
 
-RTMS rtms;
+struct Callbacks {
+    FunctionReference onJoinConfirm;
+    FunctionReference onSessionUpdate;
+    FunctionReference onUserUpdate;
+    FunctionReference onAudioData;
+    FunctionReference onVideoData;
+    FunctionReference onTranscriptData;
+    FunctionReference onLeave;
+};
 
-FunctionReference fn_onJoinConfirm;
-FunctionReference fn_onSessionUpdate;
-FunctionReference fn_onAudioData;
-FunctionReference fn_onVideoData;
-FunctionReference fn_onTranscriptData;
-FunctionReference fn_onLeave;
+
+RTMS rtms;
+Callbacks cb;
+
 
 Value setCallback(const CallbackInfo& info, FunctionReference& fn) {
     auto env = info.Env();
@@ -37,30 +43,43 @@ Object rtmsMetadata(const Env& env, struct rtms_metadata* md) {
 
 
 void onJoinConfirm(struct rtms_csdk* sdk, int reason) {
-    auto env = fn_onJoinConfirm.Env();
-    fn_onJoinConfirm.Call({Number::New(env, reason)});
+    auto env = cb.onJoinConfirm.Env();
+    cb.onJoinConfirm.Call({Number::New(env, reason)});
 }
 
 
 void onSessionUpdate(struct rtms_csdk* sdk, int op, struct session_info* session) {
-    auto env = fn_onSessionUpdate.Env();
+    auto env = cb.onSessionUpdate.Env();
 
     Object sessionInfo = Object::New(env);
     sessionInfo.Set("sessionId", string(session->session_id));
     sessionInfo.Set("statTime", session->stat_time);
     sessionInfo.Set("status", session->status);
 
-    fn_onSessionUpdate.Call({
+    cb.onSessionUpdate.Call({
         Number::New(env, op),
         sessionInfo
     });
 }
 
+void onUserUpdate(struct rtms_csdk* sdk, int op, struct participant_info* pi) {
+    auto env = cb.onUserUpdate.Env();
+
+    Object participantInfo = Object::New(env);
+    participantInfo.Set("participantId", pi->participant_id);
+    participantInfo.Set("participantName", string(pi->participant_name));
+
+    cb.onUserUpdate.Call({
+        Number::New(env, op),
+        participantInfo
+    });
+}
+
 
 void onAudioData(struct rtms_csdk *sdk, unsigned char *buf, int size, unsigned int timestamp, struct rtms_metadata *md) {
-    auto env = fn_onAudioData.Env();
+    auto env = cb.onAudioData.Env();
 
-    fn_onAudioData.Call({
+    cb.onAudioData.Call({
         Buffer<unsigned char>::New(env, buf, size),
         Number::New(env, size),
         Number::New(env, timestamp),
@@ -69,9 +88,9 @@ void onAudioData(struct rtms_csdk *sdk, unsigned char *buf, int size, unsigned i
 }
 
 void onVideoData(struct rtms_csdk *sdk, unsigned char *buf, int size, unsigned int timestamp, const char *rtms_session_id, struct rtms_metadata *md){
-    auto env = fn_onVideoData.Env();
+    auto env = cb.onVideoData.Env();
 
-    fn_onVideoData.Call({
+    cb.onVideoData.Call({
         Buffer<unsigned char>::New(env, buf, size),
         Number::New(env, size),
         Number::New(env, timestamp),
@@ -80,9 +99,9 @@ void onVideoData(struct rtms_csdk *sdk, unsigned char *buf, int size, unsigned i
 }
 
 void onTranscriptData(struct rtms_csdk *sdk, unsigned char *buf, int size, unsigned int timestamp, struct rtms_metadata *md){
-    auto env = fn_onTranscriptData.Env();
+    auto env = cb.onTranscriptData.Env();
 
-    fn_onTranscriptData.Call({
+    cb.onTranscriptData.Call({
         Buffer<unsigned char>::New(env, buf, size),
         Number::New(env, size),
         Number::New(env, timestamp),
@@ -91,33 +110,37 @@ void onTranscriptData(struct rtms_csdk *sdk, unsigned char *buf, int size, unsig
 }
 
 void onLeave(struct rtms_csdk *sdk, int reason){
-    auto env = fn_onLeave.Env();
+    auto env = cb.onLeave.Env();
 
-    fn_onLeave.Call({ Number::New(env, reason)});
+    cb.onLeave.Call({ Number::New(env, reason)});
 }
 
 Value setOnJoinConfirm(const CallbackInfo& info) {
-    return setCallback(info, fn_onJoinConfirm);
+    return setCallback(info, cb.onJoinConfirm);
 }
 
 Value setOnSessionUpdate(const CallbackInfo& info) {
-    return setCallback(info, fn_onSessionUpdate);
+    return setCallback(info, cb.onSessionUpdate);
+}
+
+Value setOnUserUpdate(const CallbackInfo& info) {
+    return setCallback(info, cb.onUserUpdate);
 }
 
 Value setOnAudioData(const CallbackInfo& info) {
-    return setCallback(info, fn_onAudioData);
+    return setCallback(info, cb.onAudioData);
 }
 
 Value setOnVideoData(const CallbackInfo& info) {
-    return setCallback(info, fn_onVideoData);
+    return setCallback(info, cb.onVideoData);
 }
 
 Value setOnTranscriptData(const CallbackInfo& info) {
-    return setCallback(info, fn_onTranscriptData);
+    return setCallback(info, cb.onTranscriptData);
 }
 
 Value setOnLeave(const CallbackInfo& info) {
-    return setCallback(info, fn_onLeave);
+    return setCallback(info, cb.onLeave);
 }
 
 
@@ -132,13 +155,13 @@ Value init(const CallbackInfo& info) {
 
     const string ca = info[0].As<String>();
 
-
     rtms.setOnJoinConfirm(onJoinConfirm);
+    rtms.setOnUserUpdate(onUserUpdate);
     rtms.setOnSessionUpdate(onSessionUpdate);
     rtms.setOnAudioData(onAudioData);
     rtms.setOnVideoData(onVideoData);
     rtms.setOnTranscriptData(onTranscriptData);
-    rtms.setOnLeave(onLeave);
+    rtms.setOnLeave(onLeave); 
  
     rtms.init(ca);
 
@@ -187,6 +210,9 @@ Object Init(Env env, Object exports) {
 
     exports.Set(String::New(env, "onSessionUpdate"),
                 Function::New(env, setOnSessionUpdate));
+
+    exports.Set(String::New(env, "onUserUpdate"),
+                Function::New(env, setOnUserUpdate));
 
     exports.Set(String::New(env, "onAudioData"),
                 Function::New(env, setOnAudioData));

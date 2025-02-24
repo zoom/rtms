@@ -76,8 +76,6 @@ export const join = ({meeting_uuid, rtms_stream_id, server_urls, timeout= -1, ca
         rtms._init(caCert)
 
     const sign = signature || generateSignature(client, secret, meeting_uuid, rtms_stream_id);
-
-    console.log("joining", meeting_uuid);
     rtms._join(meeting_uuid, rtms_stream_id, sign, server_urls, timeout)
 }
 

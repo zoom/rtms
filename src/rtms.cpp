@@ -1,11 +1,13 @@
 #include "rtms.h"
-#include <iostream>
-#include <future>
-
 
 RTMS::RTMS() {
     _mediaParam.audio_param = &_audioParam;
     _mediaParam.video_param = &_videoParam;
+}
+
+RTMS::~RTMS() {
+    rtms_release(_sdk);
+    rtms_uninit();
 }
 
 int RTMS::init(const string &ca) {
@@ -22,6 +24,7 @@ int RTMS::init(const string &ca) {
 
     _options.on_join_confirm = _onJoinConfirm;
     _options.on_session_update = _onSessionUpdate;
+    _options.on_user_update = _onUserUpdate;
     _options.on_audio_data = _onAudioData;
     _options.on_video_data = _onVideoData;
     _options.on_transcript_data = _onTranscriptData;
@@ -33,8 +36,7 @@ int RTMS::init(const string &ca) {
     return 0;
 }
 
-int RTMS::join(const string &uuid, const string &streamId, const string &signature, const string &serverUrls,
-               const int &timeout) {
+int RTMS::join(const string &uuid, const string &streamId, const string &signature, const string &serverUrls, const int &timeout) {
 
     auto ret = rtms_join(_sdk, uuid.c_str(), streamId.c_str(), signature.c_str(), serverUrls.c_str(), timeout);
 
@@ -44,6 +46,18 @@ int RTMS::join(const string &uuid, const string &streamId, const string &signatu
         _isRunning = checkErr(rtms_poll(_sdk), "failed to poll csdk");
 
     return 0;
+}
+
+bool RTMS::checkErr(const int &code, const string &message, bool except)
+{
+    auto isOk = code == RTMS_SDK_OK;
+    ostringstream out;
+    out << "(" << code << "): " << message << endl;
+
+    if (!isOk && except)
+        throw  runtime_error(out.str());
+
+    return isOk;
 }
 
 void RTMS::stop() 
@@ -59,11 +73,6 @@ bool RTMS::isInit() const
 bool RTMS::isRunning() const
 {
     return _isRunning;
-}
-
-RTMS::~RTMS() {
-    rtms_release(_sdk);
-    rtms_uninit();
 }
 
 void RTMS::setMediaTypes(bool audio, bool video = false, bool transcript = false) {
@@ -92,34 +101,39 @@ void RTMS::setVideoParam(const video_parameters &param) {
     _videoParam = param;
 }
 
-void RTMS::setOnJoinConfirm(RTMS::onJoinConfirmFunc f) {
+void RTMS::setOnJoinConfirm(fn_on_join_confirm f) {
     _onJoinConfirm = f;
     _options.on_join_confirm = f;
 }
 
-void RTMS::setOnSessionUpdate(RTMS::onSessionUpdateFunc f) {
+void RTMS::setOnSessionUpdate(fn_on_session_update f) {
     _onSessionUpdate = f;
     _options.on_session_update = _onSessionUpdate;
 }
 
-void RTMS::setOnAudioData(RTMS::onAudioDataFunc f) {
+void RTMS::setOnUserUpdate(fn_on_user_update f)
+{
+    _onUserUpdate = f;
+    _options.on_user_update = _onUserUpdate;
+    
+}
+
+void RTMS::setOnAudioData(fn_on_audio_data f) {
     _onAudioData = f;
     _options.on_audio_data = _onAudioData;
 }
 
-void RTMS::setOnVideoData(RTMS::onVideoDataFunc f) {
+void RTMS::setOnVideoData(fn_on_video_data f) {
     _onVideoData = f;
     _options.on_video_data = _onVideoData;
 }
 
-void RTMS::setOnTranscriptData(RTMS::onTranscriptDataFunc f) {
+void RTMS::setOnTranscriptData(fn_on_transcript_data f) {
     _onTranscriptData = f;
     _options.on_transcript_data = _onTranscriptData;
 }
 
-void RTMS::setOnLeave(RTMS::onLeaveFunc f) {
+void RTMS::setOnLeave(fn_on_leave f) {
     _onLeave = f;
     _options.on_leave = _onLeave;
 }
-
-

@@ -2,24 +2,19 @@ cmake_minimum_required(VERSION 3.25.1)
 project (_rtms VERSION 0.0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 cmake_policy(SET CMP0091 NEW)
 cmake_policy(SET CMP0042 NEW)
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
-
-set(RTMS_SDK ${CMAKE_SOURCE_DIR}/lib/rtms_csdk)
-set(RTMS_LIB ${RTMS_SDK}/librtmsdk.so.0.0.1.20250219)
-
+set(RTMS_SDK ${CMAKE_SOURCE_DIR}/lib/librtmsdk)
+set(RTMS_LIB ${RTMS_SDK}/librtmsdk.so.0)
+file(GLOB SOURCE_FILES src/rtms.h src/rtms.cpp)
 
 include_directories(${CMAKE_JS_INC})
 include_directories(${RTMS_SDK}/h)
 
-file(GLOB SOURCE_FILES src/rtms.h src/rtms.cpp)
-
-# Your-external "mylib", add GLOBAL if the imported library is located in directories above the current.
 add_library( rtmSdk SHARED IMPORTED )
-# You can define two import-locations: one for debug and one for release.
-set_target_properties( rtmSdk PROPERTIES IMPORTED_LOCATION ${RTMS_LIB} )
+set_target_properties( rtmSdk PROPERTIES IMPORTED_LOCATION ${RTMS_LIB})
 
 if(NODE)
     set(NODE_SRC ${CMAKE_SOURCE_DIR}/src/rtms)

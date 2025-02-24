@@ -5,7 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "build-js": "cmake-js build --out dist --CDNODE=true",
+    "build-js:dev": "cmake-js compile --debug --out dist --CDNODE=true",
+    "build-js": "cmake-js compile --out dist --CDNODE=true",
     "test-js": "node --env-file=.env test.js",
 
     "build-py": "pipx run build --outdir dist/py",

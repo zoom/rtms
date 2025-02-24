@@ -6,17 +6,19 @@
 
 #include "rtms.h"
 
-namespace py = pybind11;
 using namespace std;
+using namespace RTMS;
+namespace py = pybind11;
 
 RTMS rtms;
 
-RTMS::onJoinConfirmFn fn_onJoinConfirm;
-RTMS::onSessionUpdateFn fn_onSessionUpdate;
-RTMS::onAudioDataFn fn_onAudioData;
-RTMS::onVideoDataFn fn_onVideoData;
-RTMS::onTranscriptDataFn fn_onTranscriptData;
-RTMS::onLeaveFn fn_onLeave;
+onJoinConfirmFunc fn_onJoinConfirm;
+onUserUpdateFunc fn_onUserUpdate;
+onSessionUpdateFunc fn_onSessionUpdate;
+onAudioDataFunc fn_onAudioData;
+onVideoDataFunc fn_onVideoData;
+onTranscriptDataFunc fn_onTranscriptData;
+onLeaveFunc fn_onLeave;
 
 
 void onJoinConfirm(struct rtms_csdk* sdk, int reason) {
@@ -27,29 +29,29 @@ void onSessionUpdate(struct rtms_csdk* sdk,int op, struct session_info* session)
     fn_onSessionUpdate(op, session);
 }
 
-void setOnJoinConfirm(const RTMS::onJoinConfirmFn& fn) {
+void setOnJoinConfirm(const onJoinConfirmFunc& fn) {
     fn_onJoinConfirm = fn;
     rtms.setOnJoinConfirm(onJoinConfirm);
 }
 
-void setOnSessionUpdate(const RTMS::onSessionUpdateFn& fn) {
+void setOnSessionUpdate(const onSessionUpdateFunc& fn) {
     fn_onSessionUpdate = fn;
     rtms.setOnSessionUpdate(onSessionUpdate);
 }
 
-void setOnAudioData(const RTMS::onAudioDataFn& fn) {
+void setOnAudioData(const onAudioDataFunc& fn) {
     fn_onAudioData = fn;
 }
 
-void setOnVideoData(const RTMS::onVideoDataFn& fn) {
+void setOnVideoData(const onVideoDataFunc& fn) {
     fn_onVideoData = fn;
 }
 
-void setOnTranscriptData(const RTMS::onTranscriptDataFn& fn) {
+void setOnTranscriptData(const onTranscriptDataFunc& fn) {
     fn_onTranscriptData = fn;
 }
 
-void setOnLeave(const RTMS::onLeaveFn& fn) {
+void setOnLeave(const onLeaveFunc& fn) {
     fn_onLeave = fn;
 }
 

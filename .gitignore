@@ -3,8 +3,8 @@ build
 *.pem
 
 ### Zoom RTMS C SDK
-lib/rtms_csdk/**
-!lib/rtms_csdk/.gitkeep
+lib/librtmsdk/*
+!lib/librtmsdk/.gitkeep
 
 # only allow files where we want them
 *.py
