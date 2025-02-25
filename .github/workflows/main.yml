@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4å
+    - uses: actions/checkout@v4
     - name: Docker Setup Compose
       uses: docker/setup-compose-action@v1.1.0
     - name: Build and Test JS
