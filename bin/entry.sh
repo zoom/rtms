@@ -11,7 +11,7 @@ if [ "$lang" == "js" ] && [ ! -d "node_modules" ]; then
 fi
 
 
-cmd="npm run build-$lang && npm run test-$lang" 
+cmd="npm run build-$lang && npm test" 
 
 eval $cmd
 
