@@ -1,4 +1,3 @@
-
 #ifndef RTMS_H
 #define RTMS_H
 
@@ -44,9 +43,9 @@ public:
     bool isInit() const;
     bool isRunning() const;
 
-    void enableTranscript(bool useTranscript);
-    void enableAudio(bool useAudio);
-    void enableVideo(bool useVideo);
+    void useTranscript(bool useTranscript);
+    void useAudio(bool useAudio);
+    void useVideo(bool useVideo);
 
     void setMediaTypes(bool audio, bool video, bool transcript);
     void setAudioParam(const audio_parameters &param);

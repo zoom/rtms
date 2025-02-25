@@ -76,20 +76,20 @@ bool RTMS::isRunning() const
 }
 
 void RTMS::setMediaTypes(bool audio, bool video = false, bool transcript = false) {
-    enableAudio(audio);
-    enableVideo(video);
-    enableTranscript(transcript);
+    useAudio(audio);
+    useVideo(video);
+    useTranscript(transcript);
 }
 
-void RTMS::enableTranscript(bool useTranscript) {
+void RTMS::useTranscript(bool useTranscript) {
     _useTranscript = useTranscript;
 }
 
-void RTMS::enableAudio(bool useAudio) {
+void RTMS::useAudio(bool useAudio) {
     _useAudio = useAudio;
 }
 
-void RTMS::enableVideo(bool useVideo) {
+void RTMS::useVideo(bool useVideo) {
     _useVideo = useVideo;
 }
 
