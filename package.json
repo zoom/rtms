@@ -2,16 +2,17 @@
   "name": "rtms",
   "version": "0.0.1",
   "description": "Node.js Wrapper for the Zoom RTMS CSDK",
-  "main": "index.js",
+  "main": "dist/index.js",
   "types": "rtms.d.ts",
   "type": "module",
   "scripts": {
-    "install": "npx --yes prebuild-install -r napi || cmake-js compile --CDNODE=true",
+    "install": "prebuild-install -r napi || cmake-js compile --CDNODE=true",
     "postinstall": "tsc",
     "prebuild": "npx --yes prebuild --backend cmake-js --strip -t 9 -r napi",
     "upload": "npx --yes prebuild --backend cmake-js --upload-all",
     "test-js": "node --env-file=.env test.js",
     "test": "npx jest tests/",
+    "docs": "npx typedoc --plugin typedoc-plugin-missing-exports --out docs/js",
     "build-py": "pipx run build --outdir dist/py",
     "test-py": "pip install --force dist/py/*.whl && python3 test.py",
     "build-go": "cmake-js configure --CDGO=true",
@@ -24,6 +25,8 @@
     "@types/jest": "^29.5.14",
     "cmake-js": "^7.3.0",
     "node-addon-api": "^8.3.0",
+    "typedoc": "^0.27.9",
+    "typedoc-plugin-missing-exports": "^3.1.0",
     "typescript": "^5.7.3"
   },
   "binary": {

@@ -10,15 +10,15 @@ The base project that builds the Zoom RTMS SDKs for Node.js, Python and Go.
 
 ## Getting Started
 
-Place the RTMS C SDK files in the [lib/rtms_csdk](lib/rtms_csdk) directory
+Place the RTMS C SDK files in the [lib/librtmsdk](lib/librtmsdk) directory
 
 ```bash
-cp rtms_csdk.h rtms_common.h librtmsdk.so ./lib/rtms_csdk
+cp rtms_csdk.h rtms_common.h librtmsdk.so ./lib/librtmsdk
 ```
 
 Create a .env file with the following values:
 
-```dotenv
+```bash
 MEETING_UUID=
 SESSION_ID=
 ZOOM_CLIENT_ID=
