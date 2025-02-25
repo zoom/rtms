@@ -1,5 +1,9 @@
 ### Build
+dist
 build
+prebuilds
+
+.env
 *.pem
 
 ### Zoom RTMS C SDK
@@ -7,13 +11,13 @@ lib/librtmsdk/*
 !lib/librtmsdk/.gitkeep
 
 # only allow files where we want them
-*.py
-!src/rtms/**/*.py
-
 *.js
-!src/rtms/**/*.js
-
 *.c
+*.py
+*.pyi
+!src/rtms/*.py
+!src/rtms/*.pyi
+
 
 ### IDEs
 .idea

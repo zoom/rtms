@@ -1,6 +1,9 @@
 FROM node:latest AS base
 
 ENV CWD=/tmp/rtms
+ENV PATH="/opt/venv/bin:$PATH"
+ENV LD_LIBRARY_PATH="${CWD}/lib/librtmsdk/:$LD_LIBRARY_PATH"
+
 WORKDIR $CWD
 
 RUN apt-get update  \
@@ -14,12 +17,8 @@ RUN apt-get update  \
     && npm config set update-notifier false \
     && python3 -m venv /opt/venv
     
-ENV PATH="/opt/venv/bin:$PATH"
-
-# we need to link to the C SDK when running our python module
-ENV LD_LIBRARY_PATH="${CWD}/lib/rtms_csdk/:$LD_LIBRARY_PATH"
-
-RUN pip install "pybind11[global]" python-dotenv 
+RUN  npm install -g prebuild \
+&& pip install "pybind11[global]" python-dotenv 
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 

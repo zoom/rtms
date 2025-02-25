@@ -1,44 +1,76 @@
 {
   "name": "rtms",
   "version": "0.0.1",
-  "description": "A Node.js wrapper for the Zoom RTMS CSDK",
+  "description": "Node.js Wrapper for the Zoom RTMS CSDK",
   "main": "index.js",
+  "types": "rtms.d.ts",
   "type": "module",
   "scripts": {
-    "build-js:dev": "cmake-js compile --debug --out dist --CDNODE=true",
-    "build-js": "cmake-js compile --out dist --CDNODE=true",
+    "install": "npx --yes prebuild-install -r napi || cmake-js compile --CDNODE=true",
+    "postinstall": "tsc",
+    "prebuild": "npx --yes prebuild --backend cmake-js --strip -t 9 -r napi",
+    "upload": "npx --yes prebuild --backend cmake-js --upload-all",
     "test-js": "node --env-file=.env test.js",
-
+    "test": "npx jest tests/",
     "build-py": "pipx run build --outdir dist/py",
     "test-py": "pip install --force dist/py/*.whl && python3 test.py",
-
     "build-go": "cmake-js configure --CDGO=true",
     "test-go": ""
   },
   "dependencies": {
+    "prebuild-install": "^7.1.3"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
     "cmake-js": "^7.3.0",
-    "node-addon-api": "^8.3.0"
+    "node-addon-api": "^8.3.0",
+    "typescript": "^5.7.3"
   },
   "binary": {
     "napi_versions": [
-      4
+      9
     ]
   },
-  "license": "MIT",
+  "files": [
+    "index.js",
+    "CMakeLists.txt",
+    "src/",
+    "prebuilds/"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/zoom/rtms.git"
   },
+  "keywords": [
+    "zoom",
+    "rtms",
+    "realtime",
+    "media",
+    "streaming",
+    "real",
+    "time",
+    "sdk"
+  ],
   "bugs": {
     "url": "https://github.com/zoom/rtms/issues"
   },
   "homepage": "https://github.com/zoom/rtms#readme",
-  "keywords": [
-    "zoom",
-    "rtms",
-    "sdk",
-    "realtime",
-    "media",
-    "streaming"
-  ]
+  "author": "Zoom Communications, Inc.",
+  "contributors": [
+    {
+      "name": "Max Mansfield",
+      "email": "max.mansfield@zoom.us",
+      "url": "https://www.npmjs.com/~maxmansfield"
+    }
+  ],
+  "engines": {
+    "node": "^22.14.0"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "license": "MIT"
 }
