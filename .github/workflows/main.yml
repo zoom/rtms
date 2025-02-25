@@ -1,19 +1,19 @@
-name: Docker Compose Action
+name: Docker Image CI
 
 on:
   push:
-    branches:
-      - master
-      - dev
-    
+    branches: [ "main", "dev" ]
 
 jobs:
+
   build:
+
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v3
-    - uses: hoverkraft-tech/compose-action@v2.0.1
-      with:
-        compose-file: "./compose.yaml"
-        services: |
-          js          
+    - uses: actions/checkout@v4å
+    - name: Docker Setup Compose
+      uses: docker/setup-compose-action@v1.1.0
+    - name: Build and Test JS
+      run: docker compose up js
+            
