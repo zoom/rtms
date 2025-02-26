@@ -84,7 +84,7 @@ def join(uuid, stream_id, server_urls, timeout = -1, ca="ca.pem", client="", sec
 
 __all__ = [
     "join", 
-    "on_webhook_event"
+    "on_webhook_event",
     "on_join_confirm",
     "on_session_update",
     "on_audio_data",

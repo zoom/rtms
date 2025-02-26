@@ -7,80 +7,106 @@
 #include "rtms.h"
 
 using namespace std;
-using namespace RTMS;
+using namespace rtms;
 namespace py = pybind11;
 
-RTMS rtms;
+Client client;
 
-onJoinConfirmFunc fn_onJoinConfirm;
-onUserUpdateFunc fn_onUserUpdate;
-onSessionUpdateFunc fn_onSessionUpdate;
-onAudioDataFunc fn_onAudioData;
-onVideoDataFunc fn_onVideoData;
-onTranscriptDataFunc fn_onTranscriptData;
-onLeaveFunc fn_onLeave;
-
+JoinConfirmFn onJoinConfirmFn;
+SessionUpdateFn onSessionUpdateFn;
+UserUpdateFn onUserUpdateFn;
+AudioDataFn onAudioDataFn;
+VideoDataFn onVideoDataFn;
+TranscriptDataFn onTranscriptDataFn;
+LeaveFn onLeaveFn;
 
 void onJoinConfirm(struct rtms_csdk* sdk, int reason) {
-                fn_onJoinConfirm(reason);
+    onJoinConfirmFn(reason);
 }
 
-void onSessionUpdate(struct rtms_csdk* sdk,int op, struct session_info* session) {
-    fn_onSessionUpdate(op, session);
+void setOnJoinConfirm(const JoinConfirmFn fn) {
+    onJoinConfirmFn = fn;
+    client.setOnJoinConfirm(onJoinConfirm);
 }
 
-void setOnJoinConfirm(const onJoinConfirmFunc& fn) {
-    fn_onJoinConfirm = fn;
-    rtms.setOnJoinConfirm(onJoinConfirm);
+void onSessionUpdate(struct rtms_csdk* sdk, int op, struct session_info* session) {
+    onSessionUpdateFn(op, session);
 }
 
-void setOnSessionUpdate(const onSessionUpdateFunc& fn) {
-    fn_onSessionUpdate = fn;
-    rtms.setOnSessionUpdate(onSessionUpdate);
+void setOnSessionUpdate(const SessionUpdateFn fn) {
+    onSessionUpdateFn = fn;
+    client.setOnSessionUpdate(onSessionUpdate);
 }
 
-void setOnAudioData(const onAudioDataFunc& fn) {
-    fn_onAudioData = fn;
+void onUserUpdate(struct rtms_csdk* sdk, int op, struct participant_info* pi) {
+    onUserUpdateFn(op, pi);
 }
 
-void setOnVideoData(const onVideoDataFunc& fn) {
-    fn_onVideoData = fn;
+void setOnUserUpdate(const UserUpdateFn fn) {
+    onUserUpdateFn = fn;
+    client.setOnUserUpdate(onUserUpdate);
 }
 
-void setOnTranscriptData(const onTranscriptDataFunc& fn) {
-    fn_onTranscriptData = fn;
+void onAudioData(struct rtms_csdk* sdk, unsigned char* buf, int size, unsigned int ts, struct rtms_metadata* md) {
+    onAudioDataFn(buf, size, ts, md);
 }
 
-void setOnLeave(const onLeaveFunc& fn) {
-    fn_onLeave = fn;
+void setOnAudioData(const AudioDataFn fn) {
+    onAudioDataFn = fn;
+    client.setOnAudioData(onAudioData);
 }
 
-int init (const string& ca_path) {
-    rtms.setOnJoinConfirm(onJoinConfirm);
-    rtms.setOnSessionUpdate(onSessionUpdate);
-    
-    return rtms.init(ca_path);
+void onVideoData(struct rtms_csdk* sdk, unsigned char* buf, int size, unsigned int ts, const char* trackId, struct rtms_metadata* md) {
+    onVideoDataFn(buf, size, ts, trackId, md);
 }
 
-int join (const string& uuid, const string& streamId, const string& signature, const string& serverUrls, int timeout = -1) {
-    return rtms.join(uuid, streamId, signature, serverUrls, timeout);
+void setOnVideoData(const VideoDataFn fn) {
+    onVideoDataFn = fn;
+    client.setOnVideoData(onVideoData);
+}
+
+void onTranscriptData(struct rtms_csdk* sdk, unsigned char* buf, int size, unsigned int ts, struct rtms_metadata* md) {
+    onTranscriptDataFn(buf, size, ts, md);
+}
+
+void setOnTranscriptData(const TranscriptDataFn fn) {
+    onTranscriptDataFn = fn;
+    client.setOnTranscriptData(onTranscriptData);
+}
+
+void onLeave(struct rtms_csdk* sdk, int reason) {
+    onLeaveFn(reason);
+}
+
+void setOnLeave(const LeaveFn fn) {
+    onLeaveFn = fn;
+    client.setOnLeave(onLeave);
+}
+
+int init(const string& ca_path) {
+    return client.init(ca_path);
+}
+
+int join(const string& uuid, const string& streamId, const string& signature, const string& serverUrls, int timeout = -1) {
+    return client.join(uuid, streamId, signature, serverUrls, timeout);
 }
 
 bool isInit() {
-    return rtms.isInit();
+    return client.isInit();
 }
 
 PYBIND11_MODULE(_rtms, m) {
     m.doc() = "Zoom RTMS Python Bindings";
 
-    m.def("_init", &init);
-    m.def("_join", &join);
-    m.def("_is_init", &isInit);
+    m.def("_init", &init, "[_internal] Initialize the RTMS SDK with the specified CA certificate path");
+    m.def("_join", &join, "[_internal] Join a meeting with the specified parameters");
+    m.def("_is_init", &isInit, "[_internal] Check if the RTMS SDK is initialized");
 
-    m.def("on_join_confirm", &setOnJoinConfirm);
-    m.def("on_session_update", &setOnSessionUpdate, py::call_guard<py::gil_scoped_release>());
-    m.def("on_audio_data", &setOnAudioData, py::call_guard<py::gil_scoped_release>());
-    m.def("on_video_data", &setOnVideoData, py::call_guard<py::gil_scoped_release>());
-    m.def("on_transcript_data", &setOnTranscriptData, py::call_guard<py::gil_scoped_release>());
-    m.def("on_leave", &setOnLeave, py::call_guard<py::gil_scoped_release>());
+    m.def("on_join_confirm", &setOnJoinConfirm, "Set callback for join confirmation events");
+    m.def("on_session_update", &setOnSessionUpdate, "Set callback for session update events");
+    m.def("on_user_update", &setOnUserUpdate, "Set callback for participant update events");
+    m.def("on_audio_data", &setOnAudioData, "Set callback for receiving audio data");
+    m.def("on_video_data", &setOnVideoData, "Set callback for receiving video data");
+    m.def("on_transcript_data", &setOnTranscriptData, "Set callback for receiving transcript data");
+    m.def("on_leave", &setOnLeave, "Set callback for leave events");
 }

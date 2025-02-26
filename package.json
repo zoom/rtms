@@ -7,28 +7,28 @@
   "types": "rtms.d.ts",
   "type": "module",
   "scripts": {
-    "install": "prebuild-install -r napi || cmake-js compile --CDNODE=true",
-    "postinstall": "tsc",
-    "prebuild": "npx --yes prebuild --backend cmake-js --strip -t 9 -r napi",
-    "upload": "npx --yes prebuild --backend cmake-js --upload-all",
+    "install": "prebuild-install -r napi",
+    "prebuild": "npx -y prebuild --backend cmake-js --strip -t 9 -r napi",
+    "upload": "npx -ys prebuild --backend cmake-js --upload-all",
     "test-js": "node --env-file=.env test.js",
     "test": "npx jest tests/",
     "docs": "npx typedoc --plugin typedoc-plugin-missing-exports --out docs/js",
+    "build-js": "npx cmake-js compile --CDNODE=true && tsc",
     "build-py": "pipx run build --outdir dist/py",
-    "test-py": "pip install --force dist/py/*.whl && python3 test.py",
+    "test-py": "python3 -m pip install --force dist/py/*.whl && python3 test.py",
     "build-go": "cmake-js configure --CDGO=true",
     "test-go": ""
   },
   "dependencies": {
-    "prebuild-install": "^7.1.3"
+    "prebuild-install": "^7.1.3",
+    "cmake-js": "^7.3.0",
+    "node-addon-api": "^8.3.0",
+    "typescript": "^5.7.3"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
-    "cmake-js": "^7.3.0",
-    "node-addon-api": "^8.3.0",
     "typedoc": "^0.27.9",
-    "typedoc-plugin-missing-exports": "^3.1.0",
-    "typescript": "^5.7.3"
+    "typedoc-plugin-missing-exports": "^3.1.0"
   },
   "binary": {
     "napi_versions": [
