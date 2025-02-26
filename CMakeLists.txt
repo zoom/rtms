@@ -28,7 +28,6 @@ if(NODE)
     endif()
     add_compile_definitions(NAPI_VERSION=${napi_build_version})
 
-
     add_library(${PROJECT_NAME} SHARED ${CMAKE_JS_SRC} ${SOURCE_FILES} ${NODE_ADDON})
 
     set_target_properties(${PROJECT_NAME}
@@ -37,18 +36,19 @@ if(NODE)
 
     target_link_libraries(${PROJECT_NAME} rtmSdk ${CMAKE_JS_LIB})
 elseif(PYTHON)
-    set(PY_PROJ "_${PROJECT_NAME}")
+
+    set(PY_TARGET "_${PROJECT_NAME}")
     set(PYBIND11_FINDPYTHON ON)
     find_package(pybind11 CONFIG REQUIRED)
 
-    pybind11_add_module(${PY_PROJ} ${SOURCE_FILES}
+    pybind11_add_module(${PY_TARGET} ${SOURCE_FILES}
         src/python.cpp
     )
 
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${RTMS_LIB})
+    target_link_libraries(${PY_TARGET} PRIVATE rtmSdk)
 
-    install(TARGETS ${PY_PROJ} DESTINATION ${SKBUILD_PROJECT_NAME})
+    # Install the Python module
+    install(TARGETS ${PY_TARGET} DESTINATION ${SKBUILD_PROJECT_NAME})
 elseif(GO)
 
 endif()
-

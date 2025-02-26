@@ -7,58 +7,36 @@
 #include "rtms.h"
 
 using namespace std;
-using namespace RTMS;
 namespace py = pybind11;
+
 
 RTMS rtms;
 
-onJoinConfirmFunc fn_onJoinConfirm;
-onUserUpdateFunc fn_onUserUpdate;
-onSessionUpdateFunc fn_onSessionUpdate;
-onAudioDataFunc fn_onAudioData;
-onVideoDataFunc fn_onVideoData;
-onTranscriptDataFunc fn_onTranscriptData;
-onLeaveFunc fn_onLeave;
-
-
-void onJoinConfirm(struct rtms_csdk* sdk, int reason) {
-                fn_onJoinConfirm(reason);
+void setOnJoinConfirm(const fn_on_join_confirm fn) {
+    rtms.setOnJoinConfirm(fn);
 }
 
-void onSessionUpdate(struct rtms_csdk* sdk,int op, struct session_info* session) {
-    fn_onSessionUpdate(op, session);
+void setOnSessionUpdate(const fn_on_session_update fn) {
+    rtms.setOnSessionUpdate(fn);
 }
 
-void setOnJoinConfirm(const onJoinConfirmFunc& fn) {
-    fn_onJoinConfirm = fn;
-    rtms.setOnJoinConfirm(onJoinConfirm);
+void setOnAudioData(const fn_on_audio_data fn) {
+    rtms.setOnAudioData(fn);
 }
 
-void setOnSessionUpdate(const onSessionUpdateFunc& fn) {
-    fn_onSessionUpdate = fn;
-    rtms.setOnSessionUpdate(onSessionUpdate);
+void setOnVideoData(const fn_on_video_data fn) {
+    rtms.setOnVideoData(fn);
 }
 
-void setOnAudioData(const onAudioDataFunc& fn) {
-    fn_onAudioData = fn;
+void setOnTranscriptData(const fn_on_transcript_data fn) {
+    rtms.setOnTranscriptData(fn);
 }
 
-void setOnVideoData(const onVideoDataFunc& fn) {
-    fn_onVideoData = fn;
-}
-
-void setOnTranscriptData(const onTranscriptDataFunc& fn) {
-    fn_onTranscriptData = fn;
-}
-
-void setOnLeave(const onLeaveFunc& fn) {
-    fn_onLeave = fn;
-}
+void setOnLeave(const fn_on_leave fn) {
+    rtms.setOnLeave(fn);
+} 
 
 int init (const string& ca_path) {
-    rtms.setOnJoinConfirm(onJoinConfirm);
-    rtms.setOnSessionUpdate(onSessionUpdate);
-    
     return rtms.init(ca_path);
 }
 
@@ -82,5 +60,5 @@ PYBIND11_MODULE(_rtms, m) {
     m.def("on_audio_data", &setOnAudioData, py::call_guard<py::gil_scoped_release>());
     m.def("on_video_data", &setOnVideoData, py::call_guard<py::gil_scoped_release>());
     m.def("on_transcript_data", &setOnTranscriptData, py::call_guard<py::gil_scoped_release>());
-    m.def("on_leave", &setOnLeave, py::call_guard<py::gil_scoped_release>());
+    m.def("on_leave", &setOnLeave, py::call_guard<py::gil_scoped_release>()); 
 }
