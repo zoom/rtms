@@ -5,20 +5,17 @@
 #include "rtms.h"
 
 using namespace Napi;
+using namespace rtms;
 
-struct Callbacks {
-    FunctionReference onJoinConfirm;
-    FunctionReference onSessionUpdate;
-    FunctionReference onUserUpdate;
-    FunctionReference onAudioData;
-    FunctionReference onVideoData;
-    FunctionReference onTranscriptData;
-    FunctionReference onLeave;
-};
+Client client;
 
-
-RTMS rtms;
-Callbacks cb;
+FunctionReference onJoinConfirmFn;
+FunctionReference onSessionUpdateFn;
+FunctionReference onUserUpdateFn;
+FunctionReference onAudioDataFn;
+FunctionReference onVideoDataFn;
+FunctionReference onTranscriptDataFn;
+FunctionReference onLeaveFn;
 
 Value setCallback(const CallbackInfo& info, FunctionReference& fn) {
     auto env = info.Env();
@@ -40,66 +37,66 @@ Object getMetadataObj(const Env& env, struct rtms_metadata* md) {
 }
 
 Value setOnJoinConfirm(const CallbackInfo& info) {
-    return setCallback(info, cb.onJoinConfirm);
+    return setCallback(info, onJoinConfirmFn);
 }
 
 Value setOnSessionUpdate(const CallbackInfo& info) {
-    return setCallback(info, cb.onSessionUpdate);
+    return setCallback(info, onSessionUpdateFn);
 }
 
 Value setOnUserUpdate(const CallbackInfo& info) {
-    return setCallback(info, cb.onUserUpdate);
+    return setCallback(info, onUserUpdateFn);
 }
 
 Value setOnAudioData(const CallbackInfo& info) {
-    return setCallback(info, cb.onAudioData);
+    return setCallback(info, onAudioDataFn);
 }
 
 Value setOnVideoData(const CallbackInfo& info) {
-    return setCallback(info, cb.onVideoData);
+    return setCallback(info, onVideoDataFn);
 }
 
 Value setOnTranscriptData(const CallbackInfo& info) {
-    return setCallback(info, cb.onTranscriptData);
+    return setCallback(info, onTranscriptDataFn);
 }
 
 Value setOnLeave(const CallbackInfo& info) {
-    return setCallback(info, cb.onLeave);
+    return setCallback(info, onLeaveFn);
 }
 
 void onJoinConfirm(struct rtms_csdk* sdk, int reason) {
-    if (cb.onJoinConfirm.IsEmpty()) return;
+    if (onJoinConfirmFn.IsEmpty()) return;
 
-    auto env = cb.onJoinConfirm.Env();
-    cb.onJoinConfirm.Call({Number::New(env, reason)});
+    auto env = onJoinConfirmFn.Env();
+    onJoinConfirmFn.Call({Number::New(env, reason)});
 }
 
 void onSessionUpdate(struct rtms_csdk* sdk, int op, struct session_info* session) {
-    if (cb.onSessionUpdate.IsEmpty()) return;
+    if (onSessionUpdateFn.IsEmpty()) return;
 
-    auto env = cb.onSessionUpdate.Env();
+    auto env = onSessionUpdateFn.Env();
 
     Object sessionInfo = Object::New(env);
     sessionInfo.Set("sessionId", string(session->session_id));
     sessionInfo.Set("statTime", session->stat_time);
     sessionInfo.Set("status", session->status);
 
-    cb.onSessionUpdate.Call({
+    onSessionUpdateFn.Call({
         Number::New(env, op),
         sessionInfo
     });
 }
 
 void onUserUpdate(struct rtms_csdk* sdk, int op, struct participant_info* pi) {
-    if (cb.onUserUpdate.IsEmpty()) return;
+    if (onUserUpdateFn.IsEmpty()) return;
 
-    auto env = cb.onUserUpdate.Env();
+    auto env = onUserUpdateFn.Env();
 
     Object participantInfo = Object::New(env);
     participantInfo.Set("participantId", pi->participant_id);
     participantInfo.Set("participantName", string(pi->participant_name));
 
-    cb.onUserUpdate.Call({
+    onUserUpdateFn.Call({
         Number::New(env, op),
         participantInfo
     });
@@ -107,11 +104,11 @@ void onUserUpdate(struct rtms_csdk* sdk, int op, struct participant_info* pi) {
 
 
 void onAudioData(struct rtms_csdk *sdk, unsigned char *buf, int size, unsigned int timestamp, struct rtms_metadata *md) {
-    if (cb.onAudioData.IsEmpty()) return;
+    if (onAudioDataFn.IsEmpty()) return;
 
-    auto env = cb.onAudioData.Env();
+    auto env = onAudioDataFn.Env();
 
-    cb.onAudioData.Call({
+    onAudioDataFn.Call({
         Buffer<unsigned char>::New(env, buf, size),
         Number::New(env, size),
         Number::New(env, timestamp),
@@ -120,11 +117,11 @@ void onAudioData(struct rtms_csdk *sdk, unsigned char *buf, int size, unsigned i
 }
 
 void onVideoData(struct rtms_csdk *sdk, unsigned char *buf, int size, unsigned int timestamp, const char *rtms_session_id, struct rtms_metadata *md){
-    if (cb.onVideoData.IsEmpty()) return;
+    if (onVideoDataFn.IsEmpty()) return;
 
-    auto env = cb.onVideoData.Env();
+    auto env = onVideoDataFn.Env();
 
-    cb.onVideoData.Call({
+    onVideoDataFn.Call({
         Buffer<unsigned char>::New(env, buf, size),
         Number::New(env, size),
         Number::New(env, timestamp),
@@ -133,11 +130,11 @@ void onVideoData(struct rtms_csdk *sdk, unsigned char *buf, int size, unsigned i
 }
 
 void onTranscriptData(struct rtms_csdk *sdk, unsigned char *buf, int size, unsigned int timestamp, struct rtms_metadata *md){
-    if (cb.onTranscriptData.IsEmpty()) return;
+    if (onTranscriptDataFn.IsEmpty()) return;
 
-    auto env = cb.onTranscriptData.Env();
+    auto env = onTranscriptDataFn.Env();
 
-    cb.onTranscriptData.Call({
+    onTranscriptDataFn.Call({
         Buffer<unsigned char>::New(env, buf, size),
         Number::New(env, size),
         Number::New(env, timestamp),
@@ -146,11 +143,11 @@ void onTranscriptData(struct rtms_csdk *sdk, unsigned char *buf, int size, unsig
 }
 
 void onLeave(struct rtms_csdk *sdk, int reason){
-    if (cb.onLeave.IsEmpty()) return;
+    if (onLeaveFn.IsEmpty()) return;
 
-    auto env = cb.onLeave.Env();
+    auto env = onLeaveFn.Env();
 
-    cb.onLeave.Call({ Number::New(env, reason)});
+    onLeaveFn.Call({ Number::New(env, reason)});
 }
 
 Value useAudio(const CallbackInfo& info) {
@@ -158,7 +155,7 @@ Value useAudio(const CallbackInfo& info) {
 
     bool hasAudio = info[0].IsBoolean() ? info[0].As<Boolean>() : true;
 
-    rtms.useAudio(hasAudio);
+    client.useAudio(hasAudio);
 
     return env.Null();
 }
@@ -168,7 +165,7 @@ Value useVideo(const CallbackInfo& info) {
 
     bool hasVideo = info[0].IsBoolean() ? info[0].As<Boolean>() : true;
 
-    rtms.useVideo(hasVideo);
+    client.useVideo(hasVideo);
 
     return env.Null();
 }
@@ -178,7 +175,7 @@ Value useTranscript(const CallbackInfo& info) {
 
     bool hasTranscript = info[0].IsBoolean() ? info[0].As<Boolean>() : true;
 
-    rtms.useTranscript(hasTranscript);
+    client.useTranscript(hasTranscript);
 
     return env.Null();
 }
@@ -194,7 +191,7 @@ Value setMediaTypes(const CallbackInfo& info) {
     bool hasVideo = info[1].IsBoolean() ? info[0].As<Boolean>() : false;
     bool hasTranscript = info[2].IsBoolean() ? info[0].As<Boolean>() : false;
 
-    rtms.setMediaTypes(hasAudio, hasVideo, hasTranscript);
+    client.setMediaTypes(hasAudio, hasVideo, hasTranscript);
 
     return env.Null();
 }
@@ -211,21 +208,21 @@ Value init(const CallbackInfo& info) {
 
     const string ca = info[0].As<String>();
 
-    rtms.setOnJoinConfirm(onJoinConfirm);
-    rtms.setOnUserUpdate(onUserUpdate);
-    rtms.setOnSessionUpdate(onSessionUpdate);
-    rtms.setOnAudioData(onAudioData);
-    rtms.setOnVideoData(onVideoData);
-    rtms.setOnTranscriptData(onTranscriptData);
-    rtms.setOnLeave(onLeave); 
+    client.setOnJoinConfirm(onJoinConfirm);
+    client.setOnUserUpdate(onUserUpdate);
+    client.setOnSessionUpdate(onSessionUpdate);
+    client.setOnAudioData(onAudioData);
+    client.setOnVideoData(onVideoData);
+    client.setOnTranscriptData(onTranscriptData);
+    client.setOnLeave(onLeave); 
  
-    rtms.init(ca);
+    client.init(ca);
 
     return info.Env().Null();
 }
 
 Value isInit(const CallbackInfo& info) {
-    return Boolean::New(info.Env(), rtms.isInit());
+    return Boolean::New(info.Env(), client.isInit());
 }
 
 Value join (const CallbackInfo& info) {
@@ -247,7 +244,7 @@ Value join (const CallbackInfo& info) {
     const bool hasTimeout = info.Length() > 4;
     int timeout = hasTimeout ? info[4].As<Number>().Int32Value() : 0;
 
-    return Number::New(env, rtms.join(uuid, session_id, signature, server_urls, timeout));
+    return Number::New(env, client.join(uuid, session_id, signature, server_urls, timeout));
 }
 
 

@@ -10,7 +10,7 @@ import type {
 } from './rtms.d.ts';
 
 const req = createRequire(import.meta.url);
-const rtms = req('./build/Release/rtms.node');
+const rtms = req('../../build/Release/rtms.node');
 
 let server: Server | undefined, port: number | string, path: string;
 

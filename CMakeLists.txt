@@ -12,9 +12,7 @@ file(GLOB SOURCE_FILES src/rtms.h src/rtms.cpp)
 
 include_directories(${CMAKE_JS_INC})
 include_directories(${RTMS_SDK}/h)
-
-add_library(rtmSdk SHARED IMPORTED)
-set_target_properties(rtmSdk PROPERTIES IMPORTED_LOCATION ${RTMS_LIB})
+link_directories(${RTMS_LIB} ${RTMS_LIB})
 
 if(NODE)
     include_directories(node_modules/node-addon-api)
@@ -34,9 +32,8 @@ if(NODE)
         PROPERTIES PREFIX "" SUFFIX ".node"
     )
 
-    target_link_libraries(${PROJECT_NAME} rtmSdk ${CMAKE_JS_LIB})
+    target_link_libraries(${PROJECT_NAME} ${RTMS_LIB} ${CMAKE_JS_LIB})
 elseif(PYTHON)
-
     set(PY_TARGET "_${PROJECT_NAME}")
     set(PYBIND11_FINDPYTHON ON)
     find_package(pybind11 CONFIG REQUIRED)
@@ -45,7 +42,7 @@ elseif(PYTHON)
         src/python.cpp
     )
 
-    target_link_libraries(${PY_TARGET} PRIVATE rtmSdk)
+    target_link_libraries(${PY_TARGET} PRIVATE ${RTMS_LIB})
 
     # Install the Python module
     install(TARGETS ${PY_TARGET} DESTINATION ${SKBUILD_PROJECT_NAME})
