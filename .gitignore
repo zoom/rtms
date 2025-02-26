@@ -22,10 +22,6 @@ lib/librtmsdk/*
 !src/rtms/*.pyi
 
 
-### IDEs
-.idea
-.vscode
-
 # MacOS
 .DS_Store
 

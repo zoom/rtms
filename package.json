@@ -15,7 +15,7 @@
     "docs": "npx typedoc --plugin typedoc-plugin-missing-exports --out docs/js",
     "build-js": "npx cmake-js compile --CDNODE=true && tsc",
     "build-py": "pipx run build --outdir dist/py",
-    "test-py": "python3 -m pip install --force dist/py/*.whl && python3 test.py",
+    "test-py": "pip install --force dist/py/*.whl && python3 test.py",
     "build-go": "cmake-js configure --CDGO=true",
     "test-go": ""
   },
