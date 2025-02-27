@@ -455,70 +455,6 @@ Napi::Value NodeClient::setOnLeave(const Napi::CallbackInfo& info) {
 }
 
 
-Napi::Object Init(Napi::Env env, Napi::Object exports) {
-    return NodeClient::init(env, exports);
-}
-
-NODE_API_MODULE(rtms, Init);
-
-Napi::Object NodeClient::init(Napi::Env env, Napi::Object exports) {
-    Napi::HandleScope scope(env);
-
-    Napi::Function func = DefineClass(env, "Client", {
-        StaticMethod("initialize", &NodeClient::initialize),
-        StaticMethod("uninitialize", &NodeClient::uninitialize),
-        InstanceMethod("join", &NodeClient::join),
-        InstanceMethod("configure", &NodeClient::configure),
-        InstanceMethod("poll", &NodeClient::poll),
-        InstanceMethod("release", &NodeClient::release),
-        InstanceMethod("uuid", &NodeClient::uuid),
-        InstanceMethod("streamId", &NodeClient::streamId),
-        InstanceMethod("setAudioParameters", &NodeClient::setAudioParameters),
-        InstanceMethod("setVideoParameters", &NodeClient::setVideoParameters),
-        InstanceMethod("onJoinConfirm", &NodeClient::setOnJoinConfirm),
-        InstanceMethod("onSessionUpdate", &NodeClient::setOnSessionUpdate),
-        InstanceMethod("onUserUpdate", &NodeClient::setOnUserUpdate),
-        InstanceMethod("onAudioData", &NodeClient::setOnAudioData),
-        InstanceMethod("onVideoData", &NodeClient::setOnVideoData),
-        InstanceMethod("onTranscriptData", &NodeClient::setOnTranscriptData),
-        InstanceMethod("onLeave", &NodeClient::setOnLeave),
-    });
-
-    Napi::FunctionReference* constructor = new Napi::FunctionReference();
-    *constructor = Napi::Persistent(func);
-    env.SetInstanceData(constructor);
-
-    exports.Set("Client", func);
-    
-    exports.Set(Napi::String::New(env, "MEDIA_TYPE_AUDIO"), Napi::Number::New(env, SDK_AUDIO));
-    exports.Set(Napi::String::New(env, "MEDIA_TYPE_VIDEO"), Napi::Number::New(env, SDK_VIDEO));
-    exports.Set(Napi::String::New(env, "MEDIA_TYPE_DESKSHARE"), Napi::Number::New(env, SDK_DESKSHARE));
-    exports.Set(Napi::String::New(env, "MEDIA_TYPE_TRANSCRIPT"), Napi::Number::New(env, SDK_TRANSCRIPT));
-    exports.Set(Napi::String::New(env, "MEDIA_TYPE_CHAT"), Napi::Number::New(env, SDK_CHAT));
-    exports.Set(Napi::String::New(env, "MEDIA_TYPE_ALL"), Napi::Number::New(env, SDK_ALL));
-
-    exports.Set(Napi::String::New(env, "SESSION_EVENT_ADD"), Napi::Number::New(env, SESSION_ADD));
-    exports.Set(Napi::String::New(env, "SESSION_EVENT_STOP"), Napi::Number::New(env, SESSION_STOP));
-    exports.Set(Napi::String::New(env, "SESSION_EVENT_PAUSE"), Napi::Number::New(env, SESSION_PAUSE));
-    exports.Set(Napi::String::New(env, "SESSION_EVENT_RESUME"), Napi::Number::New(env, SESSION_RESUME));
-
-    exports.Set(Napi::String::New(env, "USER_EVENT_JOIN"), Napi::Number::New(env, USER_JOIN));
-    exports.Set(Napi::String::New(env, "USER_EVENT_LEAVE"), Napi::Number::New(env, USER_LEAVE));
-
-    exports.Set(Napi::String::New(env, "RTMS_SDK_FAILURE"), Napi::Number::New(env, RTMS_SDK_FAILURE));
-    exports.Set(Napi::String::New(env, "RTMS_SDK_OK"), Napi::Number::New(env, RTMS_SDK_OK));
-    exports.Set(Napi::String::New(env, "RTMS_SDK_TIMEOUT"), Napi::Number::New(env, RTMS_SDK_TIMEOUT));
-    exports.Set(Napi::String::New(env, "RTMS_SDK_NOT_EXIST"), Napi::Number::New(env, RTMS_SDK_NOT_EXIST));
-    exports.Set(Napi::String::New(env, "RTMS_SDK_WRONG_TYPE"), Napi::Number::New(env, RTMS_SDK_WRONG_TYPE));
-    exports.Set(Napi::String::New(env, "RTMS_SDK_INVALID_STATUS"), Napi::Number::New(env, RTMS_SDK_INVALID_STATUS));
-    exports.Set(Napi::String::New(env, "RTMS_SDK_INVALID_ARGS"), Napi::Number::New(env, RTMS_SDK_INVALID_ARGS));
-
-    exports.Set(Napi::String::New(env, "SESS_STATUS_ACTIVE"), Napi::Number::New(env, SESS_STATUS_ACTIVE));
-    exports.Set(Napi::String::New(env, "SESS_STATUS_PAUSED"), Napi::Number::New(env, SESS_STATUS_PAUSED));
-
-    return exports;
-}
-
 NodeClient::NodeClient(const Napi::CallbackInfo& info) 
     : Napi::ObjectWrap<NodeClient>(info), 
       configured_media_types_(0),
@@ -644,4 +580,69 @@ Napi::Value NodeClient::join(const Napi::CallbackInfo& info) {
         Napi::Error::New(env, e.what()).ThrowAsJavaScriptException();
         return env.Null();
     }
+    
 }
+
+Napi::Object Init(Napi::Env env, Napi::Object exports) {
+    return NodeClient::init(env, exports);
+}
+
+Napi::Object NodeClient::init(Napi::Env env, Napi::Object exports) {
+    Napi::HandleScope scope(env);
+
+    Napi::Function func = DefineClass(env, "Client", {
+        StaticMethod("initialize", &NodeClient::initialize),
+        StaticMethod("uninitialize", &NodeClient::uninitialize),
+        InstanceMethod("join", &NodeClient::join),
+        InstanceMethod("configure", &NodeClient::configure),
+        InstanceMethod("poll", &NodeClient::poll),
+        InstanceMethod("release", &NodeClient::release),
+        InstanceMethod("uuid", &NodeClient::uuid),
+        InstanceMethod("streamId", &NodeClient::streamId),
+        InstanceMethod("setAudioParameters", &NodeClient::setAudioParameters),
+        InstanceMethod("setVideoParameters", &NodeClient::setVideoParameters),
+        InstanceMethod("onJoinConfirm", &NodeClient::setOnJoinConfirm),
+        InstanceMethod("onSessionUpdate", &NodeClient::setOnSessionUpdate),
+        InstanceMethod("onUserUpdate", &NodeClient::setOnUserUpdate),
+        InstanceMethod("onAudioData", &NodeClient::setOnAudioData),
+        InstanceMethod("onVideoData", &NodeClient::setOnVideoData),
+        InstanceMethod("onTranscriptData", &NodeClient::setOnTranscriptData),
+        InstanceMethod("onLeave", &NodeClient::setOnLeave),
+    });
+
+    Napi::FunctionReference* constructor = new Napi::FunctionReference();
+    *constructor = Napi::Persistent(func);
+    env.SetInstanceData(constructor);
+
+    exports.Set("Client", func);
+    
+    exports.Set(Napi::String::New(env, "MEDIA_TYPE_AUDIO"), Napi::Number::New(env, SDK_AUDIO));
+    exports.Set(Napi::String::New(env, "MEDIA_TYPE_VIDEO"), Napi::Number::New(env, SDK_VIDEO));
+    exports.Set(Napi::String::New(env, "MEDIA_TYPE_DESKSHARE"), Napi::Number::New(env, SDK_DESKSHARE));
+    exports.Set(Napi::String::New(env, "MEDIA_TYPE_TRANSCRIPT"), Napi::Number::New(env, SDK_TRANSCRIPT));
+    exports.Set(Napi::String::New(env, "MEDIA_TYPE_CHAT"), Napi::Number::New(env, SDK_CHAT));
+    exports.Set(Napi::String::New(env, "MEDIA_TYPE_ALL"), Napi::Number::New(env, SDK_ALL));
+
+    exports.Set(Napi::String::New(env, "SESSION_EVENT_ADD"), Napi::Number::New(env, SESSION_ADD));
+    exports.Set(Napi::String::New(env, "SESSION_EVENT_STOP"), Napi::Number::New(env, SESSION_STOP));
+    exports.Set(Napi::String::New(env, "SESSION_EVENT_PAUSE"), Napi::Number::New(env, SESSION_PAUSE));
+    exports.Set(Napi::String::New(env, "SESSION_EVENT_RESUME"), Napi::Number::New(env, SESSION_RESUME));
+
+    exports.Set(Napi::String::New(env, "USER_EVENT_JOIN"), Napi::Number::New(env, USER_JOIN));
+    exports.Set(Napi::String::New(env, "USER_EVENT_LEAVE"), Napi::Number::New(env, USER_LEAVE));
+
+    exports.Set(Napi::String::New(env, "RTMS_SDK_FAILURE"), Napi::Number::New(env, RTMS_SDK_FAILURE));
+    exports.Set(Napi::String::New(env, "RTMS_SDK_OK"), Napi::Number::New(env, RTMS_SDK_OK));
+    exports.Set(Napi::String::New(env, "RTMS_SDK_TIMEOUT"), Napi::Number::New(env, RTMS_SDK_TIMEOUT));
+    exports.Set(Napi::String::New(env, "RTMS_SDK_NOT_EXIST"), Napi::Number::New(env, RTMS_SDK_NOT_EXIST));
+    exports.Set(Napi::String::New(env, "RTMS_SDK_WRONG_TYPE"), Napi::Number::New(env, RTMS_SDK_WRONG_TYPE));
+    exports.Set(Napi::String::New(env, "RTMS_SDK_INVALID_STATUS"), Napi::Number::New(env, RTMS_SDK_INVALID_STATUS));
+    exports.Set(Napi::String::New(env, "RTMS_SDK_INVALID_ARGS"), Napi::Number::New(env, RTMS_SDK_INVALID_ARGS));
+
+    exports.Set(Napi::String::New(env, "SESS_STATUS_ACTIVE"), Napi::Number::New(env, SESS_STATUS_ACTIVE));
+    exports.Set(Napi::String::New(env, "SESS_STATUS_PAUSED"), Napi::Number::New(env, SESS_STATUS_PAUSED));
+
+    return exports;
+}
+
+NODE_API_MODULE(rtms, Init);

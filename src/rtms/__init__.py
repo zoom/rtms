@@ -9,7 +9,6 @@ import traceback
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from functools import wraps
 
-# Define module-level variables before importing from _rtms
 _webhook_server = None
 _polling_thread = None
 _polling_interval = 0
@@ -246,6 +245,7 @@ def join(uuid, stream_id, server_urls, timeout=-1, ca="ca.pem", client="", secre
         # Start polling thread
         _running = True
         _polling_worker()
+    
         _log_debug("after thread")
 
         return 0  # Success

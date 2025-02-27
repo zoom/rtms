@@ -6,8 +6,8 @@ ENV LD_LIBRARY_PATH="${CWD}/lib/librtmsdk/:$LD_LIBRARY_PATH"
 
 WORKDIR $CWD
 
-RUN apt-get update  \
-    && apt-get install -y \
+RUN apt update  \
+    && apt install -y \
         cmake \
         python3-full \
         python3-pip \
@@ -18,7 +18,7 @@ RUN apt-get update  \
     && python3 -m venv /opt/venv
     
 RUN  npm install -g prebuild \
-&& pip install "pybind11[global]" python-dotenv 
+&& pip install "pybind11[global]" python-dotenv pdoc3
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 

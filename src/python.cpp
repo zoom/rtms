@@ -54,7 +54,6 @@ public:
             // Ignore any errors during callback cleanup
         }
         
-        // Then release all Python callback references
         join_confirm_callback = py::none();
         session_update_callback = py::none();
         user_update_callback = py::none();
@@ -105,13 +104,12 @@ public:
             if (!is_configured_) {
                 DEBUG_LOG("Configuring client with media types: " << configured_media_types_);
                 
-                // Create fully initialized media parameters
                 MediaParameters params;
                 
                 if (configured_media_types_ & static_cast<int>(SDK_AUDIO)) {
                     DEBUG_LOG("Setting up full audio parameters");
                     AudioParameters audio;
-                    // Initialize all fields
+
                     audio.setContentType(0);    // Default content type
                     audio.setCodec(0);          // Default codec
                     audio.setSampleRate(16000); // 16kHz is common for audio
@@ -125,7 +123,7 @@ public:
                 if (configured_media_types_ & static_cast<int>(SDK_VIDEO)) {
                     DEBUG_LOG("Setting up full video parameters");
                     VideoParameters video;
-                    // Initialize all fields
+
                     video.setContentType(0);    // Default content type
                     video.setCodec(0);          // Default codec
                     video.setResolution(0);     // Default resolution
@@ -134,7 +132,6 @@ public:
                     params.setVideoParameters(video);
                 }
                 
-                // Use the full SDK_ALL if no specific types are set
                 int media_types = configured_media_types_ > 0 ? configured_media_types_ : static_cast<int>(SDK_ALL);
                 
                 DEBUG_LOG("Calling configure with media types: " << media_types);
@@ -223,9 +220,7 @@ public:
         // Store Python callback
         join_confirm_callback = callback;
         
-        // Set C++ callback with safeguards
         client_->setOnJoinConfirm([this](int reason) {
-            // Ensure callback is still valid and not None 
             py::gil_scoped_acquire acquire;
             try {
                 if (!join_confirm_callback.is_none() && PyCallable_Check(join_confirm_callback.ptr())) {
@@ -390,13 +385,12 @@ private:
         try {
             DEBUG_LOG("Reconfiguring media types: " << configured_media_types_);
             
-            // Create fully initialized media parameters
             MediaParameters params;
             
             if (configured_media_types_ & static_cast<int>(SDK_AUDIO)) {
                 DEBUG_LOG("Setting up full audio parameters for reconfiguration");
                 AudioParameters audio;
-                // Initialize all fields
+
                 audio.setContentType(0);    // Default content type
                 audio.setCodec(0);          // Default codec
                 audio.setSampleRate(16000); // 16kHz is common for audio
@@ -447,7 +441,6 @@ private:
     py::function leave_callback;
 };
 
-// Create a singleton client for the module
 PyClient& get_client() {
     static PyClient client;
     return client;
@@ -536,7 +529,6 @@ PYBIND11_MODULE(_rtms, m) {
         }
         get_client().set_join_confirm_callback(callback);
         
-        // Return a new function that wraps the callback to ensure proper decorator behavior
         return py::cpp_function([callback](int reason) {
             return callback(reason);
         });
@@ -551,7 +543,6 @@ PYBIND11_MODULE(_rtms, m) {
         }
         get_client().set_session_update_callback(callback);
         
-        // Return a new function that wraps the callback
         return py::cpp_function([callback](int op, const Session& session) {
             return callback(op, session);
         });
@@ -566,7 +557,6 @@ PYBIND11_MODULE(_rtms, m) {
         }
         get_client().set_user_update_callback(callback);
         
-        // Return a new function that wraps the callback
         return py::cpp_function([callback](int op, const Participant& participant) {
             return callback(op, participant);
         });
@@ -581,7 +571,6 @@ PYBIND11_MODULE(_rtms, m) {
         }
         get_client().set_audio_data_callback(callback);
         
-        // Return a new function that wraps the callback
         return py::cpp_function([callback](py::bytes data, int size, uint32_t timestamp, const Metadata& metadata) {
             return callback(data, size, timestamp, metadata);
         });
@@ -596,7 +585,6 @@ PYBIND11_MODULE(_rtms, m) {
         }
         get_client().set_video_data_callback(callback);
         
-        // Return a new function that wraps the callback
         return py::cpp_function([callback](py::bytes data, int size, uint32_t timestamp, const string& track_id, const Metadata& metadata) {
             return callback(data, size, timestamp, track_id, metadata);
         });
@@ -611,7 +599,6 @@ PYBIND11_MODULE(_rtms, m) {
         }
         get_client().set_transcript_data_callback(callback);
         
-        // Return a new function that wraps the callback
         return py::cpp_function([callback](py::bytes data, int size, uint32_t timestamp, const Metadata& metadata) {
             return callback(data, size, timestamp, metadata);
         });
@@ -626,7 +613,6 @@ PYBIND11_MODULE(_rtms, m) {
         }
         get_client().set_leave_callback(callback);
         
-        // Return a new function that wraps the callback
         return py::cpp_function([callback](int reason) {
             return callback(reason);
         });
