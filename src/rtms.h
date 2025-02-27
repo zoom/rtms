@@ -175,13 +175,13 @@ public:
     static void uninitialize();
     void configure(const MediaParameters& params, int media_types, bool enable_application_layer_encryption = false);
 
-    void setJoinConfirm(JoinConfirmFn callback);
-    void setSessionUpdate(SessionUpdateFn callback);
-    void setUserUpdate(UserUpdateFn callback);
-    void setAudioData(AudioDataFn callback);
-    void setVideoData(VideoDataFn callback);
-    void setTranscriptData(TranscriptDataFn callback);
-    void setLeave(LeaveFn callback);
+    void setOnJoinConfirm(JoinConfirmFn callback);
+    void setOnSessionUpdate(SessionUpdateFn callback);
+    void setOnUserUpdate(UserUpdateFn callback);
+    void setOnAudioData(AudioDataFn callback);
+    void setOnVideoData(VideoDataFn callback);
+    void setOnTranscriptData(TranscriptDataFn callback);
+    void setOnLeave(LeaveFn callback);
 
     void join(const string& meeting_uuid, const string& rtms_stream_id, const string& signature, const string& server_url, int timeout = -1);
 

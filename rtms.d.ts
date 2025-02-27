@@ -1,21 +1,3 @@
-export interface JoinParams {
-  meeting_uuid: string;
-  rtms_stream_id: string;
-  server_urls: string;
-  signature?: string;
-  client?: string;
-  secret?: string;
-  ca?: string;
-  timeout?: number;
-}
-
-export interface SignatureParams {
-  client: string;
-  secret: string;
-  uuid: string;
-  streamId: string;
-}
-
 export interface MediaTypes {
   audio: boolean;
   video?: boolean;
@@ -59,3 +41,33 @@ export declare function onAudioData(callback: MediaDataCallback): void;
 export declare function onVideoData(callback: MediaDataCallback): void;
 export declare function onTranscriptData(callback: MediaDataCallback): void;
 export declare function onLeave(callback: LeaveCallback): void;
+
+
+interface JoinParams {
+  meeting_uuid: string;
+  rtms_stream_id: string;
+  server_urls: string;
+  signature?: string;
+  client?: string;
+  secret?: string;
+  ca?: string;
+  timeout?: number;
+  pollInterval?: number;
+}
+
+interface SignatureParams {
+  client: string;
+  secret: string;
+  uuid: string;
+  streamId: string;
+}
+
+class Client extends nativeRtms.Client {
+  join(options: JoinParams): boolean;
+  join(meetingUuid: string, rtmsStreamId: string, signature: string, serverUrls: string, timeout?: number): boolean;
+  join(optionsOrMeetingUuid: JoinParams | string, rtmsStreamId?: string, signature?: string, serverUrls?: string, timeout?: number): boolean;
+  
+  startPolling(): void;
+  stopPolling(): void;
+  leave(): boolean;
+}

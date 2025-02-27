@@ -8,40 +8,40 @@
 #include <chrono>
 #include <iostream>
 
+using namespace Napi;
+using namespace std;
+
 class NodeClient : public Napi::ObjectWrap<NodeClient> {
 public:
-    static Napi::Object Init(Napi::Env env, Napi::Object exports);
+    static Napi::Object init(Napi::Env env, Napi::Object exports);
     NodeClient(const Napi::CallbackInfo& info);
     ~NodeClient();
 
 private:
-    static Napi::Value Initialize(const Napi::CallbackInfo& info);
-    static Napi::Value Uninitialize(const Napi::CallbackInfo& info);
+    static Napi::Value initialize(const Napi::CallbackInfo& info);
+    static Napi::Value uninitialize(const Napi::CallbackInfo& info);
 
-    Napi::Value Join(const Napi::CallbackInfo& info);
-    Napi::Value Configure(const Napi::CallbackInfo& info);
-    Napi::Value Poll(const Napi::CallbackInfo& info);
-    Napi::Value Release(const Napi::CallbackInfo& info);
-    Napi::Value GetMeetingUuid(const Napi::CallbackInfo& info);
-    Napi::Value GetRtmsStreamId(const Napi::CallbackInfo& info);
+    Napi::Value join(const Napi::CallbackInfo& info);
+    Napi::Value configure(const Napi::CallbackInfo& info);
+    Napi::Value poll(const Napi::CallbackInfo& info);
+    Napi::Value release(const Napi::CallbackInfo& info);
+    Napi::Value uuid(const Napi::CallbackInfo& info);
+    Napi::Value streamId(const Napi::CallbackInfo& info);
 
-    Napi::Value SetAudioParameters(const Napi::CallbackInfo& info);
-    Napi::Value SetVideoParameters(const Napi::CallbackInfo& info);
+    Napi::Value setAudioParameters(const Napi::CallbackInfo& info);
+    Napi::Value setVideoParameters(const Napi::CallbackInfo& info);
 
-    Napi::Value SetJoinConfirm(const Napi::CallbackInfo& info);
-    Napi::Value SetSessionUpdate(const Napi::CallbackInfo& info);
-    Napi::Value SetUserUpdate(const Napi::CallbackInfo& info);
-    Napi::Value SetAudioData(const Napi::CallbackInfo& info);
-    Napi::Value SetVideoData(const Napi::CallbackInfo& info);
-    Napi::Value SetTranscriptData(const Napi::CallbackInfo& info);
-    Napi::Value SetLeave(const Napi::CallbackInfo& info);
+    Napi::Value setOnJoinConfirm(const Napi::CallbackInfo& info);
+    Napi::Value setOnSessionUpdate(const Napi::CallbackInfo& info);
+    Napi::Value setOnUserUpdate(const Napi::CallbackInfo& info);
+    Napi::Value setOnAudioData(const Napi::CallbackInfo& info);
+    Napi::Value setOnVideoData(const Napi::CallbackInfo& info);
+    Napi::Value setOnTranscriptData(const Napi::CallbackInfo& info);
+    Napi::Value setOnLeave(const Napi::CallbackInfo& info);
 
-    Napi::Value StartPolling(const Napi::CallbackInfo& info);
-    Napi::Value StopPolling(const Napi::CallbackInfo& info);
+    void reconfigureMediaTypes();
 
-    void ReconfigureMediaTypes();
-
-    std::unique_ptr<rtms::Client> client_;
+    unique_ptr<rtms::Client> client_;
     Napi::ThreadSafeFunction tsfn_join_confirm_;
     Napi::ThreadSafeFunction tsfn_session_update_;
     Napi::ThreadSafeFunction tsfn_user_update_;
@@ -53,12 +53,9 @@ private:
     int configured_media_types_;
     bool is_configured_;
     rtms::MediaParameters media_params_;
-
-    std::unique_ptr<std::thread> polling_thread_;
-    bool stop_polling_;
 };
 
-Napi::Value NodeClient::Poll(const Napi::CallbackInfo& info) {
+Napi::Value NodeClient::poll(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
@@ -71,17 +68,11 @@ Napi::Value NodeClient::Poll(const Napi::CallbackInfo& info) {
     }
 }
 
-Napi::Value NodeClient::Release(const Napi::CallbackInfo& info) {
+Napi::Value NodeClient::release(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
     try {
-        if (polling_thread_) {
-            stop_polling_ = true;
-            polling_thread_->join();
-            polling_thread_.reset();
-        }
-        
         client_->release();
         return Napi::Boolean::New(env, true);
     } catch (const rtms::Exception& e) {
@@ -90,12 +81,12 @@ Napi::Value NodeClient::Release(const Napi::CallbackInfo& info) {
     }
 }
 
-Napi::Value NodeClient::GetMeetingUuid(const Napi::CallbackInfo& info) {
+Napi::Value NodeClient::uuid(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
     try {
-        std::string uuid = client_->uuid();
+        string uuid = client_->uuid();
         return Napi::String::New(env, uuid);
     } catch (const rtms::Exception& e) {
         Napi::Error::New(env, e.what()).ThrowAsJavaScriptException();
@@ -103,12 +94,12 @@ Napi::Value NodeClient::GetMeetingUuid(const Napi::CallbackInfo& info) {
     }
 }
 
-Napi::Value NodeClient::GetRtmsStreamId(const Napi::CallbackInfo& info) {
+Napi::Value NodeClient::streamId(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
     try {
-        std::string stream_id = client_->streamId();
+        string stream_id = client_->streamId();
         return Napi::String::New(env, stream_id);
     } catch (const rtms::Exception& e) {
         Napi::Error::New(env, e.what()).ThrowAsJavaScriptException();
@@ -116,7 +107,7 @@ Napi::Value NodeClient::GetRtmsStreamId(const Napi::CallbackInfo& info) {
     }
 }
 
-Napi::Value NodeClient::SetAudioParameters(const Napi::CallbackInfo& info) {
+Napi::Value NodeClient::setAudioParameters(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
@@ -160,13 +151,13 @@ Napi::Value NodeClient::SetAudioParameters(const Napi::CallbackInfo& info) {
     configured_media_types_ |= SDK_AUDIO;
     
     if (is_configured_) {
-        ReconfigureMediaTypes();
+        reconfigureMediaTypes();
     }
 
     return Napi::Boolean::New(env, true);
 }
 
-Napi::Value NodeClient::SetVideoParameters(const Napi::CallbackInfo& info) {
+Napi::Value NodeClient::setVideoParameters(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
@@ -202,13 +193,13 @@ Napi::Value NodeClient::SetVideoParameters(const Napi::CallbackInfo& info) {
     configured_media_types_ |= SDK_VIDEO;
     
     if (is_configured_) {
-        ReconfigureMediaTypes();
+        reconfigureMediaTypes();
     }
 
     return Napi::Boolean::New(env, true);
 }
 
-Napi::Value NodeClient::SetJoinConfirm(const Napi::CallbackInfo& info) {
+Napi::Value NodeClient::setOnJoinConfirm(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
@@ -227,7 +218,7 @@ Napi::Value NodeClient::SetJoinConfirm(const Napi::CallbackInfo& info) {
         env, callback, "JoinConfirmCallback", 0, 1
     );
 
-    client_->setJoinConfirm([this](int reason) {
+    client_->setOnJoinConfirm([this](int reason) {
         auto callback = [reason](Napi::Env env, Napi::Function jsCallback) {
             jsCallback.Call({Napi::Number::New(env, reason)});
         };
@@ -237,7 +228,7 @@ Napi::Value NodeClient::SetJoinConfirm(const Napi::CallbackInfo& info) {
     return Napi::Boolean::New(env, true);
 }
 
-Napi::Value NodeClient::SetSessionUpdate(const Napi::CallbackInfo& info) {
+Napi::Value NodeClient::setOnSessionUpdate(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
@@ -256,7 +247,7 @@ Napi::Value NodeClient::SetSessionUpdate(const Napi::CallbackInfo& info) {
         env, callback, "SessionUpdateCallback", 0, 1
     );
 
-    client_->setSessionUpdate([this](int op, const rtms::Session& session) {
+    client_->setOnSessionUpdate([this](int op, const rtms::Session& session) {
         auto callback = [op, sessionId = session.sessionId(), statTime = session.statTime(), status = session.status()]
                         (Napi::Env env, Napi::Function jsCallback) {
             Napi::Object sessionObj = Napi::Object::New(env);
@@ -274,7 +265,7 @@ Napi::Value NodeClient::SetSessionUpdate(const Napi::CallbackInfo& info) {
     return Napi::Boolean::New(env, true);
 }
 
-Napi::Value NodeClient::SetUserUpdate(const Napi::CallbackInfo& info) {
+Napi::Value NodeClient::setOnUserUpdate(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
@@ -293,7 +284,7 @@ Napi::Value NodeClient::SetUserUpdate(const Napi::CallbackInfo& info) {
         env, callback, "UserUpdateCallback", 0, 1
     );
 
-    client_->setUserUpdate([this](int op, const rtms::Participant& participant) {
+    client_->setOnUserUpdate([this](int op, const rtms::Participant& participant) {
         auto callback = [op, id = participant.id(), name = participant.name()]
                         (Napi::Env env, Napi::Function jsCallback) {
             Napi::Object participantObj = Napi::Object::New(env);
@@ -308,7 +299,7 @@ Napi::Value NodeClient::SetUserUpdate(const Napi::CallbackInfo& info) {
     return Napi::Boolean::New(env, true);
 }
 
-Napi::Value NodeClient::SetAudioData(const Napi::CallbackInfo& info) {
+Napi::Value NodeClient::setOnAudioData(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
@@ -327,7 +318,7 @@ Napi::Value NodeClient::SetAudioData(const Napi::CallbackInfo& info) {
         env, callback, "AudioDataCallback", 0, 1
     );
 
-    client_->setAudioData([this](const std::vector<uint8_t>& data, uint32_t timestamp, const rtms::Metadata& metadata) {
+    client_->setOnAudioData([this](const vector<uint8_t>& data, uint32_t timestamp, const rtms::Metadata& metadata) {
         auto callback = [data, timestamp, userName = metadata.userName(), userId = metadata.userId()]
                        (Napi::Env env, Napi::Function jsCallback) {
             Napi::Buffer<uint8_t> buffer = Napi::Buffer<uint8_t>::Copy(env, data.data(), data.size());
@@ -344,13 +335,13 @@ Napi::Value NodeClient::SetAudioData(const Napi::CallbackInfo& info) {
     // Auto-configure for audio
     configured_media_types_ |= SDK_AUDIO;
     if (is_configured_) {
-        ReconfigureMediaTypes();
+        reconfigureMediaTypes();
     }
 
     return Napi::Boolean::New(env, true);
 }
 
-Napi::Value NodeClient::SetVideoData(const Napi::CallbackInfo& info) {
+Napi::Value NodeClient::setOnVideoData(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
@@ -369,7 +360,7 @@ Napi::Value NodeClient::SetVideoData(const Napi::CallbackInfo& info) {
         env, callback, "VideoDataCallback", 0, 1
     );
 
-    client_->setVideoData([this](const std::vector<uint8_t>& data, uint32_t timestamp, const std::string& session_id, const rtms::Metadata& metadata) {
+    client_->setOnVideoData([this](const vector<uint8_t>& data, uint32_t timestamp, const string& session_id, const rtms::Metadata& metadata) {
         auto callback = [data, timestamp, session_id, userName = metadata.userName(), userId = metadata.userId()]
                        (Napi::Env env, Napi::Function jsCallback) {
             Napi::Buffer<uint8_t> buffer = Napi::Buffer<uint8_t>::Copy(env, data.data(), data.size());
@@ -386,13 +377,13 @@ Napi::Value NodeClient::SetVideoData(const Napi::CallbackInfo& info) {
     // Auto-configure for video
     configured_media_types_ |= SDK_VIDEO;
     if (is_configured_) {
-        ReconfigureMediaTypes();
+        reconfigureMediaTypes();
     }
 
     return Napi::Boolean::New(env, true);
 }
 
-Napi::Value NodeClient::SetTranscriptData(const Napi::CallbackInfo& info) {
+Napi::Value NodeClient::setOnTranscriptData(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
@@ -411,7 +402,7 @@ Napi::Value NodeClient::SetTranscriptData(const Napi::CallbackInfo& info) {
         env, callback, "TranscriptDataCallback", 0, 1
     );
 
-    client_->setTranscriptData([this](const std::vector<uint8_t>& data, uint32_t timestamp, const rtms::Metadata& metadata) {
+    client_->setOnTranscriptData([this](const vector<uint8_t>& data, uint32_t timestamp, const rtms::Metadata& metadata) {
         auto callback = [data, timestamp, userName = metadata.userName(), userId = metadata.userId()]
                        (Napi::Env env, Napi::Function jsCallback) {
             Napi::Buffer<uint8_t> buffer = Napi::Buffer<uint8_t>::Copy(env, data.data(), data.size());
@@ -428,13 +419,13 @@ Napi::Value NodeClient::SetTranscriptData(const Napi::CallbackInfo& info) {
     // Auto-configure for transcript
     configured_media_types_ |= SDK_TRANSCRIPT;
     if (is_configured_) {
-        ReconfigureMediaTypes();
+        reconfigureMediaTypes();
     }
 
     return Napi::Boolean::New(env, true);
 }
 
-Napi::Value NodeClient::SetLeave(const Napi::CallbackInfo& info) {
+Napi::Value NodeClient::setOnLeave(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
@@ -453,7 +444,7 @@ Napi::Value NodeClient::SetLeave(const Napi::CallbackInfo& info) {
         env, callback, "LeaveCallback", 0, 1
     );
 
-    client_->setLeave([this](int reason) {
+    client_->setOnLeave([this](int reason) {
         auto callback = [reason](Napi::Env env, Napi::Function jsCallback) {
             jsCallback.Call({Napi::Number::New(env, reason)});
         };
@@ -463,77 +454,34 @@ Napi::Value NodeClient::SetLeave(const Napi::CallbackInfo& info) {
     return Napi::Boolean::New(env, true);
 }
 
-Napi::Value NodeClient::StartPolling(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    Napi::HandleScope scope(env);
-
-    if (polling_thread_) {
-        return Napi::Boolean::New(env, true); // Already polling
-    }
-
-    stop_polling_ = false;
-    
-    try {
-        while (!stop_polling_) {
-            client_->poll();
-            //std::this_thread::sleep_for(std::chrono::milliseconds(10)); // Polling interval
-        }
-    } catch (const rtms::Exception& e) {
-        std::cerr << "Polling thread error: " << e.what() << std::endl;
-        stop_polling_ = true;
-    }
-
-/*     polling_thread_ = std::make_unique<std::thread>([this]() {
- 
-    }); */
-
-    return Napi::Boolean::New(env, true);
-}
-
-Napi::Value NodeClient::StopPolling(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    Napi::HandleScope scope(env);
-
-    if (!polling_thread_) {
-        return Napi::Boolean::New(env, true); // Not polling
-    }
-
-    stop_polling_ = true;
-    polling_thread_->join();
-    polling_thread_.reset();
-
-    return Napi::Boolean::New(env, true);
-}
 
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
-    return NodeClient::Init(env, exports);
+    return NodeClient::init(env, exports);
 }
 
 NODE_API_MODULE(rtms, Init);
 
-Napi::Object NodeClient::Init(Napi::Env env, Napi::Object exports) {
+Napi::Object NodeClient::init(Napi::Env env, Napi::Object exports) {
     Napi::HandleScope scope(env);
 
     Napi::Function func = DefineClass(env, "Client", {
-        StaticMethod("initialize", &NodeClient::Initialize),
-        StaticMethod("uninitialize", &NodeClient::Uninitialize),
-        InstanceMethod("join", &NodeClient::Join),
-        InstanceMethod("configure", &NodeClient::Configure),
-        InstanceMethod("poll", &NodeClient::Poll),
-        InstanceMethod("release", &NodeClient::Release),
-        InstanceMethod("getMeetingUuid", &NodeClient::GetMeetingUuid),
-        InstanceMethod("getRtmsStreamId", &NodeClient::GetRtmsStreamId),
-        InstanceMethod("setAudioParameters", &NodeClient::SetAudioParameters),
-        InstanceMethod("setVideoParameters", &NodeClient::SetVideoParameters),
-        InstanceMethod("onJoinConfirm", &NodeClient::SetJoinConfirm),
-        InstanceMethod("setSessionUpdateCallback", &NodeClient::SetSessionUpdate),
-        InstanceMethod("setUserUpdateCallback", &NodeClient::SetUserUpdate),
-        InstanceMethod("onAudioData", &NodeClient::SetAudioData),
-        InstanceMethod("setVideoDataCallback", &NodeClient::SetVideoData),
-        InstanceMethod("setTranscriptDataCallback", &NodeClient::SetTranscriptData),
-        InstanceMethod("setLeaveCallback", &NodeClient::SetLeave),
-        InstanceMethod("startPolling", &NodeClient::StartPolling),
-        InstanceMethod("stopPolling", &NodeClient::StopPolling),
+        StaticMethod("initialize", &NodeClient::initialize),
+        StaticMethod("uninitialize", &NodeClient::uninitialize),
+        InstanceMethod("join", &NodeClient::join),
+        InstanceMethod("configure", &NodeClient::configure),
+        InstanceMethod("poll", &NodeClient::poll),
+        InstanceMethod("release", &NodeClient::release),
+        InstanceMethod("getMeetingUuid", &NodeClient::uuid),
+        InstanceMethod("getRtmsStreamId", &NodeClient::streamId),
+        InstanceMethod("setAudioParameters", &NodeClient::setAudioParameters),
+        InstanceMethod("setVideoParameters", &NodeClient::setVideoParameters),
+        InstanceMethod("onJoinConfirm", &NodeClient::setOnJoinConfirm),
+        InstanceMethod("onSessionUpdate", &NodeClient::setOnSessionUpdate),
+        InstanceMethod("onUserUpdate", &NodeClient::setOnUserUpdate),
+        InstanceMethod("onAudioData", &NodeClient::setOnAudioData),
+        InstanceMethod("onVideoData", &NodeClient::setOnVideoData),
+        InstanceMethod("onTranscriptData", &NodeClient::setOnTranscriptData),
+        InstanceMethod("onLeave", &NodeClient::setOnLeave),
     });
 
     Napi::FunctionReference* constructor = new Napi::FunctionReference();
@@ -574,25 +522,18 @@ Napi::Object NodeClient::Init(Napi::Env env, Napi::Object exports) {
 NodeClient::NodeClient(const Napi::CallbackInfo& info) 
     : Napi::ObjectWrap<NodeClient>(info), 
       configured_media_types_(0),
-      is_configured_(false),
-      stop_polling_(false) {
+      is_configured_(false) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
     try {
-        client_ = std::make_unique<rtms::Client>();
+        client_ = make_unique<rtms::Client>();
     } catch (const rtms::Exception& e) {
         Napi::Error::New(env, e.what()).ThrowAsJavaScriptException();
     }
 }
 
 NodeClient::~NodeClient() {
-    if (polling_thread_) {
-        stop_polling_ = true;
-        polling_thread_->join();
-        polling_thread_.reset();
-    }
-
     if (tsfn_join_confirm_) tsfn_join_confirm_.Release();
     if (tsfn_session_update_) tsfn_session_update_.Release();
     if (tsfn_user_update_) tsfn_user_update_.Release();
@@ -602,12 +543,12 @@ NodeClient::~NodeClient() {
     if (tsfn_leave_) tsfn_leave_.Release();
 }
 
-Napi::Value NodeClient::Initialize(const Napi::CallbackInfo& info) {
+Napi::Value NodeClient::initialize(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
     try {
-        std::string ca_path = "";
+        string ca_path = "";
         if (info.Length() > 0 && info[0].IsString()) {
             ca_path = info[0].As<Napi::String>();
         }
@@ -620,7 +561,7 @@ Napi::Value NodeClient::Initialize(const Napi::CallbackInfo& info) {
     }
 }
 
-Napi::Value NodeClient::Uninitialize(const Napi::CallbackInfo& info) {
+Napi::Value NodeClient::uninitialize(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
@@ -628,18 +569,18 @@ Napi::Value NodeClient::Uninitialize(const Napi::CallbackInfo& info) {
     return Napi::Boolean::New(env, true);
 }
 
-void NodeClient::ReconfigureMediaTypes() {
+void NodeClient::reconfigureMediaTypes() {
     if (!client_ || !is_configured_) return;
     
     try {
         client_->configure(media_params_, configured_media_types_, false);
     } catch (const rtms::Exception& e) {
         // Log error but don't throw - this is called from callback setters
-        std::cerr << "Failed to reconfigure media types: " << e.what() << std::endl;
+        cerr << "Failed to reconfigure media types: " << e.what() << endl;
     }
 }
 
-Napi::Value NodeClient::Configure(const Napi::CallbackInfo& info) {
+Napi::Value NodeClient::configure(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
@@ -666,7 +607,7 @@ Napi::Value NodeClient::Configure(const Napi::CallbackInfo& info) {
     }
 }
 
-Napi::Value NodeClient::Join(const Napi::CallbackInfo& info) {
+Napi::Value NodeClient::join(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
@@ -680,10 +621,10 @@ Napi::Value NodeClient::Join(const Napi::CallbackInfo& info) {
         return env.Null();
     }
 
-    std::string meeting_uuid = info[0].As<Napi::String>();
-    std::string rtms_stream_id = info[1].As<Napi::String>();
-    std::string signature = info[2].As<Napi::String>();
-    std::string server_url = info[3].As<Napi::String>();
+    string meeting_uuid = info[0].As<Napi::String>();
+    string rtms_stream_id = info[1].As<Napi::String>();
+    string signature = info[2].As<Napi::String>();
+    string server_url = info[3].As<Napi::String>();
     
     int timeout = -1;
     if (info.Length() > 4 && info[4].IsNumber()) {
