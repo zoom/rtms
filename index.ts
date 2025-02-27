@@ -72,7 +72,7 @@ class Client extends nativeRtms.Client {
         client = process.env['ZM_RTMS_CLIENT'] || "",
         secret = process.env['ZM_RTMS_SECRET'] || "",
         timeout: providedTimeout = -1,
-        pollInterval = 10
+        pollInterval = 0
       } = options;
       
       this.pollRate = pollInterval;
