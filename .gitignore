@@ -18,13 +18,13 @@ lib/librtmsdk/*
 *.c
 *.py
 *.pyi
+
+scripts/**/*
+!scripts/common
+!scripts/**/*.js
 !src/rtms/*.py
 !src/rtms/*.pyi
 
-
-### IDEs
-.idea
-.vscode
 
 # MacOS
 .DS_Store

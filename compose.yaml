@@ -22,19 +22,16 @@ x-base: &base
 services:
   js:
     <<: *base
-    environment:
-      - ZM_RTMS_LANG=js
+    command: npm run build:js && npm run test:js
     ports:
       - 8080:8080
   py:
     <<: *base
-    environment:
-      - ZM_RTMS_LANG=py
+    command: npm run build:py && npm run test:py
     ports:
       - 8081:8080
   go:
     <<: *base
-    environment:
-      - ZM_RTMS_LANG=go
+    command: npm run build:go && npm run test:go
     ports:
       - 8082:8080

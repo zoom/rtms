@@ -1,0 +1,24 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug JS",
+            "preLaunchTask": "npm: build:js",
+            "cwd": "${workspaceFolder}",
+            "program": "/home/max/.nvm/versions/node/v22.14.0/bin/node",
+            "args": ["test.js"]
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug Py",
+            "preLaunchTask": "npm: build:py",
+            "cwd": "${workspaceFolder}",
+            "program": "python3",
+            "args": ["test.py"]
+        }
+    ]
+}
