@@ -115,6 +115,7 @@ export class Client {
   configure(mediaTypes: number, enableEncryption?: boolean): boolean;
   poll(): boolean;
   release(): boolean;
+  leave(): boolean;
   uuid(): string;
   streamId(): string;
   
@@ -128,9 +129,22 @@ export class Client {
   onVideoData(callback: VideoDataCallback): boolean;
   onTranscriptData(callback: TranscriptDataCallback): boolean;
   onLeave(callback: LeaveCallback): boolean;
-  
-  leave(): boolean;
 }
+
+// Global singleton functions
+export function join(options: JoinParams): boolean;
+export function join(meetingUuid: string, rtmsStreamId: string, signature: string, serverUrls: string, timeout?: number): boolean;
+export function leave(): boolean;
+export function poll(): boolean;
+export function uuid(): string;
+export function streamId(): string;
+export function onJoinConfirm(callback: JoinConfirmCallback): boolean;
+export function onSessionUpdate(callback: SessionUpdateCallback): boolean;
+export function onUserUpdate(callback: UserUpdateCallback): boolean;
+export function onAudioData(callback: AudioDataCallback): boolean;
+export function onVideoData(callback: VideoDataCallback): boolean;
+export function onTranscriptData(callback: TranscriptDataCallback): boolean;
+export function onLeave(callback: LeaveCallback): boolean;
 
 // Module exports
 export function initialize(caPath?: string): boolean;
@@ -140,7 +154,24 @@ export function isInitialized(): boolean;
 
 // Default export
 declare const rtms: {
+  // Class-based API
   Client: typeof Client;
+  
+  // Global singleton API
+  join: typeof join;
+  leave: typeof leave;
+  poll: typeof poll;
+  uuid: typeof uuid;
+  streamId: typeof streamId;
+  onJoinConfirm: typeof onJoinConfirm;
+  onSessionUpdate: typeof onSessionUpdate;
+  onUserUpdate: typeof onUserUpdate;
+  onAudioData: typeof onAudioData;
+  onVideoData: typeof onVideoData;
+  onTranscriptData: typeof onTranscriptData;
+  onLeave: typeof onLeave;
+  
+  // Utility functions
   initialize: typeof initialize;
   uninitialize: typeof uninitialize;
   generateSignature: typeof generateSignature;

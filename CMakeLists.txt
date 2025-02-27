@@ -21,7 +21,7 @@ endif()
 
 # Find the header directory
 find_path(RTMS_INCLUDE_DIR
-  NAMES rtms_csdk.h
+  NAMES rtms_csdk.h rtms_common.h
   PATHS ${RTMS_SDK_SEARCH_PATHS}
   PATH_SUFFIXES include h
   DOC "RTMS SDK header directory"

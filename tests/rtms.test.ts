@@ -1,17 +1,35 @@
 const rtms = require("../index.ts")
 
-// Mock the module
+// Mock the native addon methods for both Client and global functions
 jest.mock("../index.ts", () => {
-  // Mock Client class implementation
-  const ClientMock = jest.fn().mockImplementation(() => ({
+  // Create mock functions for all methods
+  const mockFunctions = {
+    // Client class methods
+    Client: jest.fn().mockImplementation(() => ({
+      _init: jest.fn(),
+      _isInit: jest.fn().mockReturnValue(true),
+      _join: jest.fn().mockReturnValue(0),
+      join: jest.fn().mockReturnValue(true),
+      poll: jest.fn(),
+      release: jest.fn().mockReturnValue(true),
+      uuid: jest.fn().mockReturnValue("client-uuid"),
+      streamId: jest.fn().mockReturnValue("client-stream-id"),
+      onJoinConfirm: jest.fn(),
+      onSessionUpdate: jest.fn(),
+      onUserUpdate: jest.fn(),
+      onAudioData: jest.fn(),
+      onVideoData: jest.fn(),
+      onTranscriptData: jest.fn(),
+      onLeave: jest.fn(),
+    })),
+
+    // Global client singleton methods
     join: jest.fn().mockReturnValue(true),
-    startPolling: jest.fn(),
-    stopPolling: jest.fn(),
-    leave: jest.fn().mockReturnValue(true),
     poll: jest.fn(),
+    leave: jest.fn().mockReturnValue(true),
     release: jest.fn().mockReturnValue(true),
-    uuid: jest.fn().mockReturnValue("test-uuid"),
-    streamId: jest.fn().mockReturnValue("test-stream-id"),
+    uuid: jest.fn().mockReturnValue("global-uuid"),
+    streamId: jest.fn().mockReturnValue("global-stream-id"),
     onJoinConfirm: jest.fn(),
     onSessionUpdate: jest.fn(),
     onUserUpdate: jest.fn(),
@@ -19,236 +37,294 @@ jest.mock("../index.ts", () => {
     onVideoData: jest.fn(),
     onTranscriptData: jest.fn(),
     onLeave: jest.fn(),
-  }));
-  
-  // Return mocked default export
-  return {
-    __esModule: true,
-    default: {
-      Client: ClientMock,
-      initialize: jest.fn().mockReturnValue(true),
-      uninitialize: jest.fn().mockReturnValue(true),
-      generateSignature: jest.fn().mockReturnValue("mock-signature"),
-      isInitialized: jest.fn().mockReturnValue(true),
-      
-      // Constants
-      MEDIA_TYPE_AUDIO: 1,
-      MEDIA_TYPE_VIDEO: 2,
-      MEDIA_TYPE_DESKSHARE: 4,
-      MEDIA_TYPE_TRANSCRIPT: 8,
-      MEDIA_TYPE_CHAT: 16,
-      MEDIA_TYPE_ALL: 31,
-      
-      SESSION_EVENT_ADD: 1,
-      SESSION_EVENT_STOP: 2,
-      SESSION_EVENT_PAUSE: 3,
-      SESSION_EVENT_RESUME: 4,
-      
-      USER_EVENT_JOIN: 1,
-      USER_EVENT_LEAVE: 2,
-      
-      RTMS_SDK_FAILURE: 1,
-      RTMS_SDK_OK: 0,
-      RTMS_SDK_TIMEOUT: 2,
-      RTMS_SDK_NOT_EXIST: 3,
-      RTMS_SDK_WRONG_TYPE: 4,
-      RTMS_SDK_INVALID_STATUS: 5,
-      RTMS_SDK_INVALID_ARGS: 6,
-      
-      SESS_STATUS_ACTIVE: 1,
-      SESS_STATUS_PAUSED: 2,
-    }
+
+    // Utility functions
+    initialize: jest.fn().mockReturnValue(true),
+    uninitialize: jest.fn().mockReturnValue(true),
+    generateSignature: jest.fn().mockReturnValue("mock-signature"),
+    isInitialized: jest.fn().mockReturnValue(true),
+
+    // Constants (for completeness)
+    MEDIA_TYPE_AUDIO: 1,
+    MEDIA_TYPE_VIDEO: 2,
+    MEDIA_TYPE_TRANSCRIPT: 4,
+    MEDIA_TYPE_ALL: 7,
   };
+
+  return mockFunctions;
 });
 
-describe('RTMS Node.JS Module Unit Tests', () => {
-  let client;
-  
+describe('RTMS Node.JS Addon Unit Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    client = new rtms.default.Client();
   });
 
-  // ---- Module Functions ----
-  
-  test('initialize initializes the RTMS module', () => {
-    const result = rtms.default.initialize('/path/to/ca.pem');
-    expect(rtms.default.initialize).toHaveBeenCalledWith('/path/to/ca.pem');
-    expect(result).toBe(true);
-  });
-  
-  test('uninitialize releases RTMS resources', () => {
-    const result = rtms.default.uninitialize();
-    expect(rtms.default.uninitialize).toHaveBeenCalled();
-    expect(result).toBe(true);
-  });
-  
-  test('generateSignature creates a signature with correct parameters', () => {
-    const params = {
-      client: 'client-id',
-      secret: 'client-secret',
-      uuid: 'meeting-uuid',
-      streamId: 'stream-id'
-    };
-    
-    const signature = rtms.default.generateSignature(params);
-    expect(rtms.default.generateSignature).toHaveBeenCalledWith(params);
-    expect(signature).toBe('mock-signature');
-  });
-  
-  test('isInitialized returns initialization status', () => {
-    const initialized = rtms.default.isInitialized();
-    expect(rtms.default.isInitialized).toHaveBeenCalled();
-    expect(initialized).toBe(true);
+  // ---- Class-based approach tests ----
+  describe('Class-based Client Approach', () => {
+    let client;
+
+    beforeEach(() => {
+      client = new rtms.Client();
+    });
+
+    test('client.join with parameters joins a session correctly', () => {
+      const result = client.join("uuid", "session_id", "signature", "server_url", 5000);
+      expect(client.join).toHaveBeenCalledWith("uuid", "session_id", "signature", "server_url", 5000);
+      expect(result).toBe(true);
+    });
+
+    test('client.join with options object joins a session correctly', () => {
+      const options = {
+        meeting_uuid: "uuid",
+        rtms_stream_id: "session_id",
+        server_urls: "server_url",
+        signature: "signature",
+        timeout: 5000,
+        pollInterval: 100
+      };
+      
+      const result = client.join(options);
+      expect(client.join).toHaveBeenCalledWith(options);
+      expect(result).toBe(true);
+    });
+
+    test('client.uuid returns the UUID correctly', () => {
+      const uuid = client.uuid();
+      expect(client.uuid).toHaveBeenCalled();
+      expect(uuid).toBe("client-uuid");
+    });
+
+    test('client.streamId returns the stream ID correctly', () => {
+      const streamId = client.streamId();
+      expect(client.streamId).toHaveBeenCalled();
+      expect(streamId).toBe("client-stream-id");
+    });
+
+    test('client.onAudioData sets the audio data callback correctly', () => {
+      const callback = jest.fn();
+      client.onAudioData(callback);
+      expect(client.onAudioData).toHaveBeenCalledWith(callback);
+    });
+
+    test('client.onVideoData sets the video data callback correctly', () => {
+      const callback = jest.fn();
+      client.onVideoData(callback);
+      expect(client.onVideoData).toHaveBeenCalledWith(callback);
+    });
+
+    test('client.onTranscriptData sets the transcript data callback correctly', () => {
+      const callback = jest.fn();
+      client.onTranscriptData(callback);
+      expect(client.onTranscriptData).toHaveBeenCalledWith(callback);
+    });
+
+    test('client.onJoinConfirm sets the join confirmation callback correctly', () => {
+      const callback = jest.fn();
+      client.onJoinConfirm(callback);
+      expect(client.onJoinConfirm).toHaveBeenCalledWith(callback);
+    });
+
+    test('client.onSessionUpdate sets the session update callback correctly', () => {
+      const callback = jest.fn();
+      client.onSessionUpdate(callback);
+      expect(client.onSessionUpdate).toHaveBeenCalledWith(callback);
+    });
+
+    test('client.onUserUpdate sets the user update callback correctly', () => {
+      const callback = jest.fn();
+      client.onUserUpdate(callback);
+      expect(client.onUserUpdate).toHaveBeenCalledWith(callback);
+    });
+
+    test('client.onLeave sets the leave callback correctly', () => {
+      const callback = jest.fn();
+      client.onLeave(callback);
+      expect(client.onLeave).toHaveBeenCalledWith(callback);
+    });
+
+    test('client.release releases resources correctly', () => {
+      const result = client.release();
+      expect(client.release).toHaveBeenCalled();
+      expect(result).toBe(true);
+    });
   });
 
-  // ---- Client Methods ----
-  
-  test('Client constructor creates a new client instance', () => {
-    expect(rtms.default.Client).toHaveBeenCalled();
-    expect(client).toBeDefined();
-  });
-  
-  test('join accepts object parameters', () => {
-    const joinParams = {
-      meeting_uuid: 'uuid',
-      rtms_stream_id: 'session_id',
-      server_urls: 'server_url',
-      timeout: 5000
-    };
-    
-    const result = client.join(joinParams);
-    expect(client.join).toHaveBeenCalledWith(joinParams);
-    expect(result).toBe(true);
-  });
-  
-  test('join with individual parameters', () => {
-    const result = client.join('uuid', 'session_id', 'signature', 'server_url', 5000);
-    expect(client.join).toHaveBeenCalledWith('uuid', 'session_id', 'signature', 'server_url', 5000);
-    expect(result).toBe(true);
-  });
-  
-  test('uuid returns the meeting UUID', () => {
-    const uuid = client.uuid();
-    expect(client.uuid).toHaveBeenCalled();
-    expect(uuid).toBe('test-uuid');
-  });
-  
-  test('streamId returns the stream ID', () => {
-    const streamId = client.streamId();
-    expect(client.streamId).toHaveBeenCalled();
-    expect(streamId).toBe('test-stream-id');
-  });
-  
-  test('leave stops polling and releases resources', () => {
-    const result = client.leave();
-    expect(client.leave).toHaveBeenCalled();
-    expect(result).toBe(true);
+  // ---- Global singleton approach tests ----
+  describe('Global Singleton Approach', () => {
+    test('rtms.join with parameters joins a session correctly', () => {
+      const result = rtms.join("uuid", "session_id", "signature", "server_url", 5000);
+      expect(rtms.join).toHaveBeenCalledWith("uuid", "session_id", "signature", "server_url", 5000);
+      expect(result).toBe(true);
+    });
+
+    test('rtms.join with options object joins a session correctly', () => {
+      const options = {
+        meeting_uuid: "uuid",
+        rtms_stream_id: "session_id",
+        server_urls: "server_url",
+        signature: "signature",
+        timeout: 5000,
+        pollInterval: 100
+      };
+      
+      const result = rtms.join(options);
+      expect(rtms.join).toHaveBeenCalledWith(options);
+      expect(result).toBe(true);
+    });
+
+    test('rtms.uuid returns the UUID correctly', () => {
+      const uuid = rtms.uuid();
+      expect(rtms.uuid).toHaveBeenCalled();
+      expect(uuid).toBe("global-uuid");
+    });
+
+    test('rtms.streamId returns the stream ID correctly', () => {
+      const streamId = rtms.streamId();
+      expect(rtms.streamId).toHaveBeenCalled();
+      expect(streamId).toBe("global-stream-id");
+    });
+
+    test('rtms.onAudioData sets the audio data callback correctly', () => {
+      const callback = jest.fn();
+      rtms.onAudioData(callback);
+      expect(rtms.onAudioData).toHaveBeenCalledWith(callback);
+    });
+
+    test('rtms.onVideoData sets the video data callback correctly', () => {
+      const callback = jest.fn();
+      rtms.onVideoData(callback);
+      expect(rtms.onVideoData).toHaveBeenCalledWith(callback);
+    });
+
+    test('rtms.onTranscriptData sets the transcript data callback correctly', () => {
+      const callback = jest.fn();
+      rtms.onTranscriptData(callback);
+      expect(rtms.onTranscriptData).toHaveBeenCalledWith(callback);
+    });
+
+    test('rtms.onJoinConfirm sets the join confirmation callback correctly', () => {
+      const callback = jest.fn();
+      rtms.onJoinConfirm(callback);
+      expect(rtms.onJoinConfirm).toHaveBeenCalledWith(callback);
+    });
+
+    test('rtms.onSessionUpdate sets the session update callback correctly', () => {
+      const callback = jest.fn();
+      rtms.onSessionUpdate(callback);
+      expect(rtms.onSessionUpdate).toHaveBeenCalledWith(callback);
+    });
+
+    test('rtms.onUserUpdate sets the user update callback correctly', () => {
+      const callback = jest.fn();
+      rtms.onUserUpdate(callback);
+      expect(rtms.onUserUpdate).toHaveBeenCalledWith(callback);
+    });
+
+    test('rtms.onLeave sets the leave callback correctly', () => {
+      const callback = jest.fn();
+      rtms.onLeave(callback);
+      expect(rtms.onLeave).toHaveBeenCalledWith(callback);
+    });
+
+    test('rtms.leave releases resources correctly', () => {
+      const result = rtms.leave();
+      expect(rtms.leave).toHaveBeenCalled();
+      expect(result).toBe(true);
+    });
   });
 
-  // ---- Callback Tests ----
-  
-  test('onJoinConfirm sets join callback', () => {
-    const joinCallback = jest.fn();
-    client.onJoinConfirm(joinCallback);
-    expect(client.onJoinConfirm).toHaveBeenCalledWith(joinCallback);
-    
-    // Simulate callback execution
-    joinCallback(0);
-    expect(joinCallback).toHaveBeenCalledWith(0);
-  });
-  
-  test('onSessionUpdate sets session update callback', () => {
-    const sessionUpdateCallback = jest.fn();
-    client.onSessionUpdate(sessionUpdateCallback);
-    expect(client.onSessionUpdate).toHaveBeenCalledWith(sessionUpdateCallback);
-    
-    // Simulate callback execution
-    sessionUpdateCallback(1, { sessionId: 'abc', statTime: 123456, status: 2 });
-    expect(sessionUpdateCallback).toHaveBeenCalledWith(1, {
-      sessionId: 'abc',
-      statTime: 123456,
-      status: 2,
+  // ---- Utility function tests ----
+  describe('Utility Functions', () => {
+    test('rtms.initialize initializes the RTMS module', () => {
+      rtms.initialize('/path/to/ca.pem');
+      expect(rtms.initialize).toHaveBeenCalledWith('/path/to/ca.pem');
+    });
+
+    test('rtms.uninitialize uninitializes the RTMS module', () => {
+      rtms.uninitialize();
+      expect(rtms.uninitialize).toHaveBeenCalled();
+    });
+
+    test('rtms.generateSignature generates a signature', () => {
+      const params = {
+        client: 'client_id',
+        secret: 'client_secret',
+        uuid: 'meeting_uuid',
+        streamId: 'stream_id'
+      };
+      
+      const signature = rtms.generateSignature(params);
+      expect(rtms.generateSignature).toHaveBeenCalledWith(params);
+      expect(signature).toBe('mock-signature');
+    });
+
+    test('rtms.isInitialized returns initialization status', () => {
+      const initialized = rtms.isInitialized();
+      expect(rtms.isInitialized).toHaveBeenCalled();
+      expect(initialized).toBe(true);
     });
   });
-  
-  test('onUserUpdate sets user update callback', () => {
-    const userUpdateCallback = jest.fn();
-    client.onUserUpdate(userUpdateCallback);
-    expect(client.onUserUpdate).toHaveBeenCalledWith(userUpdateCallback);
-    
-    // Simulate callback execution
-    userUpdateCallback(1, { id: 42, name: 'Alice' });
-    expect(userUpdateCallback).toHaveBeenCalledWith(1, {
-      id: 42,
-      name: 'Alice',
+
+  // ---- Usage pattern coexistence tests ----
+  describe('Coexistence of both usage patterns', () => {
+    let client;
+
+    beforeEach(() => {
+      client = new rtms.Client();
     });
-  });
-  
-  test('onAudioData sets audio data callback', () => {
-    const audioDataCallback = jest.fn();
-    client.onAudioData(audioDataCallback);
-    expect(client.onAudioData).toHaveBeenCalledWith(audioDataCallback);
-    
-    // Simulate callback execution
-    const buffer = Buffer.from([0x01, 0x02, 0x03]);
-    audioDataCallback(buffer, 123456, { userName: 'Bob', userId: 7 });
-    expect(audioDataCallback).toHaveBeenCalledWith(buffer, 123456, { userName: 'Bob', userId: 7 });
-  });
-  
-  test('onVideoData sets video data callback', () => {
-    const videoDataCallback = jest.fn();
-    client.onVideoData(videoDataCallback);
-    expect(client.onVideoData).toHaveBeenCalledWith(videoDataCallback);
-    
-    // Simulate callback execution
-    const buffer = Buffer.from([0xff, 0xaa, 0xbb]);
-    videoDataCallback(buffer, 654321, 'track-1', { userName: 'Carol', userId: 9 });
-    expect(videoDataCallback).toHaveBeenCalledWith(buffer, 654321, 'track-1', { userName: 'Carol', userId: 9 });
-  });
-  
-  test('onTranscriptData sets transcript data callback', () => {
-    const transcriptDataCallback = jest.fn();
-    client.onTranscriptData(transcriptDataCallback);
-    expect(client.onTranscriptData).toHaveBeenCalledWith(transcriptDataCallback);
-    
-    // Simulate callback execution
-    const buffer = Buffer.from('{"text":"Hello world"}');
-    transcriptDataCallback(buffer, 789012, { userName: 'Dave', userId: 11 });
-    expect(transcriptDataCallback).toHaveBeenCalledWith(buffer, 789012, { userName: 'Dave', userId: 11 });
-  });
-  
-  test('onLeave sets leave callback', () => {
-    const leaveCallback = jest.fn();
-    client.onLeave(leaveCallback);
-    expect(client.onLeave).toHaveBeenCalledWith(leaveCallback);
-    
-    // Simulate callback execution
-    leaveCallback(1); // Assume 1 means user left voluntarily
-    expect(leaveCallback).toHaveBeenCalledWith(1);
-  });
-  
-  // ---- Usage Pattern Test ----
-  
-  test('Supports the desired usage pattern', () => {
-    // The pattern from the example
-    const client = new rtms.default.Client();
-    
-    const audioCallback = jest.fn();
-    client.onAudioData(audioCallback);
-    
-    client.join({
-      meeting_uuid: "asf", 
-      rtms_stream_id: "343", 
-      server_urls: "wtcp://10.10.1.123:9092"
+
+    test('Both patterns can be used simultaneously', () => {
+      // Global client
+      rtms.join({
+        meeting_uuid: "global-uuid",
+        rtms_stream_id: "global-session",
+        server_urls: "global-server"
+      });
+      
+      // Class instance
+      client.join({
+        meeting_uuid: "instance-uuid",
+        rtms_stream_id: "instance-session",
+        server_urls: "instance-server"
+      });
+      
+      // Check that both were called correctly
+      expect(rtms.join).toHaveBeenCalledWith({
+        meeting_uuid: "global-uuid",
+        rtms_stream_id: "global-session",
+        server_urls: "global-server"
+      });
+      
+      expect(client.join).toHaveBeenCalledWith({
+        meeting_uuid: "instance-uuid",
+        rtms_stream_id: "instance-session",
+        server_urls: "instance-server"
+      });
     });
-    
-    // Verify the calls were made with the correct parameters
-    expect(client.onAudioData).toHaveBeenCalledWith(audioCallback);
-    expect(client.join).toHaveBeenCalledWith({
-      meeting_uuid: "asf", 
-      rtms_stream_id: "343", 
-      server_urls: "wtcp://10.10.1.123:9092"
+
+    test('Callbacks can be set on both patterns', () => {
+      const globalCallback = jest.fn();
+      const instanceCallback = jest.fn();
+      
+      rtms.onAudioData(globalCallback);
+      client.onAudioData(instanceCallback);
+      
+      expect(rtms.onAudioData).toHaveBeenCalledWith(globalCallback);
+      expect(client.onAudioData).toHaveBeenCalledWith(instanceCallback);
+    });
+
+    test('Each pattern has its own UUID and stream ID', () => {
+      const globalUuid = rtms.uuid();
+      const instanceUuid = client.uuid();
+      
+      const globalStreamId = rtms.streamId();
+      const instanceStreamId = client.streamId();
+      
+      expect(globalUuid).toBe('global-uuid');
+      expect(instanceUuid).toBe('client-uuid');
+      
+      expect(globalStreamId).toBe('global-stream-id');
+      expect(instanceStreamId).toBe('client-stream-id');
     });
   });
 });

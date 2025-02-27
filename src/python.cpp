@@ -153,6 +153,32 @@ public:
         }
     }
 
+    // Support joining with a dictionary/kwargs
+    void join_with_options(py::dict options) {
+        try {
+            string uuid = options["uuid"].cast<string>();
+            string stream_id = options["stream_id"].cast<string>();
+            string server_urls = options["server_urls"].cast<string>();
+            
+            // Get optional parameters with defaults
+            string signature = options.contains("signature") ? options["signature"].cast<string>() : "";
+            string client = options.contains("client") ? options["client"].cast<string>() : "";
+            string secret = options.contains("secret") ? options["secret"].cast<string>() : "";
+            int timeout = options.contains("timeout") ? options["timeout"].cast<int>() : -1;
+            
+            // If signature is not provided, we'll need to rely on Python code to generate it
+            // We're not implementing that here
+            
+            join(uuid, stream_id, signature, server_urls, timeout);
+        } catch (const py::error_already_set& e) {
+            // Just rethrow Python errors
+            throw;
+        } catch (const std::exception& e) {
+            PyErr_SetString(PyExc_RuntimeError, e.what());
+            throw py::error_already_set();
+        }
+    }
+
     void poll() {
         try {
             // Don't use gil_scoped_release in poll - this is dangerous if
@@ -215,6 +241,79 @@ public:
         }
     }
 
+    // Decorator methods that return functions that can be used as decorators
+    py::function on_join_confirm() {
+        DEBUG_LOG("Creating on_join_confirm decorator");
+        
+        // Create a decorator function that will capture 'this'
+        return py::cpp_function([this](py::function func) {
+            DEBUG_LOG("on_join_confirm decorator called with function");
+            this->set_join_confirm_callback(func);
+            return func;
+        });
+    }
+    
+    py::function on_session_update() {
+        DEBUG_LOG("Creating on_session_update decorator");
+        
+        return py::cpp_function([this](py::function func) {
+            DEBUG_LOG("on_session_update decorator called with function");
+            this->set_session_update_callback(func);
+            return func;
+        });
+    }
+    
+    py::function on_user_update() {
+        DEBUG_LOG("Creating on_user_update decorator");
+        
+        return py::cpp_function([this](py::function func) {
+            DEBUG_LOG("on_user_update decorator called with function");
+            this->set_user_update_callback(func);
+            return func;
+        });
+    }
+    
+    py::function on_audio_data() {
+        DEBUG_LOG("Creating on_audio_data decorator");
+        
+        return py::cpp_function([this](py::function func) {
+            DEBUG_LOG("on_audio_data decorator called with function");
+            this->set_audio_data_callback(func);
+            return func;
+        });
+    }
+    
+    py::function on_video_data() {
+        DEBUG_LOG("Creating on_video_data decorator");
+        
+        return py::cpp_function([this](py::function func) {
+            DEBUG_LOG("on_video_data decorator called with function");
+            this->set_video_data_callback(func);
+            return func;
+        });
+    }
+    
+    py::function on_transcript_data() {
+        DEBUG_LOG("Creating on_transcript_data decorator");
+        
+        return py::cpp_function([this](py::function func) {
+            DEBUG_LOG("on_transcript_data decorator called with function");
+            this->set_transcript_data_callback(func);
+            return func;
+        });
+    }
+    
+    py::function on_leave() {
+        DEBUG_LOG("Creating on_leave decorator");
+        
+        return py::cpp_function([this](py::function func) {
+            DEBUG_LOG("on_leave decorator called with function");
+            this->set_leave_callback(func);
+            return func;
+        });
+    }
+    
+    // Direct callback setting methods
     void set_join_confirm_callback(py::function callback) {
         DEBUG_LOG("Setting join confirm callback");
         // Store Python callback
@@ -441,10 +540,8 @@ private:
     py::function leave_callback;
 };
 
-PyClient& get_client() {
-    static PyClient client;
-    return client;
-}
+// Global client for backward compatibility
+static PyClient global_client;
 
 PYBIND11_MODULE(_rtms, m) {
     m.doc() = "Zoom RTMS Python Bindings";
@@ -490,131 +587,110 @@ PYBIND11_MODULE(_rtms, m) {
         .def_property_readonly("user_name", &Metadata::userName)
         .def_property_readonly("user_id", &Metadata::userId);
     
-    // Define module functions that operate on the global client
-    m.def("_initialize", &PyClient::initialize, "Initialize the RTMS SDK with the specified CA certificate path");
-    m.def("_uninitialize", &PyClient::uninitialize, "Uninitialize the RTMS SDK");
+    // Expose PyClient as the Client class
+    py::class_<PyClient>(m, "Client")
+        .def(py::init<>())
+        .def_static("initialize", &PyClient::initialize, "Initialize the RTMS SDK with the specified CA certificate path")
+        .def_static("uninitialize", &PyClient::uninitialize, "Uninitialize the RTMS SDK")
+        .def("join", &PyClient::join, "Join a meeting with the specified parameters", 
+            py::arg("uuid"), py::arg("stream_id"), py::arg("signature"), 
+            py::arg("server_urls"), py::arg("timeout") = -1)
+        .def("join", &PyClient::join_with_options, "Join a meeting with a dictionary of options")
+        .def("poll", &PyClient::poll, "Poll for new events")
+        .def("release", &PyClient::release, "Release resources")
+        .def("uuid", &PyClient::uuid, "Get the UUID of the current meeting")
+        .def("stream_id", &PyClient::streamId, "Get the stream ID of the current meeting")
+        // Decorator methods
+        .def("on_join_confirm", &PyClient::on_join_confirm, "Get a decorator for join confirm events")
+        .def("on_session_update", &PyClient::on_session_update, "Get a decorator for session update events")
+        .def("on_user_update", &PyClient::on_user_update, "Get a decorator for participant update events")
+        .def("on_audio_data", &PyClient::on_audio_data, "Get a decorator for receiving audio data")
+        .def("on_video_data", &PyClient::on_video_data, "Get a decorator for receiving video data")
+        .def("on_transcript_data", &PyClient::on_transcript_data, "Get a decorator for receiving transcript data") 
+        .def("on_leave", &PyClient::on_leave, "Get a decorator for leave events")
+        // Direct callback setting methods
+        .def("set_join_confirm_callback", &PyClient::set_join_confirm_callback)
+        .def("set_session_update_callback", &PyClient::set_session_update_callback)
+        .def("set_user_update_callback", &PyClient::set_user_update_callback)
+        .def("set_audio_data_callback", &PyClient::set_audio_data_callback)
+        .def("set_video_data_callback", &PyClient::set_video_data_callback)
+        .def("set_transcript_data_callback", &PyClient::set_transcript_data_callback)
+        .def("set_leave_callback", &PyClient::set_leave_callback);
+    
+    // Define module functions that operate on the global client for backward compatibility
+    m.def("_initialize", [](const string& ca_path) {
+        global_client.initialize(ca_path);
+    }, "Initialize the RTMS SDK with the specified CA certificate path");
+    
+    m.def("_uninitialize", []() {
+        global_client.uninitialize();
+    }, "Uninitialize the RTMS SDK");
     
     m.def("_join", [](const string& uuid, const string& stream_id, const string& signature, 
                     const string& server_urls, int timeout) {
-        DEBUG_LOG("Python _join called");
-        get_client().join(uuid, stream_id, signature, server_urls, timeout);
+        DEBUG_LOG("Python _join called on global client");
+        global_client.join(uuid, stream_id, signature, server_urls, timeout);
     }, "Join a meeting with the specified parameters", 
        py::arg("uuid"), py::arg("stream_id"), py::arg("signature"), 
        py::arg("server_urls"), py::arg("timeout") = -1);
     
     m.def("_poll", []() {
-        get_client().poll();
+        global_client.poll();
     }, "Poll for new events");
     
     m.def("_release", []() {
-        DEBUG_LOG("Python _release called");
-        get_client().release();
+        DEBUG_LOG("Python _release called on global client");
+        global_client.release();
     }, "Release resources");
     
     m.def("_uuid", []() {
-        return get_client().uuid();
+        return global_client.uuid();
     }, "Get the UUID of the current meeting");
     
     m.def("_stream_id", []() {
-        return get_client().streamId();
+        return global_client.streamId();
     }, "Get the stream ID of the current meeting");
     
-    // Register callback setters - each returns a new function to ensure proper initialization
+    // Register callback decorators for the global client
     m.def("on_join_confirm", [](py::function callback) {
-        DEBUG_LOG("Python on_join_confirm called");
-        if (!PyCallable_Check(callback.ptr())) {
-            DEBUG_LOG("Warning: on_join_confirm called with non-callable object");
-            PyErr_SetString(PyExc_TypeError, "on_join_confirm requires a callable");
-            throw py::error_already_set();
-        }
-        get_client().set_join_confirm_callback(callback);
-        
-        return py::cpp_function([callback](int reason) {
-            return callback(reason);
-        });
+        DEBUG_LOG("Python on_join_confirm called on global client");
+        global_client.set_join_confirm_callback(callback);
+        return callback;
     }, "Set callback for join confirmation events");
     
     m.def("on_session_update", [](py::function callback) {
-        DEBUG_LOG("Python on_session_update called");
-        if (!PyCallable_Check(callback.ptr())) {
-            DEBUG_LOG("Warning: on_session_update called with non-callable object");
-            PyErr_SetString(PyExc_TypeError, "on_session_update requires a callable");
-            throw py::error_already_set();
-        }
-        get_client().set_session_update_callback(callback);
-        
-        return py::cpp_function([callback](int op, const Session& session) {
-            return callback(op, session);
-        });
+        DEBUG_LOG("Python on_session_update called on global client");
+        global_client.set_session_update_callback(callback);
+        return callback;
     }, "Set callback for session update events");
     
     m.def("on_user_update", [](py::function callback) {
-        DEBUG_LOG("Python on_user_update called");
-        if (!PyCallable_Check(callback.ptr())) {
-            DEBUG_LOG("Warning: on_user_update called with non-callable object");
-            PyErr_SetString(PyExc_TypeError, "on_user_update requires a callable");
-            throw py::error_already_set();
-        }
-        get_client().set_user_update_callback(callback);
-        
-        return py::cpp_function([callback](int op, const Participant& participant) {
-            return callback(op, participant);
-        });
+        DEBUG_LOG("Python on_user_update called on global client");
+        global_client.set_user_update_callback(callback);
+        return callback;
     }, "Set callback for participant update events");
     
     m.def("on_audio_data", [](py::function callback) {
-        DEBUG_LOG("Python on_audio_data called");
-        if (!PyCallable_Check(callback.ptr())) {
-            DEBUG_LOG("Warning: on_audio_data called with non-callable object");
-            PyErr_SetString(PyExc_TypeError, "on_audio_data requires a callable");
-            throw py::error_already_set();
-        }
-        get_client().set_audio_data_callback(callback);
-        
-        return py::cpp_function([callback](py::bytes data, int size, uint32_t timestamp, const Metadata& metadata) {
-            return callback(data, size, timestamp, metadata);
-        });
+        DEBUG_LOG("Python on_audio_data called on global client");
+        global_client.set_audio_data_callback(callback);
+        return callback;
     }, "Set callback for receiving audio data");
     
     m.def("on_video_data", [](py::function callback) {
-        DEBUG_LOG("Python on_video_data called");
-        if (!PyCallable_Check(callback.ptr())) {
-            DEBUG_LOG("Warning: on_video_data called with non-callable object");
-            PyErr_SetString(PyExc_TypeError, "on_video_data requires a callable");
-            throw py::error_already_set();
-        }
-        get_client().set_video_data_callback(callback);
-        
-        return py::cpp_function([callback](py::bytes data, int size, uint32_t timestamp, const string& track_id, const Metadata& metadata) {
-            return callback(data, size, timestamp, track_id, metadata);
-        });
+        DEBUG_LOG("Python on_video_data called on global client");
+        global_client.set_video_data_callback(callback);
+        return callback;
     }, "Set callback for receiving video data");
     
     m.def("on_transcript_data", [](py::function callback) {
-        DEBUG_LOG("Python on_transcript_data called");
-        if (!PyCallable_Check(callback.ptr())) {
-            DEBUG_LOG("Warning: on_transcript_data called with non-callable object");
-            PyErr_SetString(PyExc_TypeError, "on_transcript_data requires a callable");
-            throw py::error_already_set();
-        }
-        get_client().set_transcript_data_callback(callback);
-        
-        return py::cpp_function([callback](py::bytes data, int size, uint32_t timestamp, const Metadata& metadata) {
-            return callback(data, size, timestamp, metadata);
-        });
+        DEBUG_LOG("Python on_transcript_data called on global client");
+        global_client.set_transcript_data_callback(callback);
+        return callback;
     }, "Set callback for receiving transcript data");
     
     m.def("on_leave", [](py::function callback) {
-        DEBUG_LOG("Python on_leave called");
-        if (!PyCallable_Check(callback.ptr())) {
-            DEBUG_LOG("Warning: on_leave called with non-callable object");
-            PyErr_SetString(PyExc_TypeError, "on_leave requires a callable");
-            throw py::error_already_set();
-        }
-        get_client().set_leave_callback(callback);
-        
-        return py::cpp_function([callback](int reason) {
-            return callback(reason);
-        });
+        DEBUG_LOG("Python on_leave called on global client");
+        global_client.set_leave_callback(callback);
+        return callback;
     }, "Set callback for leave events");
 }
