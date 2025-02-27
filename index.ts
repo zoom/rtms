@@ -4,8 +4,8 @@ import * as fs from 'fs';
 
 import type {JoinParams, SignatureParams} from "./rtms.d.ts"
 
-const req = createRequire(import.meta.url);
-const nativeRtms = req('../../build/Release/rtms.node');
+const require = createRequire(import.meta.url);
+const nativeRtms = require('../../build/Release/rtms.node');
 
 let isInitialized = false;
 

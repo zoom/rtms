@@ -3,18 +3,18 @@
 	"tasks": [
 		{
 			"type": "npm",
-			"script": "build-js",
+			"script": "build:js",
 			"group": "build",
 			"problemMatcher": [],
-			"label": "npm: build-js:dev",
+			"label": "npm: build:js",
 			"detail": "cmake-js compile --debug --out dist --CDNODE=true"
 		},
 		{
 			"type": "npm",
-			"script": "build-py",
+			"script": "build:py",
 			"group": "build",
 			"problemMatcher": [],
-			"label": "npm: build-py:dev",
+			"label": "npm: build:py",
 			"detail": "pipx run build --wheel -Ccmake.build-type='Debug' --outdir dist/py && pip install --force dist/py/*.whl"
 		}
 	]

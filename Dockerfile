@@ -25,4 +25,4 @@ ENTRYPOINT ["/usr/bin/tini", "--"]
 FROM base AS build
 
 WORKDIR $CWD
-CMD ["./bin/entry.sh"]
+CMD ["npm install"]

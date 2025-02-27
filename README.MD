@@ -87,6 +87,54 @@ def handle_audio(buffer, size, timestamp, metadata):
 
 ## Development Setup
 
+## Build Modes
+
+The RTMS SDK supports both debug and release build modes:
+
+### Switching Build Modes
+
+You can set the build mode in several ways:
+
+```bash
+# Set mode for a single command
+npm run rtms build js -- --debug     # Build JS in debug mode
+npm run rtms build all -- --release  # Build all in release mode
+
+# Set persistent mode for future commands
+npm run debug                        # Switch to debug mode
+npm run release                      # Switch to release mode
+
+# Set mode via environment variable
+RTMS_BUILD_MODE=debug npm run build  # Build in debug mode
+NODE_ENV=development npm run build   # Also triggers debug mode
+```
+
+### Current Configuration
+
+To check your current build mode:
+
+```bash
+npm run rtms mode
+# Current build mode: debug
+```
+
+### Build Mode Details
+
+| Mode    | Description                                        | Use Case                   |
+|---------|----------------------------------------------------|----------------------------|
+| release | Optimized builds with no debug symbols (default)   | Production, benchmarking   |
+| debug   | Includes debug symbols, minimal optimization       | Development, troubleshooting |
+
+### Technical Implementation
+
+The build mode affects different build systems as follows:
+
+- **Node.js/C++**: Adds `--debug` flag to cmake-js commands
+- **Python**: Sets `-Ccmake.build-type='Debug'` for scikit-build
+- **Go**: Passes appropriate debug flags to Go compiler
+
+Build mode is stored persistently in a `.rtms-config.json` file in your project directory and is also passed via the `RTMS_BUILD_MODE` environment variable to all build processes.
+
 ### Building from Source
 
 ```bash
@@ -109,6 +157,7 @@ npm test
 # Run Python tests
 npm run test-py
 ```
+
 
 ### Project Structure
 
