@@ -1,46 +1,260 @@
 import { createHmac } from 'crypto';
-import { createServer, IncomingMessage, Server, ServerResponse } from 'http';
 import { createRequire } from 'module';
+import * as fs from 'fs';
 
-import type { 
-  JoinParams, SignatureParams, MediaTypes, 
-  WebhookCallback, JoinConfirmCallback, 
-  SessionUpdateCallback, UserUpdateCallback, 
-  MediaDataCallback, LeaveCallback
-} from './rtms.d.ts';
+import type {JoinParams, SignatureParams} from "./rtms.d.ts"
 
-const req = createRequire(import.meta.url);
-const rtms = req('../../build/Release/rtms.node');
+const env = process.env.NODE_ENV?.toLowerCase() !== "production" ? 'Debug' : 'Release'
+const require = createRequire(import.meta.url);
+const nativeRtms = require(`../../build/${env}/rtms.node`);
 
-let server: Server | undefined, port: number | string, path: string;
+let isInitialized = false;
 
-export function join({meeting_uuid, rtms_stream_id, server_urls, ca="ca.pem", timeout=-1, signature='', client='', secret='', }: JoinParams): void {
-  const caCert = process.env['ZM_RTMS_CA'] || ca;
-
-  if (!rtms._isInit())
-    rtms._init(caCert);
+class Client extends nativeRtms.Client {
+  private pollingInterval: NodeJS.Timeout | null = null;
+  private pollRate: number = 0;
   
-  const sign = signature || generateSignature({ client, secret, uuid: meeting_uuid, streamId: rtms_stream_id });
-  rtms._join(meeting_uuid, rtms_stream_id, sign, server_urls, timeout);
+  constructor() {
+    super();
+  }
+  
+  join(options: JoinParams): boolean;
+  join(meetingUuid: string, rtmsStreamId: string, signature: string, serverUrls: string, timeout?: number): boolean;
+  join(optionsOrMeetingUuid: JoinParams | string, rtmsStreamId?: string, signature?: string, serverUrls?: string, timeout: number = -1): boolean {
+    if (!isInitialized) {
+      let caPath = '';
+      
+      if (typeof optionsOrMeetingUuid === 'object' && optionsOrMeetingUuid.ca) {
+        caPath = optionsOrMeetingUuid.ca;
+      } else {
+        caPath = process.env['ZM_RTMS_CA'] || '';
+        
+        if (!caPath) {
+          const commonLocations = [
+            '/etc/ssl/certs/ca-certificates.crt',
+            '/etc/pki/tls/certs/ca-bundle.crt',
+            '/etc/ssl/ca-bundle.pem',
+            '/etc/pki/tls/cacert.pem',
+            '/etc/ssl/cert.pem'
+          ];
+          
+          for (const location of commonLocations) {
+            if (fs.existsSync(location)) {
+              caPath = location;
+              break;
+            }
+          }
+        }
+      }
+      
+      try {
+        Client.initialize(caPath);
+        isInitialized = true;
+      } catch (error: unknown) {
+        if (error instanceof Error) 
+          throw new Error(`Failed to initialize RTMS SDK: ${error.message}`);
+        else 
+          console.error("An unknown error occurred:", error);
+      }
+    }
+    
+    let joinResult: boolean;
+    
+    if (typeof optionsOrMeetingUuid === 'object') {
+      const options = optionsOrMeetingUuid;
+      
+      const { 
+        meeting_uuid, 
+        rtms_stream_id, 
+        server_urls,
+        signature: providedSignature,
+        client = process.env['ZM_RTMS_CLIENT'] || "",
+        secret = process.env['ZM_RTMS_SECRET'] || "",
+        timeout: providedTimeout = -1,
+        pollInterval = 0
+      } = options;
+      
+      this.pollRate = pollInterval;
+      
+      const finalSignature = providedSignature || generateSignature({
+        client,
+        secret,
+        uuid: meeting_uuid,
+        streamId: rtms_stream_id
+      });
+      
+      joinResult = super.join(meeting_uuid, rtms_stream_id, finalSignature, server_urls, providedTimeout);
+    } else {
+      joinResult = super.join(optionsOrMeetingUuid, rtmsStreamId, signature, serverUrls, timeout);
+    }
+    
+    if (joinResult) {
+      this.startPolling();
+    }
+    
+    return joinResult;
+  }
+  
+  startPolling(): void {
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+    }
+    
+    this.pollingInterval = setInterval(() => {
+      try {
+        super.poll();
+      } catch (error) {
+        console.error('Error during polling:', error);
+        this.stopPolling();
+      }
+    }, this.pollRate);
+  }
+  
+  stopPolling(): void {
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+      this.pollingInterval = null;
+    }
+  }
+  
+  leave(): boolean {
+    try {
+      this.stopPolling();
+      return super.release();
+    } catch (error) {
+      console.error('Error during leave:', error);
+      return false;
+    }
+  }
 }
 
-export function useAudio(hasAudio: boolean = true): void {
-  rtms.useAudio(hasAudio);
+// Global client functions
+let globalPollingInterval: NodeJS.Timeout | null = null;
+let globalPollRate: number = 0;
+
+function join(options: JoinParams): boolean;
+function join(meetingUuid: string, rtmsStreamId: string, signature: string, serverUrls: string, timeout?: number): boolean;
+function join(optionsOrMeetingUuid: JoinParams | string, rtmsStreamId?: string, signature?: string, serverUrls?: string, timeout: number = -1): boolean {
+  if (!isInitialized) {
+    let caPath = '';
+    
+    if (typeof optionsOrMeetingUuid === 'object' && optionsOrMeetingUuid.ca) {
+      caPath = optionsOrMeetingUuid.ca;
+    } else {
+      caPath = process.env['ZM_RTMS_CA'] || '';
+      
+      if (!caPath) {
+        const commonLocations = [
+          '/etc/ssl/certs/ca-certificates.crt',
+          '/etc/pki/tls/certs/ca-bundle.crt',
+          '/etc/ssl/ca-bundle.pem',
+          '/etc/pki/tls/cacert.pem',
+          '/etc/ssl/cert.pem'
+        ];
+        
+        for (const location of commonLocations) {
+          if (fs.existsSync(location)) {
+            caPath = location;
+            break;
+          }
+        }
+      }
+    }
+    
+    try {
+      nativeRtms.Client.initialize(caPath);
+      isInitialized = true;
+    } catch (error: unknown) {
+      if (error instanceof Error) 
+        throw new Error(`Failed to initialize RTMS SDK: ${error.message}`);
+      else 
+        console.error("An unknown error occurred:", error);
+    }
+  }
+  
+  let joinResult: boolean;
+  
+  if (typeof optionsOrMeetingUuid === 'object') {
+    const options = optionsOrMeetingUuid;
+    
+    const { 
+      meeting_uuid, 
+      rtms_stream_id, 
+      server_urls,
+      signature: providedSignature,
+      client = process.env['ZM_RTMS_CLIENT'] || "",
+      secret = process.env['ZM_RTMS_SECRET'] || "",
+      timeout: providedTimeout = -1,
+      pollInterval = 0
+    } = options;
+    
+    globalPollRate = pollInterval;
+    
+    const finalSignature = providedSignature || generateSignature({
+      client,
+      secret,
+      uuid: meeting_uuid,
+      streamId: rtms_stream_id
+    });
+    
+    joinResult = nativeRtms.join({
+      meeting_uuid,
+      rtms_stream_id,
+      signature: finalSignature,
+      server_urls,
+      timeout: providedTimeout
+    });
+  } else {
+    joinResult = nativeRtms.join(optionsOrMeetingUuid, rtmsStreamId, signature, serverUrls, timeout);
+  }
+  
+  if (joinResult) {
+    startGlobalPolling();
+  }
+  
+  return joinResult;
 }
 
-export function useVideo(hasVideo: boolean = true): void {
-  rtms.useVideo(hasVideo);
+function startGlobalPolling(): void {
+  if (globalPollingInterval) {
+    clearInterval(globalPollingInterval);
+  }
+  
+  globalPollingInterval = setInterval(() => {
+    try {
+      nativeRtms.poll();
+    } catch (error) {
+      console.error('Error during global polling:', error);
+      stopGlobalPolling();
+    }
+  }, globalPollRate);
 }
 
-export function useTranscript(hasTranscript: boolean = true): void {
-  rtms.useTranscript(hasTranscript);
+function stopGlobalPolling(): void {
+  if (globalPollingInterval) {
+    clearInterval(globalPollingInterval);
+    globalPollingInterval = null;
+  }
 }
 
-export function setMediaTypes({ audio, video = false, transcript = false }: MediaTypes): void {
-  rtms.setMediaTypes(audio, video, transcript);
+function leave(): boolean {
+  try {
+    stopGlobalPolling();
+    
+    // If the native module has a leave function, use that
+    if (typeof nativeRtms.leave === 'function') {
+      return nativeRtms.leave();
+    }
+    
+    // Otherwise, fall back to release (for backward compatibility)
+    return nativeRtms.release();
+  } catch (error) {
+    console.error('Error during global leave:', error);
+    return false;
+  }
 }
 
-export function generateSignature({ client, secret, uuid, streamId }: SignatureParams): string {
+function generateSignature({ client, secret, uuid, streamId }: SignatureParams): string {
   const clientId = process.env['ZM_RTMS_CLIENT'] || client;
   const clientSecret = process.env['ZM_RTMS_SECRET'] || secret;
 
@@ -52,84 +266,44 @@ export function generateSignature({ client, secret, uuid, streamId }: SignatureP
     .digest('hex');
 }
 
-export function onWebhookEvent(callback: WebhookCallback): void {
-  if (server?.listening) return;
-
-  port = process.env['ZM_RTMS_PORT'] || 8080;
-  path = process.env['ZM_RTMS_PATH'] || '/';
-
-  server = createServer((req: IncomingMessage, res: ServerResponse) => {
-    const headers = { 'Content-Type': 'application/json' };
-
-    if (req.method !== 'POST' || req.url !== path) {
-      res.writeHead(404, headers);
-      res.end('Not Found');
-      return;
-    }
-
-    let body = '';
-    req.on('data', chunk => body += chunk.toString());
-
-    req.on('end', () => {
-      try {
-        const payload = JSON.parse(body);
-        callback(payload);
-        res.writeHead(200, headers);
-        res.end();
-      } catch (e) {
-        console.error('Error parsing webhook JSON:', e);
-        res.writeHead(400, headers);
-        res.end('Invalid JSON received');
-      }
-    });
-  });
-
-  server.listen(port, () => {
-    console.log(`Listening for events at http://localhost:${port}${path}`);
-  });
-}
-
-export function onJoinConfirm(callback: JoinConfirmCallback): void {
-  rtms.onJoinConfirm(callback);
-}
-
-export function onSessionUpdate(callback: SessionUpdateCallback): void {
-  rtms.onSessionUpdate(callback);
-}
-
-export function onUserUpdate(callback: UserUpdateCallback): void {
-  rtms.onUserUpdate(callback);
-}
-
-export function onAudioData(callback: MediaDataCallback): void {
-  rtms.onAudioData(callback);
-}
-
-export function onVideoData(callback: MediaDataCallback): void {
-  rtms.onVideoData(callback);
-}
-
-export function onTranscriptData(callback: MediaDataCallback): void {
-  rtms.onTranscriptData(callback);
-}
-
-export function onLeave(callback: LeaveCallback): void {
-  rtms.onLeave(callback);
-}
-
 export default {
+  // Class-based API
+  Client,
+  
+  // Global singleton API
   join,
-  useAudio,
-  useVideo,
-  useTranscript,
-  setMediaTypes,
+  leave,
+  poll: nativeRtms.poll,
+  uuid: nativeRtms.uuid,
+  streamId: nativeRtms.streamId,
+  onJoinConfirm: nativeRtms.onJoinConfirm,
+  onSessionUpdate: nativeRtms.onSessionUpdate,
+  onUserUpdate: nativeRtms.onUserUpdate,
+  onAudioData: nativeRtms.onAudioData,
+  onVideoData: nativeRtms.onVideoData,
+  onTranscriptData: nativeRtms.onTranscriptData,
+  onLeave: nativeRtms.onLeave,
+  
+  // Utility functions
+  initialize: function(caPath?: string) {
+    try {
+      nativeRtms.Client.initialize(caPath);
+      isInitialized = true;
+      return true;
+    } catch (error) {
+      isInitialized = false;
+      throw error;
+    }
+  },
+  uninitialize: function() {
+    try {
+      nativeRtms.Client.uninitialize();
+      isInitialized = false;
+      return true;
+    } catch (error) {
+      throw error;
+    }
+  },
   generateSignature,
-  onWebhookEvent,
-  onJoinConfirm,
-  onSessionUpdate,
-  onUserUpdate,
-  onAudioData,
-  onVideoData,
-  onTranscriptData,
-  onLeave,
+  isInitialized: () => isInitialized
 };
