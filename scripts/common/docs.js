@@ -11,8 +11,7 @@ function generateNodeJSDocs() {
 
 function generatePythonDocs() {
   log(PREFIX, 'Generating Python documentation...');
-  // Placeholder for Python docs command
-  log(PREFIX, 'Python documentation generation not yet implemented');
+  run("pdoc3 -o docs/py/ --force --html rtms", PREFIX)
 }
 
 function generateAllDocs() {
