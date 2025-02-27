@@ -11,7 +11,7 @@ function testNodeJS() {
 
 function testNodeJSManual() {
   log(PREFIX, 'Running manual Node.js test...');
-  run('node --env-file=.env test.js', PREFIX);
+  run('NODE_ENV=test node --env-file=.env test.js', PREFIX);
 }
 
 function testPython() {

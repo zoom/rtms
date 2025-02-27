@@ -22,6 +22,7 @@ A cross-platform wrapper for the Zoom RTMS C SDK, providing bindings for Node.js
 
 ## Getting Started
 
+
 ### Setup Environment
 
 1. Place the RTMS C SDK files in the `lib/librtmsdk` directory:
@@ -43,6 +44,50 @@ ZM_RTMS_CA=       # CA Path (you can use system ca)
 ```bash
 docker compose up
 ```
+
+
+## Installation
+
+### Installing the RTMS C SDK
+
+You have several options for installing the RTMS C SDK library (`librtmsdk.so.0`):
+
+#### Option 1: Place in the default location (recommended)
+
+Place the library and headers in the project's `lib/librtmsdk` directory:
+
+```bash
+mkdir -p lib/librtmsdk
+cp /path/to/librtmsdk.so.0 lib/librtmsdk/
+cp /path/to/rtms_csdk.h /path/to/rtms_common.h lib/librtmsdk/h
+```
+
+#### Option 2: Install to a system location
+
+```bash
+# Copy to system library directory (may require sudo)
+sudo cp /path/to/librtmsdk.so.0 /usr/local/lib/
+sudo cp /path/to/rtms_csdk.h /path/to/rtms_common.h /usr/local/include/
+sudo ldconfig  # Update the library cache
+```
+
+#### Option 3: Specify custom location during build
+
+```bash
+# When building with CMake directly
+cmake -DRTMS_SDK_PATH=/path/to/rtms/sdk ...
+
+# Or when using npm scripts
+RTMS_SDK_PATH=/path/to/rtms/sdk npm run build-js
+```
+
+#### Option 4: Set LD_LIBRARY_PATH (for runtime only)
+
+```bash
+export LD_LIBRARY_PATH=/path/to/rtms/sdk:$LD_LIBRARY_PATH
+```
+
+Note: This option only affects runtime location, not build-time. You'll still need to specify the location during build using one of the options above.
 
 ## Usage
 

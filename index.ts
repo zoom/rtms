@@ -4,8 +4,10 @@ import * as fs from 'fs';
 
 import type {JoinParams, SignatureParams} from "./rtms.d.ts"
 
+const env = process.env.NODE_ENV?.toLowerCase() !== "production" ? 'Debug' : 'Release'
+
 const require = createRequire(import.meta.url);
-const nativeRtms = require('../../build/Release/rtms.node');
+const nativeRtms = require(`../../build/${env}/rtms.node`);
 
 let isInitialized = false;
 
