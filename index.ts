@@ -1,9 +1,11 @@
+import * as fs from 'fs';
 import { createHmac } from 'crypto';
 import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path'
-import * as fs from 'fs';
-import type {JoinParams, SignatureParams} from "./rtms.d.ts"
+import { dirname } from 'path';
+import { createServer, IncomingMessage, Server, ServerResponse } from 'http';
+
+import type {JoinParams, SignatureParams, WebhookCallback} from "./rtms.d.ts"
 
 const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
@@ -12,6 +14,46 @@ const __dirname = dirname(__filename);
 const nativeRtms = require('node-gyp-build')(__dirname)
 
 let isInitialized = false;
+
+let server: Server | undefined, port: number | string, path: string;
+
+
+export function onWebhookEvent(callback: WebhookCallback): void {
+  if (server?.listening) return;
+
+  port = process.env['ZM_RTMS_PORT'] || 8080;
+  path = process.env['ZM_RTMS_PATH'] || '/';
+
+  server = createServer((req: IncomingMessage, res: ServerResponse) => {
+    const headers = { 'Content-Type': 'application/json' };
+
+    if (req.method !== 'POST' || req.url !== path) {
+      res.writeHead(404, headers);
+      res.end('Not Found');
+      return;
+    }
+
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body);
+        callback(payload);
+        res.writeHead(200, headers);
+        res.end();
+      } catch (e) {
+        console.error('Error parsing webhook JSON:', e);
+        res.writeHead(400, headers);
+        res.end('Invalid JSON received');
+      }
+    });
+  });
+
+  server.listen(port, () => {
+    console.log(`Listening for events at http://localhost:${port}${path}`);
+  });
+}
 
 class Client extends nativeRtms.Client {
   private pollingInterval: NodeJS.Timeout | null = null;
@@ -272,7 +314,7 @@ function generateSignature({ client, secret, uuid, streamId }: SignatureParams):
 export default {
   // Class-based API
   Client,
-  
+  onWebhookEvent,
   // Global singleton API
   join,
   leave,
