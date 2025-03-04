@@ -1,12 +1,15 @@
 import { createHmac } from 'crypto';
 import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path'
 import * as fs from 'fs';
-
 import type {JoinParams, SignatureParams} from "./rtms.d.ts"
 
-const env = process.env.NODE_ENV?.toLowerCase() !== "production" ? 'Debug' : 'Release'
 const require = createRequire(import.meta.url);
-const nativeRtms = require(`../../build/${env}/rtms.node`);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const nativeRtms = require('node-gyp-build')(__dirname)
 
 let isInitialized = false;
 
