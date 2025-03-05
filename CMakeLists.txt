@@ -77,8 +77,6 @@ elseif(PYTHON)
         src/python.cpp
     )
 
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${RTMS_LIBRARY})
-
     install(TARGETS ${PY_PROJ} DESTINATION ${SKBUILD_PROJECT_NAME})
 elseif(GO)
 

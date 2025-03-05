@@ -28,7 +28,9 @@
     "test:js": "node scripts/rtms.js test js",
     "test:py": "node scripts/rtms.js test python",
     "test:go": "node scripts/rtms.js test go",
-    "test:manual": "node scripts/rtms.js test js:manual",
+    "test:js-manual": "node scripts/rtms.js test js:manual",
+    "test:py-manual": "node scripts/rtms.js test py:manual",
+
 
     "// Documentation commands": "Generate documentation",
     "docs": "node scripts/rtms.js docs all",

@@ -9,7 +9,6 @@ const require = createRequire(import.meta.url);
 const nativeRtms = require('bindings')('rtms');
 
 let isInitialized = false;
-
 let server: Server | undefined, port: number | string, path: string;
 
 
