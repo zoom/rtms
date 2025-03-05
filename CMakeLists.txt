@@ -61,23 +61,18 @@ if(NODE)
     if(NOT napi_build_version)
         set(napi_build_version 9)
     endif()
+
     add_compile_definitions(NAPI_VERSION=${napi_build_version})
 
     add_library(${PROJECT_NAME} SHARED ${CMAKE_JS_SRC} ${SOURCE_FILES} ${NODE_ADDON})
 
-    set_target_properties(${PROJECT_NAME}
-        PROPERTIES PREFIX "" SUFFIX ".node"
-    )
-
-    # Modern CMake linking - avoids link_directories which is discouraged
-    target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB} ${RTMS_LIBRARY})
-    
-    # Set RPATH so that the library can be found at runtime
     set_target_properties(${PROJECT_NAME} PROPERTIES
-        BUILD_WITH_INSTALL_RPATH TRUE
-        INSTALL_RPATH "$ORIGIN;${RTMS_LIB_DIR}"
+      PREFIX "" SUFFIX ".node"
+      BUILD_WITH_INSTALL_RPATH TRUE
+      INSTALL_RPATH "$ORIGIN;${RTMS_LIB_DIR}"
     )
 
+    target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB} ${RTMS_LIBRARY})
 elseif(PYTHON)
     set(PY_TARGET "_${PROJECT_NAME}")
     set(PYBIND11_FINDPYTHON ON)

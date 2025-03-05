@@ -9,7 +9,7 @@ function buildNodeJS() {
   const buildMode = getBuildMode();
   const debugFlag = buildMode === 'debug' ? ' --debug' : '';
   
-  run(`node-gyp rebuild${debugFlag}`, PREFIX);
+  run(`cmake-js compile${debugFlag} --CDNODE=true`, PREFIX);
   run('tsc', PREFIX);
 
   log(PREFIX, `Node.js module built in ${buildMode} mode`);
@@ -36,8 +36,14 @@ function buildGo() {
 
 function prebuild() {
   log(PREFIX, 'Generating prebuilds...');
-  run('prebuildify --napi --all --strip', PREFIX);
+  run('npx prebuild --strip -t 9 -r napi --backend cmake-js -- --CDNODE  ', PREFIX);
 }
+
+function upload() {
+  log(PREFIX, 'Uploading prebuilds...');
+  run('npx prebuild --upload-all --backend  cmake-js -- --CDNODE ', PREFIX);
+}
+
 
 function buildAll() {
   buildNodeJS();
@@ -49,6 +55,7 @@ function buildAll() {
 executeScript(PREFIX, {
   js: buildNodeJS,
   python: buildPython,
+  upload,
   go: buildGo,
   prebuild: prebuild,
   all: buildAll

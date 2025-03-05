@@ -1,7 +1,10 @@
 name: rtms
 
 x-base: &base
-  build: .
+  build:
+    context: .
+    args:
+      TARGET: all  # Default to all dependencies
   platform: linux/amd64
   cap_add:
     - SYS_PTRACE
@@ -19,19 +22,32 @@ x-base: &base
           - logs
           - node_modules
         target: /tmp/rtms
+
 services:
   js:
     <<: *base
+    build:
+      context: .
+      args:
+        TARGET: js
     command: npm run build:js && npm run test:js
     ports:
       - 8080:8080
   py:
     <<: *base
+    build:
+      context: .
+      args:
+        TARGET: py
     command: npm run build:py && npm run test:py
     ports:
       - 8081:8080
   go:
     <<: *base
+    build:
+      context: .
+      args:
+        TARGET: go
     command: npm run build:go && npm run test:go
     ports:
       - 8082:8080

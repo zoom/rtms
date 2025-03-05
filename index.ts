@@ -1,17 +1,13 @@
 import * as fs from 'fs';
 import { createHmac } from 'crypto';
 import { createRequire } from 'module';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 import { createServer, IncomingMessage, Server, ServerResponse } from 'http';
 
 import type {JoinParams, SignatureParams, WebhookCallback} from "./rtms.d.ts"
 
+const rtmsMode = process.env.NODE_ENV === 'production' ? 'Release' : 'Debug'
 const require = createRequire(import.meta.url);
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const nativeRtms = require('node-gyp-build')(__dirname)
+const nativeRtms = require(`../../build/${rtmsMode}/rtms.node`)
 
 let isInitialized = false;
 

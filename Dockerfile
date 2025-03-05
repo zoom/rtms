@@ -1,4 +1,6 @@
-FROM node:lts-slim AS base
+FROM node:lts AS base
+
+ARG TARGET=all
 
 ENV CWD=/tmp/rtms
 ENV PATH="/opt/venv/bin:$PATH"
@@ -6,23 +8,24 @@ ENV LD_LIBRARY_PATH="${CWD}/lib/librtmsdk/:$LD_LIBRARY_PATH"
 
 WORKDIR $CWD
 
-RUN apt update && \
-    apt install -y --no-install-recommend \
-        cmake \
-        python3-full \
-        python3-pip \
-        pipx \
-        tini \
-    && apt-get clean \
-    && apt-get autoremove -y \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
-    && npm config set update-notifier false \
-    && npm install -g prebuild \
-    && pip install --no-cache-dir "pybind11[global]" python-dotenv pdoc3
+RUN apt update && apt install -y \
+    cmake \
+    tini \
+    && npm config set update-notifier false
+
+RUN if [ "$TARGET" = "js" ] || [ "$TARGET" = "all" ]; then \
+        npm install -g prebuild; \
+    fi && \
+    if [ "$TARGET" = "py" ] || [ "$TARGET" = "all" ]; then \
+        echo "Installing Python dependencies..." && \
+        apt install -y python3-full python3-pip pipx && \
+        python3 -m venv /opt/venv && \
+        python -m pip install "pybind11[global]" python-dotenv pdoc3; \
+    fi && \
+    if [ "$TARGET" = "go" ] || [ "$TARGET" = "all" ]; then \
+        echo "Installing Go dependencies..." && \
+        apt install -y golang; \
+    fi
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
-
-FROM base AS run
-
-WORKDIR $CWD
-CMD ["npm install"]
+CMD [ "npm", "install" ]
