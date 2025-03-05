@@ -21,7 +21,7 @@ export function onWebhookEvent(callback: WebhookCallback): void {
   server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const headers = { 'Content-Type': 'application/json' };
 
-    if (req.method !== 'POST' || req.url !== path) {
+    if (req.method !== 'POST') {
       res.writeHead(404, headers);
       res.end('Not Found');
       return;
@@ -35,7 +35,7 @@ export function onWebhookEvent(callback: WebhookCallback): void {
         const payload = JSON.parse(body);
         callback(payload);
         res.writeHead(200, headers);
-        res.end();
+        res.end(JSON.stringify(payload));
       } catch (e) {
         console.error('Error parsing webhook JSON:', e);
         res.writeHead(400, headers);
