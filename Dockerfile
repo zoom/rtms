@@ -4,7 +4,6 @@ ARG TARGET=all
 
 ENV CWD=/tmp/rtms
 ENV PATH="/opt/venv/bin:$PATH"
-ENV LD_LIBRARY_PATH="${CWD}/lib/librtmsdk/:$LD_LIBRARY_PATH"
 
 WORKDIR $CWD
 
