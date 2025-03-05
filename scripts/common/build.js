@@ -36,12 +36,12 @@ function buildGo() {
 
 function prebuild() {
   log(PREFIX, 'Generating prebuilds...');
-  run('npx prebuild --strip -t 9 -r napi --backend cmake-js -- --CDNODE  ', PREFIX);
+  run('npx prebuild --strip -t 9 -r napi --backend cmake-js', PREFIX);
 }
 
 function upload() {
   log(PREFIX, 'Uploading prebuilds...');
-  run('npx prebuild --upload-all --backend  cmake-js -- --CDNODE ', PREFIX);
+  run('npx prebuild --backend cmake-js --upload-all', PREFIX);
 }
 
 

@@ -6,15 +6,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 cmake_policy(SET CMP0091 NEW)
 cmake_policy(SET CMP0042 NEW)
 
-# Set search paths for the RTMS SDK library, checking multiple possible locations
 set(RTMS_SDK_SEARCH_PATHS
-  "${CMAKE_SOURCE_DIR}/lib/librtmsdk"  # First check the local folder
-  "$ENV{LD_LIBRARY_PATH}"              # Then check LD_LIBRARY_PATH paths
-  "/usr/local/lib"                     # Then standard system locations
+  "${CMAKE_SOURCE_DIR}/lib/librtmsdk"  
+  "$ENV{LD_LIBRARY_PATH}"              
+  "/usr/local/lib"                   
   "/usr/lib"
 )
 
-# Check if a custom path was provided via command line argument
 if(RTMS_SDK_PATH)
   list(INSERT RTMS_SDK_SEARCH_PATHS 0 "${RTMS_SDK_PATH}")
 endif()
@@ -34,24 +32,22 @@ find_library(RTMS_LIBRARY
   DOC "RTMS SDK library"
 )
 
-# Check if the library was found
 if(NOT RTMS_LIBRARY)
   message(FATAL_ERROR "RTMS SDK library not found. Please install it or specify its location with -DRTMS_SDK_PATH=<path>")
 endif()
 
-# Get the directory where the library was found
 get_filename_component(RTMS_LIB_DIR ${RTMS_LIBRARY} DIRECTORY)
 
 message(STATUS "Found RTMS library: ${RTMS_LIBRARY}")
 message(STATUS "Found RTMS include dir: ${RTMS_INCLUDE_DIR}")
 
-# Set include directories
 include_directories(${CMAKE_JS_INC})
 include_directories(${RTMS_INCLUDE_DIR})
 
 file(GLOB SOURCE_FILES src/rtms.h src/rtms.cpp)
 
-if(NODE)
+# is Node
+if(CMAKE_JS_VERSION)
     include_directories(node_modules/node-addon-api)
 
     set(NODE_ADDON ${CMAKE_SOURCE_DIR}/src/node.cpp)
