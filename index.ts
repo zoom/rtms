@@ -298,8 +298,8 @@ function generateSignature({ client, secret, uuid, streamId }: SignatureParams):
   const clientId = process.env['ZM_RTMS_CLIENT'] || client;
   const clientSecret = process.env['ZM_RTMS_SECRET'] || secret;
 
-  if (!clientId) throw new ReferenceError('Client ID cannot be blank');
-  if (!clientSecret) throw new ReferenceError('Client Secret cannot be blank');
+  if (!clientId) throw new ReferenceError('ZM_RTMS_CLIENT cannot be empty');
+  if (!clientSecret) throw new ReferenceError('ZM_RTMS_SECRET cannot be empty');
 
   return createHmac('sha256', clientSecret)
     .update(`${clientId},${uuid},${streamId}`)
