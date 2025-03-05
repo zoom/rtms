@@ -5,7 +5,6 @@ import { createServer, IncomingMessage, Server, ServerResponse } from 'http';
 
 import type {JoinParams, SignatureParams, WebhookCallback} from "./rtms.d.ts"
 
-const rtmsMode = process.env.NODE_ENV === 'production' ? 'Release' : 'Debug'
 const require = createRequire(import.meta.url);
 const nativeRtms = require('bindings')('rtms');
 
