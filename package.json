@@ -1,5 +1,5 @@
 {
-  "name": "rtms",
+  "name": "@zoom/rtms",
   "private": true,
   "version": "0.0.1",
   "description": "Node.js Wrapper for the Zoom RTMS CSDK",
@@ -8,12 +8,10 @@
   "type": "module",
   "scripts": {
     "install": "prebuild-install -r napi || npm run build:js",
-    
     "// CLI commands": "Use the unified CLI for most operations",
     "rtms": "node scripts/rtms.js",
     "cli": "node scripts/rtms.js",
     "help": "node scripts/rtms.js help",
-    
     "// Build commands": "Build the project for different languages and modes",
     "build": "node scripts/rtms.js build all",
     "build:js": "node scripts/rtms.js build js",
@@ -23,19 +21,16 @@
     "build:release": "node scripts/rtms.js build all -- --release",
     "debug": "node scripts/rtms.js mode debug",
     "release": "node scripts/rtms.js mode release",
-    
     "// Test commands": "Run tests for different languages",
     "test": "node scripts/rtms.js test all",
     "test:js": "node scripts/rtms.js test js",
     "test:py": "node scripts/rtms.js test python",
     "test:go": "node scripts/rtms.js test go",
     "test:manual": "node scripts/rtms.js test js:manual",
-    
     "// Documentation commands": "Generate documentation",
     "docs": "node scripts/rtms.js docs all",
     "docs:js": "node scripts/rtms.js docs js",
     "docs:py": "node scripts/rtms.js docs python",
-    
     "// Utility commands": "Various helper commands",
     "clean": "node scripts/rtms.js clean",
     "setup": "npm install && node scripts/rtms.js build all",
@@ -43,29 +38,46 @@
     "upload": "node scripts/common/build.js upload"
   },
   "dependencies": {
-    "prebuild-install": "^7.1.3",
-    "node-addon-api": "^8.3.0"
+    "bindings": "^1.5.0",
+    "node-addon-api": "^8.3.0",
+    "prebuild-install": "^7.1.3"
   },
   "devDependencies": {
-    "cmake-js": "^7.3.0",
-    "typescript": "^5.7.3",
     "@types/jest": "^29.5.14",
+    "cmake-js": "^7.3.0",
     "typedoc": "^0.27.9",
-    "typedoc-plugin-missing-exports": "^3.1.0"
+    "typedoc-plugin-missing-exports": "^3.1.0",
+    "typescript": "^5.7.3"
   },
   "binary": {
-    "napi_versions": [9]
+    "napi_versions": [
+      9
+    ]
   },
   "files": [
-    "dist/js"    
+    "dist/js",
+    "scripts",
+    "tests",
+    "CMakeLists.txt",
+    "src/{node,rtms}.cpp",
+    "src/rtms.h",
+    "index.ts",
+    "rtms.d.ts",
+    "tsconfig.json"
   ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/zoom/rtms.git"
   },
   "keywords": [
-    "zoom", "rtms", "realtime", "media", 
-    "streaming", "real", "time", "sdk"
+    "zoom",
+    "rtms",
+    "realtime",
+    "media",
+    "streaming",
+    "real",
+    "time",
+    "sdk"
   ],
   "bugs": {
     "url": "https://github.com/zoom/rtms/issues"
@@ -82,7 +94,11 @@
   "engines": {
     "node": ">=22.14.0"
   },
-  "os": ["linux"],
-  "cpu": ["x64"],
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
   "license": "MIT"
 }

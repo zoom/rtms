@@ -10,11 +10,46 @@ set(RTMS_SDK ${CMAKE_SOURCE_DIR}/lib/librtmsdk)
 set(RTMS_LIB ${RTMS_SDK}/librtmsdk.so.0)
 file(GLOB SOURCE_FILES src/rtms.h src/rtms.cpp)
 
+# Set search paths for the RTMS SDK library, checking multiple possible locations
+set(RTMS_SDK_SEARCH_PATHS
+  "${CMAKE_SOURCE_DIR}/lib/librtmsdk"  # First check the local folder
+  "$ENV{LD_LIBRARY_PATH}"              # Then check LD_LIBRARY_PATH paths
+  "$ENV{RTMS_SDK_PATH}"                # Then check RTMS_SDK_PATH paths
+  "/usr/local/lib"                     # Then standard system locations
+  "/usr/lib"
+)
+
+message(STATUS "SEARCH PATH $ENV{RTMS_SDK_PATH}")
+
+if($ENV{RTMS_SDK_PATH})
+  list(INSERT RTMS_SDK_SEARCH_PATHS 0 "$ENV{RTMS_SDK_PATH}")
+endif()
+
+# Find the header directory
+find_path(RTMS_INCLUDE_DIR
+  NAMES rtms_csdk.h rtms_common.h
+  PATHS ${RTMS_SDK_SEARCH_PATHS}
+  PATH_SUFFIXES include h
+  DOC "RTMS SDK header directory"
+)
+
+# Find the library
+find_library(RTMS_LIBRARY
+  NAMES librtmsdk.so.0
+  PATHS ${RTMS_SDK_SEARCH_PATHS}
+  DOC "RTMS SDK library"
+)
+
+message(STATUS "Found RTMS library: ${RTMS_LIBRARY}")
+message(STATUS "Found RTMS include dir: ${RTMS_INCLUDE_DIR}")
+
+get_filename_component(RTMS_LIB_DIR ${RTMS_LIBRARY} DIRECTORY)
+
 include_directories(${CMAKE_JS_INC})
-include_directories(${RTMS_SDK}/h)
+include_directories(${RTMS_INCLUDE_DIR})
 
 add_library(rtmSdk SHARED IMPORTED)
-set_target_properties(rtmSdk PROPERTIES IMPORTED_LOCATION ${RTMS_LIB})
+set_target_properties(rtmSdk PROPERTIES IMPORTED_LOCATION ${RTMS_LIBRARY})
 
 if(CMAKE_JS_VERSION)
     include_directories(node_modules/node-addon-api)
@@ -27,7 +62,6 @@ if(CMAKE_JS_VERSION)
         set(napi_build_version 9)
     endif()
     add_compile_definitions(NAPI_VERSION=${napi_build_version})
-
 
     add_library(${PROJECT_NAME} SHARED ${CMAKE_JS_SRC} ${SOURCE_FILES} ${NODE_ADDON})
 
@@ -45,7 +79,7 @@ elseif(PYTHON)
         src/python.cpp
     )
 
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${RTMS_LIB})
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${RTMS_LIBRARY})
 
     install(TARGETS ${PY_PROJ} DESTINATION ${SKBUILD_PROJECT_NAME})
 elseif(GO)
