@@ -159,6 +159,21 @@ function setBuildMode(mode) {
       return;
     }
     
+      // Check for Node.js dependencies
+    if (!fs.existsSync(join(getProjectRoot(), 'node_modules'))) {
+      log(PREFIX, 'node_modules not found, installing dependencies...');
+      try {
+        execSync('npm install', { 
+          stdio: 'inherit', 
+          cwd: getProjectRoot() 
+        });
+        success(PREFIX, 'Dependencies installed successfully');
+      } catch (err) {
+        error(PREFIX, `Failed to install dependencies: ${err.message}`);
+        return false;
+      }
+    }
+
     switch (command) {
       case 'build':
       case 'test':

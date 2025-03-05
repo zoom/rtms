@@ -36,13 +36,14 @@ function buildGo() {
 
 function prebuild() {
   log(PREFIX, 'Generating prebuilds...');
-  run('npx prebuild --backend cmake-js --strip -t 9 -r napi', PREFIX);
+  run('npx prebuild --strip -t 9 -r napi --backend cmake-js -- --CDNODE  ', PREFIX);
 }
 
 function upload() {
   log(PREFIX, 'Uploading prebuilds...');
-  run('npx prebuild --backend cmake-js --upload-all', PREFIX);
+  run('npx prebuild --upload-all --backend  cmake-js -- --CDNODE ', PREFIX);
 }
+
 
 function buildAll() {
   buildNodeJS();
@@ -54,8 +55,8 @@ function buildAll() {
 executeScript(PREFIX, {
   js: buildNodeJS,
   python: buildPython,
+  upload,
   go: buildGo,
   prebuild: prebuild,
-  upload: upload,
   all: buildAll
 });
