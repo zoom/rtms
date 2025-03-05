@@ -1,18 +1,27 @@
-[project]
-name = "rtms"
-version = "0.0.1"
-
 [build-system]
 requires = ["scikit-build-core", "pybind11"]
 build-backend = "scikit_build_core.build"
 
+
+[project]
+name = "rtms"
+version = "0.0.1"
+description = "Python bindings for the Zoom RTMS C SDK"
+classifiers = [
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Operating System :: POSIX :: Linux",
+    "License :: OSI Approved :: MIT License",
+]
+
+[project.urls]
+Homepage = "https://github.com/zoom/rtms"
+Issues = "https://github.com/zoom/rtms/issues"
+
 [tool.scikit-build]
-sdist.include = ["lib/**/*"]
-
-[tool.scikit-build.cmake.define]
-PYTHON = "true"
-
-
+cmake.define.PYTHON = "true"
+sdist.include = ["lib/librtmsdk/**/*"]
 
 
 

@@ -20,7 +20,7 @@ function buildPython() {
   const buildMode = getBuildMode();
   const cmakeBuildType = buildMode === 'debug' ? 'Debug' : 'Release';
   
-  run(`pipx run build --wheel -Ccmake.build-type='${cmakeBuildType}' --outdir dist/py`, PREFIX);
+  run(`python3 -m build -Ccmake.build-type='${cmakeBuildType}' --outdir dist/py`, PREFIX);
   log(PREFIX, `Python module built in ${buildMode} mode`);
 }
 

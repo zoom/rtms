@@ -17,9 +17,9 @@ RUN if [ "$TARGET" = "js" ] || [ "$TARGET" = "all" ]; then \
     fi && \
     if [ "$TARGET" = "py" ] || [ "$TARGET" = "all" ]; then \
         echo "Installing Python dependencies..." && \
-        apt install -y python3-full python3-pip pipx && \
+        apt install -y python3-full python3-pip && \
         python3 -m venv /opt/venv && \
-        python -m pip install "pybind11[global]" python-dotenv pdoc3; \
+        python -m pip install --upgrade build "pybind11[global]" python-dotenv pdoc3; \
     fi && \
     if [ "$TARGET" = "go" ] || [ "$TARGET" = "all" ]; then \
         echo "Installing Go dependencies..." && \
