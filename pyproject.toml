@@ -20,8 +20,4 @@ Homepage = "https://github.com/zoom/rtms"
 Issues = "https://github.com/zoom/rtms/issues"
 
 [tool.scikit-build]
-cmake.define.PYTHON = "true"
 sdist.include = ["lib/librtmsdk/**/*"]
-
-
-
