@@ -9,7 +9,7 @@ function buildNodeJS() {
   const buildMode = getBuildMode();
   const debugFlag = buildMode === 'debug' ? ' --debug' : '';
   
-  run(`cmake-js compile${debugFlag} --CDNODE=true`, PREFIX);
+  run(`cmake-js compile${debugFlag}`, PREFIX);
   run('tsc', PREFIX);
 
   log(PREFIX, `Node.js module built in ${buildMode} mode`);
@@ -20,7 +20,7 @@ function buildPython() {
   const buildMode = getBuildMode();
   const cmakeBuildType = buildMode === 'debug' ? 'Debug' : 'Release';
   
-  run(`pipx run build --wheel -Ccmake.build-type='${cmakeBuildType}' --outdir dist/py`, PREFIX);
+  run(`python3 -m build -Ccmake.build-type='${cmakeBuildType}' --outdir dist/py`, PREFIX);
   log(PREFIX, `Python module built in ${buildMode} mode`);
 }
 
@@ -36,12 +36,12 @@ function buildGo() {
 
 function prebuild() {
   log(PREFIX, 'Generating prebuilds...');
-  run('npx prebuild --strip -t 9 -r napi --backend cmake-js -- --CDNODE  ', PREFIX);
+  run('npx prebuild --strip -t 9 -r napi --backend cmake-js', PREFIX);
 }
 
 function upload() {
   log(PREFIX, 'Uploading prebuilds...');
-  run('npx prebuild --upload-all --backend  cmake-js -- --CDNODE ', PREFIX);
+  run('npx prebuild --backend cmake-js --upload-all', PREFIX);
 }
 
 

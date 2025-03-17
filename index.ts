@@ -5,12 +5,10 @@ import { createServer, IncomingMessage, Server, ServerResponse } from 'http';
 
 import type {JoinParams, SignatureParams, WebhookCallback} from "./rtms.d.ts"
 
-const rtmsMode = process.env.NODE_ENV === 'production' ? 'Release' : 'Debug'
 const require = createRequire(import.meta.url);
-const nativeRtms = require(`../../build/${rtmsMode}/rtms.node`)
+const nativeRtms = require('bindings')('rtms');
 
 let isInitialized = false;
-
 let server: Server | undefined, port: number | string, path: string;
 
 
@@ -23,7 +21,7 @@ export function onWebhookEvent(callback: WebhookCallback): void {
   server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const headers = { 'Content-Type': 'application/json' };
 
-    if (req.method !== 'POST' || req.url !== path) {
+    if (req.method !== 'POST') {
       res.writeHead(404, headers);
       res.end('Not Found');
       return;
@@ -37,7 +35,7 @@ export function onWebhookEvent(callback: WebhookCallback): void {
         const payload = JSON.parse(body);
         callback(payload);
         res.writeHead(200, headers);
-        res.end();
+        res.end(JSON.stringify(payload));
       } catch (e) {
         console.error('Error parsing webhook JSON:', e);
         res.writeHead(400, headers);
@@ -299,8 +297,8 @@ function generateSignature({ client, secret, uuid, streamId }: SignatureParams):
   const clientId = process.env['ZM_RTMS_CLIENT'] || client;
   const clientSecret = process.env['ZM_RTMS_SECRET'] || secret;
 
-  if (!clientId) throw new ReferenceError('Client ID cannot be blank');
-  if (!clientSecret) throw new ReferenceError('Client Secret cannot be blank');
+  if (!clientId) throw new ReferenceError('ZM_RTMS_CLIENT cannot be empty');
+  if (!clientSecret) throw new ReferenceError('ZM_RTMS_SECRET cannot be empty');
 
   return createHmac('sha256', clientSecret)
     .update(`${clientId},${uuid},${streamId}`)

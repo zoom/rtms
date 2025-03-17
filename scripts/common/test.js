@@ -14,9 +14,16 @@ function testNodeJSManual() {
   run('NODE_ENV=test node --env-file=.env test.js', PREFIX);
 }
 
+function testPythonManual() {
+  log(PREFIX, 'Running manual Python test...');
+  run('python3 -m pip install --force dist/py/*.whl', PREFIX);
+  run('python3 test.py', PREFIX);
+}
+
+
 function testPython() {
   log(PREFIX, 'Testing Python module...');
-  run('pip install --force dist/py/*.whl && python3 test.py', PREFIX);
+  //placeholder
 }
 
 function testGo() {
@@ -34,6 +41,7 @@ function testAll() {
 executeScript(PREFIX, {
   'js': testNodeJS,
   'js:manual': testNodeJSManual,
+  'py:manual': testPythonManual,
   'python': testPython,
   'go': testGo,
   'all': testAll
