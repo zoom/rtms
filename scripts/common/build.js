@@ -10,7 +10,7 @@ function buildNodeJS() {
   const debugFlag = buildMode === 'debug' ? ' --debug' : '';
   
   run(`cmake-js compile${debugFlag}`, PREFIX);
-  run('tsc', PREFIX);
+  run('npx tsc', PREFIX);
 
   log(PREFIX, `Node.js module built in ${buildMode} mode`);
 }

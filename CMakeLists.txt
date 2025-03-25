@@ -10,7 +10,8 @@ cmake_policy(SET CMP0042 NEW)
 set(RTMS_SDK_SEARCH_PATHS
   "${CMAKE_SOURCE_DIR}/lib/librtmsdk"
   "$ENV{LD_LIBRARY_PATH}"              
-  "$ENV{RTMS_SDK_PATH}"                
+  "$ENV{RTMS_SDK_PATH}"
+  "/Library/Frameworks"
   "/usr/local/lib"                    
   "/usr/lib"
 )
@@ -29,7 +30,7 @@ find_path(RTMS_INCLUDE_DIR
 
 # Find the library
 find_library(RTMS_LIBRARY
-  NAMES librtmsdk.so.0
+  NAMES librtmsdk.so.0 librtms-sdk.dylib
   PATHS ${RTMS_SDK_SEARCH_PATHS}
   DOC "RTMS SDK library"
 )
@@ -66,7 +67,7 @@ if(DEFINED CMAKE_JS_VERSION)
         PROPERTIES PREFIX "" SUFFIX ".node"
     )
 
-    target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB} rtmSdk )
+    target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB} rtmSdk)
 elseif(DEFINED SKBUILD_PROJECT_NAME)
     set(PY_TARGET "_${PROJECT_NAME}")
     set(PYBIND11_FINDPYTHON ON)

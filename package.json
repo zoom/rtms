@@ -102,10 +102,12 @@
     "node": ">=22.14.0"
   },
   "os": [
-    "linux"
+    "linux",
+    "darwin"
   ],
   "cpu": [
-    "x64"
+    "x64",
+    "arm64"
   ],
   "license": "MIT"
 }
