@@ -6,15 +6,51 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 cmake_policy(SET CMP0091 NEW)
 cmake_policy(SET CMP0042 NEW)
 
-# Set search paths for the RTMS SDK library, checking multiple possible locations
+# Detect platform and architecture
+if(APPLE)
+    set(RTMS_PLATFORM "darwin")
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
+        set(RTMS_ARCH "arm64")
+    else()
+        set(RTMS_ARCH "x64")
+    endif()
+elseif(UNIX AND NOT APPLE)
+    set(RTMS_PLATFORM "linux")
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
+        set(RTMS_ARCH "arm64")
+    else()
+        set(RTMS_ARCH "x64")
+    endif()
+else()
+    message(FATAL_ERROR "Unsupported platform")
+endif()
+
+set(RTMS_PLATFORM_LIB_DIR "${CMAKE_SOURCE_DIR}/lib/${RTMS_PLATFORM}-${RTMS_ARCH}")
+set(RTMS_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/lib/include")
+
+set(RTMS_LIB_NAME "rtmsdk")
+
+if(APPLE)
+    set(RTMS_LIB_EXT "dylib")
+elseif(UNIX AND NOT APPLE)
+    set(RTMS_LIB_EXT "so")
+endif()
+
+
+message(STATUS "Building for ${RTMS_PLATFORM}-${RTMS_ARCH}")
+
+# Set the search paths for the RTMS SDK
 set(RTMS_SDK_SEARCH_PATHS
   "${CMAKE_SOURCE_DIR}/lib/librtmsdk"
   "$ENV{LD_LIBRARY_PATH}"              
   "$ENV{RTMS_SDK_PATH}"
-  "/Library/Frameworks"
   "/usr/local/lib"                    
   "/usr/lib"
 )
+if(APPLE)
+    set(CMAKE_FRAMEWORK_PATH ${CMAKE_FRAMEWORK_PATH} "${RTMS_PLATFORM_LIB_DIR}")
+    set(CMAKE_MACOSX_RPATH ON)
+endif()
 
 if($ENV{RTMS_SDK_PATH})
   list(INSERT RTMS_SDK_SEARCH_PATHS 0 "$ENV{RTMS_SDK_PATH}")
@@ -23,12 +59,12 @@ endif()
 # Find the header directory
 find_path(RTMS_INCLUDE_DIR
   NAMES rtms_csdk.h rtms_common.h
-  PATHS ${RTMS_SDK_SEARCH_PATHS}
-  PATH_SUFFIXES include h
+  PATHS "${CMAKE_SOURCE_DIR}/lib/include"
+    ${RTMS_SDK_SEARCH_PATHS}
   DOC "RTMS SDK header directory"
 )
 
-# Find the library
+# Find the shared library files
 find_library(RTMS_LIBRARY
   NAMES librtmsdk.so.0 librtms-sdk.dylib
   PATHS ${RTMS_SDK_SEARCH_PATHS}
@@ -48,7 +84,8 @@ set_target_properties(rtmSdk PROPERTIES IMPORTED_LOCATION ${RTMS_LIBRARY})
 
 file(GLOB SOURCE_FILES src/rtms.h src/rtms.cpp)
 
-# If using cmake-js this is the Node Addon API, SKBUILD_PROJECT_NAME means scikit-build-core is building pything
+# If using cmake-js this is the Node Addon API, CMAKE_JS_VERSION is defined
+# If using scikit-build-core this is the Python bindings, SKBUILD_PROJECT_NAME is defined
 if(DEFINED CMAKE_JS_VERSION)
     include_directories(node_modules/node-addon-api)
 

@@ -32,7 +32,6 @@
     "test:js-manual": "node scripts/rtms.js test js:manual",
     "test:py-manual": "node scripts/rtms.js test py:manual",
 
-
     "// Documentation commands": "Generate documentation",
     "docs": "node scripts/rtms.js docs all",
     "docs:js": "node scripts/rtms.js docs js",

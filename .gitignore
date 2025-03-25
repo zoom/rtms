@@ -10,7 +10,10 @@ prebuilds
 *.pem
 
 ### Zoom RTMS C SDK
-lib/librtmsdk/*
+lib/darwin-arm64/*
+lib/linux-x64/*
+!lib/*/.gitkeep
+
 !lib/librtmsdk/.gitkeep
 
 # only allow files where we want them

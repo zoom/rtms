@@ -298,37 +298,37 @@ void Client::configure(const MediaParameters& params, int media_types, bool enab
 
 void Client::setOnJoinConfirm(JoinConfirmFn callback) {
     lock_guard<mutex> lock(mutex_);
-    join_confirm_callback_ = move(callback);
+    join_confirm_callback_ = std::move(callback);
 }
 
 void Client::setOnSessionUpdate(SessionUpdateFn callback) {
     lock_guard<mutex> lock(mutex_);
-    session_update_callback_ = move(callback);
+    session_update_callback_ = std::move(callback);
 }
 
 void Client::setOnUserUpdate(UserUpdateFn callback) {
     lock_guard<mutex> lock(mutex_);
-    user_update_callback_ = move(callback);
+    user_update_callback_ = std::move(callback);
 }
 
 void Client::setOnAudioData(AudioDataFn callback) {
     lock_guard<mutex> lock(mutex_);
-    audio_data_callback_ = move(callback);
+    audio_data_callback_ = std::move(callback);
 }
 
 void Client::setOnVideoData(VideoDataFn callback) {
     lock_guard<mutex> lock(mutex_);
-    video_data_callback_ = move(callback);
+    video_data_callback_ = std::move(callback);
 }
 
 void Client::setOnTranscriptData(TranscriptDataFn callback) {
     lock_guard<mutex> lock(mutex_);
-    transcript_data_callback_ = move(callback);
+    transcript_data_callback_ = std::move(callback);
 }
 
 void Client::setOnLeave(LeaveFn callback) {
     lock_guard<mutex> lock(mutex_);
-    leave_callback_ = move(callback);
+    leave_callback_ = std::move(callback);
 }
 
 void Client::join(const string& meeting_uuid, const string& rtms_stream_id, 
