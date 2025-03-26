@@ -99,10 +99,13 @@ if(DEFINED CMAKE_JS_VERSION)
 
   add_library(${PROJECT_NAME} SHARED ${CMAKE_JS_SRC} ${SOURCE_FILES} ${NODE_ADDON})
 
-  set_target_properties(${PROJECT_NAME}
-    PROPERTIES PREFIX "" SUFFIX ".node"
+  set_target_properties(${PROJECT_NAME} PROPERTIES
+    PREFIX ""
+    SUFFIX ".node"
+    BUILD_WITH_INSTALL_RPATH TRUE
+    INSTALL_RPATH "build/${CMAKE_BUILD_TYPE};$ORIGIN;$$ORIGIN"
   )
-
+  
   target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB} rtmSdk)
 
   set(OUTPUT_DIR ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE})
