@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { setupFrameworks } from './frameworks.js';
 import { log, run, executeScript, getBuildMode } from './utils.js';
 
 const PREFIX = "Build";
@@ -54,6 +55,12 @@ function upload_linux() {
 
 }
 
+function install() {
+  log(PREFIX, 'Installing prebuild...');
+  run("npx --yes prebuild-install -r napi -T $GITHUB_TOKEN", PREFIX)
+  setupFrameworks();
+}
+
 
 
 
@@ -69,6 +76,7 @@ executeScript(PREFIX, {
   python: buildPython,
   upload,
   upload_linux,
+  install,
   go: buildGo,
   prebuild: prebuild,
   all: buildAll

@@ -7,7 +7,7 @@
   "types": "rtms.d.ts",
   "type": "module",
   "scripts": {
-    "fetch": "npx prebuild-install -r napi -T",
+    "install": "node scripts/common/build.js install",
 
     "// CLI commands": "Use the unified CLI for most operations",
     "rtms": "node scripts/rtms.js",

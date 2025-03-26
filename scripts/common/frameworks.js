@@ -6,13 +6,16 @@ import { log, getBuildMode } from './utils.js';
 const buildMode = getBuildMode();
 const buildDir= buildMode === 'debug' ? 'Debug' : 'Release';
 
+const PREFIX = 'Frameworks';
 
 async function extractFrameworks() {
     log(PREFIX, 'Extracting Framworks...');
     const require = createRequire(import.meta.url);
     const tar = require('tar');
     
-    const frameworksDir = outputDir = join(dirname(import.meta.url), `build/${buildDir}`);
+    const dir = join(dirname(import.meta.url), `build/${buildDir}`);
+    const frameworksDir = dir
+    const outputDir = dir
 
     try {
         // Create output directory if it doesn't exist
