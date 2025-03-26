@@ -41,7 +41,9 @@
     "clean": "node scripts/rtms.js clean",
     "setup": "npm install && node scripts/rtms.js build all",
     "prebuild": "node scripts/common/build.js prebuild",
-    "upload": "node scripts/common/build.js upload"
+    "upload": "node scripts/common/build.js upload",
+    "upload_linux": "node scripts/common/build.js upload_linux"
+
   },
   "dependencies": {
     "bindings": "^1.5.0",
@@ -61,14 +63,17 @@
     ]
   },
   "files": [
-    "dist/js",
-    "scripts",
-    "tests",
     "CMakeLists.txt",
+    "dist/js",
+    "index.ts",
+    "lib/darwin-arm64/",
+    "lib/include/",
+    "lib/linux-x64/",
+    "rtms.d.ts",
+    "scripts",
     "src/{node,rtms}.cpp",
     "src/rtms.h",
-    "index.ts",
-    "rtms.d.ts",
+    "tests",
     "tsconfig.json"
   ],
   "repository": {
@@ -97,9 +102,6 @@
       "url": "https://www.npmjs.com/~maxmansfield"
     }
   ],
-  "engines": {
-    "node": ">=22.14.0"
-  },
   "os": [
     "linux",
     "darwin"

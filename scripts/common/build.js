@@ -16,7 +16,7 @@ function buildNodeJS() {
 }
 
 function buildPython() {
-  log(PREFIX, 'Building Python module...');
+  log(PREFIX, 'Building Pythno module...');
   const buildMode = getBuildMode();
   const cmakeBuildType = buildMode === 'debug' ? 'Debug' : 'Release';
   
@@ -34,15 +34,28 @@ function buildGo() {
   log(PREFIX, `Go module built in ${buildMode} mode`);
 }
 
+const prebuildCmd = "prebuild -t 9 -r napi \
+    --include-regex '\.(node|dylib|so.0|tar.gz)$'  \
+    --backend cmake-js";
+
 function prebuild() {
   log(PREFIX, 'Generating prebuilds...');
-  run('npx prebuild --strip -t 9 -r napi --backend cmake-js', PREFIX);
+  run(prebuildCmd, PREFIX);
 }
 
 function upload() {
   log(PREFIX, 'Uploading prebuilds...');
-  run('npx prebuild --backend cmake-js --upload-all', PREFIX);
+  run(`${prebuildCmd} -u "$GITHUB_TOKEN"`, PREFIX);
+
 }
+
+function upload_linux() {
+  log(PREFIX, 'Uploading prebuilds...');
+  run(`${prebuildCmd} --arch x64 --platform linux -u "$GITHUB_TOKEN"`, PREFIX);
+
+}
+
+
 
 
 function buildAll() {
@@ -56,6 +69,7 @@ executeScript(PREFIX, {
   js: buildNodeJS,
   python: buildPython,
   upload,
+  upload_linux,
   go: buildGo,
   prebuild: prebuild,
   all: buildAll

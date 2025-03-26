@@ -1,6 +1,6 @@
 # Zoom Realtime Media Streaming (RTMS) SDK
 
-A cross-platform wrapper for the Zoom RTMS C SDK, providing bindings for Node.js, Python, and Go to easily consume real-time audio, video, and transcript streams from Zoom meetings.
+Bindings for Node.js, Python, and Go to easily consume real-time audio, video, and transcript streams from Zoom Meetings
 
 ## Overview
 

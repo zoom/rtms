@@ -27,11 +27,10 @@ endif()
 
 set(RTMS_PLATFORM_LIB_DIR "${CMAKE_SOURCE_DIR}/lib/${RTMS_PLATFORM}-${RTMS_ARCH}")
 set(RTMS_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/lib/include")
-
 set(RTMS_LIB_NAME "rtmsdk")
 
 if(APPLE)
-    set(RTMS_LIB_EXT "dylib")
+    set(RTMS_LIB_EXT "dylib")    
 elseif(UNIX AND NOT APPLE)
     set(RTMS_LIB_EXT "so")
 endif()
@@ -41,7 +40,7 @@ message(STATUS "Building for ${RTMS_PLATFORM}-${RTMS_ARCH}")
 
 # Set the search paths for the RTMS SDK
 set(RTMS_SDK_SEARCH_PATHS
-  "${CMAKE_SOURCE_DIR}/lib/librtmsdk"
+  "${RTMS_PLATFORM_LIB_DIR}"
   "$ENV{LD_LIBRARY_PATH}"              
   "$ENV{RTMS_SDK_PATH}"
   "/usr/local/lib"                    
@@ -60,7 +59,7 @@ endif()
 find_path(RTMS_INCLUDE_DIR
   NAMES rtms_csdk.h rtms_common.h
   PATHS "${CMAKE_SOURCE_DIR}/lib/include"
-    ${RTMS_SDK_SEARCH_PATHS}
+        ${RTMS_SDK_SEARCH_PATHS}
   DOC "RTMS SDK header directory"
 )
 
@@ -105,6 +104,36 @@ if(DEFINED CMAKE_JS_VERSION)
     )
 
     target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB} rtmSdk)
+
+    set(OUTPUT_DIR ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+
+    # copy .dylib files to the output directory
+    add_custom_command(
+      TARGET ${PROJECT_NAME} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+              ${RTMS_PLATFORM_LIB_DIR}
+              ${OUTPUT_DIR}
+      COMMENT "Copying shared object files to ${OUTPUT_DIR}"
+    )
+  
+
+    if (APPLE)
+      # Find all .framework directories
+      file(GLOB FRAMEWORK_DIRS ${RTMS_PLATFORM_LIB_DIR}/*.framework)
+
+      # Create tar archives for each .framework directory
+      foreach(FRAMEWORK_PATH ${FRAMEWORK_DIRS})
+          get_filename_component(FRAMEWORK_NAME ${FRAMEWORK_PATH} NAME)
+          add_custom_command(
+              TARGET ${PROJECT_NAME} POST_BUILD
+              COMMAND ${CMAKE_COMMAND} -E tar czf 
+                      "${OUTPUT_DIR}/${FRAMEWORK_NAME}.tar.gz"
+                      "${FRAMEWORK_PATH}"
+              WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+              COMMENT "Tarring ${FRAMEWORK_NAME}"
+          )
+      endforeach()
+    endif()
 elseif(DEFINED SKBUILD_PROJECT_NAME)
     set(PY_TARGET "_${PROJECT_NAME}")
     set(PYBIND11_FINDPYTHON ON)

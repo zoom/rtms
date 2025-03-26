@@ -24,12 +24,12 @@ x-base: &base
         target: /tmp/rtms
 
 services:
-  js:
+  js: &js
     <<: *base
     build:
       args:
         TARGET: js
-    command: npm run build:js
+    command: npm run prebuild
   test-js:
     <<: *base
     build:
@@ -41,7 +41,7 @@ services:
     command: npm run test:js-manual
     ports:
       - 8080:8080
-  py:
+  py: &py
     <<: *base
     build:
       args:
@@ -58,7 +58,7 @@ services:
     command: npm run test:py-manual
     ports:
       - 8080:8081
-  go:
+  go: &go
     <<: *base
     build:
       args:

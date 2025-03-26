@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
-import { log, error, success, getProjectRoot } from './common/utils.js';
-import { execSync } from 'child_process';
-import { join } from 'path';
 import fs from 'fs';
+import { join } from 'path';
+import { execSync } from 'child_process';
+import { log, error, success, getProjectRoot } from './common/utils.js';
+import { setupFrameworks } from './common/frameworks.js';
 
 const PREFIX = "CLI";
 const CONFIG = join(getProjectRoot(), 'scripts', '.rtms-config.json');
@@ -167,6 +168,11 @@ function setBuildMode(mode) {
           stdio: 'inherit', 
           cwd: getProjectRoot() 
         });
+
+        if (process.platform === 'darwin') {
+          setupFrameworks();
+        }
+
         success(PREFIX, 'Dependencies installed successfully');
       } catch (err) {
         error(PREFIX, `Failed to install dependencies: ${err.message}`);
