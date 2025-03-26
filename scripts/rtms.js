@@ -169,10 +169,6 @@ function setBuildMode(mode) {
           cwd: getProjectRoot() 
         });
 
-        if (process.platform === 'darwin') {
-          setupFrameworks();
-        }
-
         success(PREFIX, 'Dependencies installed successfully');
       } catch (err) {
         error(PREFIX, `Failed to install dependencies: ${err.message}`);

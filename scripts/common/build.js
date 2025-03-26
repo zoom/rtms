@@ -55,14 +55,6 @@ function upload_linux() {
 
 }
 
-function install() {
-  log(PREFIX, 'Installing prebuild...');
-  run("npx --yes prebuild-install -r napi -T $GITHUB_TOKEN", PREFIX)
-  setupFrameworks();
-}
-
-
-
 
 function buildAll() {
   buildNodeJS();
@@ -76,7 +68,7 @@ executeScript(PREFIX, {
   python: buildPython,
   upload,
   upload_linux,
-  install,
+  setupFrameworks,
   go: buildGo,
   prebuild: prebuild,
   all: buildAll
