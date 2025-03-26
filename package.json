@@ -7,7 +7,7 @@
   "types": "rtms.d.ts",
   "type": "module",
   "scripts": {
-    "postinstall": "prebuild-install -r napi -T $GITHUB_TOKEN || npm run build:js",
+    "postinstall": "npx prebuild-install -r napi -T $GITHUB_TOKEN || npm run build:js",
 
     "// CLI commands": "Use the unified CLI for most operations",
     "rtms": "node scripts/rtms.js",
