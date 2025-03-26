@@ -10,7 +10,6 @@ function buildNodeJS() {
   const debugFlag = buildMode === 'debug' ? ' --debug' : '';
   
   run(`cmake-js compile${debugFlag}`, PREFIX);
-  run('npx tsc', PREFIX);
 
   log(PREFIX, `Node.js module built in ${buildMode} mode`);
 }
@@ -35,7 +34,7 @@ function buildGo() {
 }
 
 const prebuildCmd = "prebuild -t 9 -r napi \
-    --include-regex '\.(node|dylib|so.0|tar.gz)$'  \
+    --include-regex '\.(node|dylib|so.0|tar.gz|ts|js|js.map)$'  \
     --backend cmake-js";
 
 function prebuild() {

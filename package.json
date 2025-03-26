@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.1",
   "description": "Node.js Wrapper for the Zoom RTMS CSDK",
-  "main": "dist/js/index.js",
+  "main": "build/Release/index.js",
   "types": "rtms.d.ts",
   "type": "module",
   "scripts": {
