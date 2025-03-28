@@ -1,12 +1,14 @@
 cmake_minimum_required(VERSION 3.25.1)
 project(rtms VERSION 0.0.1 LANGUAGES CXX)
 
+# ===== Build settings =====
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 cmake_policy(SET CMP0091 NEW)
 cmake_policy(SET CMP0042 NEW)
 
-# Detect platform and architecture
+# ===== Platform detection =====
 if(APPLE)
   set(RTMS_PLATFORM "darwin")
   if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
@@ -25,104 +27,134 @@ else()
   message(FATAL_ERROR "Unsupported platform")
 endif()
 
-set(RTMS_PLATFORM_LIB_DIR "${CMAKE_SOURCE_DIR}/lib/${RTMS_PLATFORM}-${RTMS_ARCH}")
-set(RTMS_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/lib/include")
-set(RTMS_LIB_NAME "rtmsdk")
+message(STATUS "Building for ${RTMS_PLATFORM}-${RTMS_ARCH}")
 
+# ===== Project structure =====
+set(RTMS_SOURCE_DIR "${CMAKE_SOURCE_DIR}/src")
+set(RTMS_LIB_DIR "${CMAKE_SOURCE_DIR}/lib")
+set(RTMS_PLATFORM_LIB_DIR "${RTMS_LIB_DIR}/${RTMS_PLATFORM}-${RTMS_ARCH}")
+set(RTMS_INCLUDE_DIR "${RTMS_LIB_DIR}/include")
+set(RTMS_OUTPUT_DIR "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}")
+
+# ===== Library file extensions by platform =====
 if(APPLE)
   set(RTMS_LIB_EXT "dylib")
 elseif(UNIX AND NOT APPLE)
   set(RTMS_LIB_EXT "so")
 endif()
 
+# ===== RPATH settings (most important part) =====
+# Completely disable CMake's automatic RPATH handling
+set(CMAKE_SKIP_RPATH TRUE)
 
-message(STATUS "Building for ${RTMS_PLATFORM}-${RTMS_ARCH}")
-
-# Set the search paths for the RTMS SDK
-set(RTMS_SDK_SEARCH_PATHS
+# ===== Library search locations =====
+set(RTMS_SEARCH_PATHS
   "${RTMS_PLATFORM_LIB_DIR}"
-  "$ENV{LD_LIBRARY_PATH}"
+  "${CMAKE_SOURCE_DIR}/build/Release"
+  "${CMAKE_SOURCE_DIR}/build/Debug"
   "$ENV{RTMS_SDK_PATH}"
+  "$ENV{LD_LIBRARY_PATH}"
   "/usr/local/lib"
   "/usr/lib"
 )
-if(APPLE)
-  set(CMAKE_FRAMEWORK_PATH ${CMAKE_FRAMEWORK_PATH} "${RTMS_PLATFORM_LIB_DIR}")
-  set(CMAKE_MACOSX_RPATH ON)
-endif()
 
-if($ENV{RTMS_SDK_PATH})
-  list(INSERT RTMS_SDK_SEARCH_PATHS 0 "$ENV{RTMS_SDK_PATH}")
-endif()
-
-# Find the header directory
-find_path(RTMS_INCLUDE_DIR
+# ===== Locate library and headers =====
+find_path(RTMS_HEADER_DIR
   NAMES rtms_csdk.h rtms_common.h
-  PATHS "${CMAKE_SOURCE_DIR}/lib/include"
-  ${RTMS_SDK_SEARCH_PATHS}
-  DOC "RTMS SDK header directory"
+  PATHS ${RTMS_INCLUDE_DIR} ${RTMS_SEARCH_PATHS}
+  DOC "RTMS SDK headers"
 )
 
-# Find the shared library files
 find_library(RTMS_LIBRARY
-  NAMES librtmsdk.so.0 librtms-sdk.dylib
-  PATHS ${RTMS_SDK_SEARCH_PATHS}
+  NAMES rtmsdk librtmsdk librtmsdk.so.0 rtmsdk.so.0
+  PATHS ${RTMS_SEARCH_PATHS}
   DOC "RTMS SDK library"
 )
 
-message(STATUS "Found RTMS library: ${RTMS_LIBRARY}")
-message(STATUS "Found RTMS include dir: ${RTMS_INCLUDE_DIR}")
+# Error if not found
+if(NOT RTMS_LIBRARY)
+  message(FATAL_ERROR "RTMS SDK library not found. Please install it or specify its location.")
+endif()
 
+if(NOT RTMS_HEADER_DIR)
+  message(FATAL_ERROR "RTMS SDK headers not found. Please install them or specify their location.")
+endif()
+
+# Get library information
+get_filename_component(RTMS_LIB_FILENAME ${RTMS_LIBRARY} NAME)
 get_filename_component(RTMS_LIB_DIR ${RTMS_LIBRARY} DIRECTORY)
 
+message(STATUS "Found RTMS library: ${RTMS_LIBRARY} (${RTMS_LIB_FILENAME})")
+message(STATUS "Found RTMS headers: ${RTMS_HEADER_DIR}")
+
+# ===== Set up includes =====
+include_directories(${RTMS_HEADER_DIR})
 include_directories(${CMAKE_JS_INC})
-include_directories(${RTMS_INCLUDE_DIR})
 
-add_library(rtmSdk SHARED IMPORTED)
-set_target_properties(rtmSdk PROPERTIES IMPORTED_LOCATION ${RTMS_LIBRARY})
+# ===== Core library sources =====
+file(GLOB RTMS_CORE_SOURCES
+  "${RTMS_SOURCE_DIR}/rtms.h"
+  "${RTMS_SOURCE_DIR}/rtms.cpp"
+)
 
-file(GLOB SOURCE_FILES src/rtms.h src/rtms.cpp)
-
-# If using cmake-js this is the Node Addon API, CMAKE_JS_VERSION is defined
-# If using scikit-build-core this is the Python bindings, SKBUILD_PROJECT_NAME is defined
+# ===== Node.js binding target =====
 if(DEFINED CMAKE_JS_VERSION)
+  message(STATUS "Building Node.js bindings")
+
+  # Include Node API headers
   include_directories(node_modules/node-addon-api)
 
-  set(NODE_ADDON ${CMAKE_SOURCE_DIR}/src/node.cpp)
+  # Enable exceptions
   add_definitions(-DNODE_ADDON_API_CPP_EXCEPTIONS)
   add_definitions(-DNODE_ADDON_API_CPP_EXCEPTIONS_ALL)
 
-  if(NOT napi_build_version)
-    set(napi_build_version 9)
-  endif()
-  add_compile_definitions(NAPI_VERSION=${napi_build_version})
+  # Set NAPI version
+  set(NAPI_VERSION 9)
+  add_compile_definitions(NAPI_VERSION=${NAPI_VERSION})
 
-  add_library(${PROJECT_NAME} SHARED ${CMAKE_JS_SRC} ${SOURCE_FILES} ${NODE_ADDON})
+  # Create Node addon
+  add_library(${PROJECT_NAME} SHARED
+    ${RTMS_CORE_SOURCES}
+    "${RTMS_SOURCE_DIR}/node.cpp"
+  )
 
+  # Set output properties
   set_target_properties(${PROJECT_NAME} PROPERTIES
     PREFIX ""
     SUFFIX ".node"
+    OUTPUT_NAME "rtms"
   )
-  
-  target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB} rtmSdk)
 
-  set(OUTPUT_DIR ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+  # Set up direct linking to the RTMS library
+  set_property(TARGET ${PROJECT_NAME} APPEND_STRING PROPERTY
+    LINK_FLAGS " -L${RTMS_LIB_DIR}")
 
-  # run tsc to compile TypeScript files
+  # Platform-specific linker settings
+  if(APPLE)
+    # Set the install name to use the local directory
+    set_property(TARGET ${PROJECT_NAME} APPEND_STRING PROPERTY
+      LINK_FLAGS " -install_name @loader_path/${RTMS_LIB_FILENAME}")
+
+    # Enable RPATH
+    set(CMAKE_MACOSX_RPATH ON)
+  else() # Linux
+    # Add RPATH directly with linker flags
+    set_property(TARGET ${PROJECT_NAME} APPEND_STRING PROPERTY
+      LINK_FLAGS " -Wl,-rpath,'$ORIGIN'")
+  endif()
+
+  # Link against libraries
+  target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB} -l:${RTMS_LIB_FILENAME})
+
+  # Post-build: TypeScript compilation
   add_custom_command(
     TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND tsc --outDir ${OUTPUT_DIR}
+    COMMAND tsc --outDir ${RTMS_OUTPUT_DIR}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Compiling TypeScript files"
   )
 
-  # copy shared object files to the output directory
-  add_custom_command(
-    TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${RTMS_PLATFORM_LIB_DIR}
-    ${OUTPUT_DIR}
-    COMMENT "Copying shared object files to ${OUTPUT_DIR}"
-  )
-
+  # Post-build: Special handling for macOS frameworks
   if(APPLE)
     # Find all .framework directories
     file(GLOB FRAMEWORK_DIRS ${RTMS_PLATFORM_LIB_DIR}/*.framework)
@@ -133,36 +165,55 @@ if(DEFINED CMAKE_JS_VERSION)
       add_custom_command(
         TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E tar czf
-        "${OUTPUT_DIR}/${FRAMEWORK_NAME}.tar.gz"
+        "${RTMS_OUTPUT_DIR}/${FRAMEWORK_NAME}.tar.gz"
         "${FRAMEWORK_PATH}"
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        COMMENT "Tarring ${FRAMEWORK_NAME}"
+        COMMENT "Tarring ${FRAMEWORK_NAME} framework for bundling"
       )
     endforeach()
+  else()
+    # For Linux, we can just copy the library to the output directory
+    add_custom_command(
+      TARGET ${PROJECT_NAME} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy
+      ${RTMS_LIBRARY}
+      ${RTMS_OUTPUT_DIR}/${RTMS_LIB_FILENAME}
+      COMMENT "Copying ${RTMS_LIB_FILENAME} to output directory"
+    )
   endif()
+
+  # ===== Python binding target =====
 elseif(DEFINED SKBUILD_PROJECT_NAME)
-  set(PY_TARGET "_${PROJECT_NAME}")
+  message(STATUS "Building Python bindings")
+
+  # Get pybind11
   set(PYBIND11_FINDPYTHON ON)
   find_package(pybind11 CONFIG REQUIRED)
 
-  pybind11_add_module(${PY_TARGET} ${SOURCE_FILES}
-    src/python.cpp
+  # Create the Python module
+  set(PYTHON_MODULE_NAME "_${PROJECT_NAME}")
+  pybind11_add_module(${PYTHON_MODULE_NAME}
+    ${RTMS_CORE_SOURCES}
+    "${RTMS_SOURCE_DIR}/python.cpp"
   )
 
-  target_link_libraries(${PY_TARGET} PRIVATE rtmSdk)
+  # Link with the RTMS library
+  set_property(TARGET ${PYTHON_MODULE_NAME} APPEND_STRING PROPERTY
+    LINK_FLAGS " -L${RTMS_LIB_DIR}")
 
-  set_target_properties(${PY_TARGET} PROPERTIES
-    BUILD_WITH_INSTALL_RPATH TRUE
-    INSTALL_RPATH "$ORIGIN;${RTMS_LIB_DIR}"
-  )
+  # Linux: Set RPATH directly
+  if(UNIX AND NOT APPLE)
+    set_property(TARGET ${PYTHON_MODULE_NAME} APPEND_STRING PROPERTY
+      LINK_FLAGS " -Wl,-rpath,'$$ORIGIN'")
+  endif()
 
-  install(TARGETS ${PY_TARGET} DESTINATION .)
+  target_link_libraries(${PYTHON_MODULE_NAME} PRIVATE -l:${RTMS_LIB_FILENAME})
 
-  install(FILES ${RTMS_LIBRARY}
-    DESTINATION .
-    COMPONENT SharedLibrary
-  )
+  # Installation
+  install(TARGETS ${PYTHON_MODULE_NAME} DESTINATION .)
+  install(FILES ${RTMS_LIBRARY} DESTINATION .)
 
+  # ===== Go binding target (placeholder) =====
 elseif(GO)
-
+  message(STATUS "Go bindings not yet implemented")
 endif()
