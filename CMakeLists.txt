@@ -68,7 +68,7 @@ find_path(RTMS_HEADER_DIR
 )
 
 find_library(RTMS_LIBRARY
-  NAMES rtmsdk librtmsdk librtmsdk.so.0 rtmsdk.so.0
+  NAMES librtmsdk.so.0 librtms-sdk.dylib
   PATHS ${RTMS_SEARCH_PATHS}
   DOC "RTMS SDK library"
 )
@@ -131,22 +131,30 @@ if(DEFINED CMAKE_JS_VERSION)
   set_property(TARGET ${PROJECT_NAME} APPEND_STRING PROPERTY
     LINK_FLAGS " -L${RTMS_LIB_DIR}")
 
-  # Platform-specific linker settings
-  if(APPLE)
-    # Set the install name to use the local directory
-    set_property(TARGET ${PROJECT_NAME} APPEND_STRING PROPERTY
-      LINK_FLAGS " -install_name @loader_path/${RTMS_LIB_FILENAME}")
-
-    # Enable RPATH
-    set(CMAKE_MACOSX_RPATH ON)
-  else() # Linux
-    # Add RPATH directly with linker flags
-    set_property(TARGET ${PROJECT_NAME} APPEND_STRING PROPERTY
-      LINK_FLAGS " -Wl,-rpath,'$ORIGIN'")
-  endif()
-
-  # Link against libraries
+# Platform-specific linker settings
+if(APPLE)
+  # Convert library name for macOS linking (remove lib prefix and extension)
+  string(REGEX REPLACE "^lib" "" RTMS_LIB_NAME_CLEAN ${RTMS_LIB_FILENAME})
+  string(REGEX REPLACE "\\.dylib$" "" RTMS_LIB_NAME_CLEAN ${RTMS_LIB_NAME_CLEAN})
+  
+  # Use standard -l syntax on macOS (no colon)
+  set_property(TARGET ${PROJECT_NAME} APPEND_STRING PROPERTY
+    LINK_FLAGS " -install_name @loader_path/${RTMS_LIB_FILENAME}")
+  
+  # Enable RPATH
+  set(CMAKE_MACOSX_RPATH ON)
+  
+  # Link using standard macOS syntax
+  target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB} ${RTMS_LIBRARY})
+else() # Linux
+  # Add RPATH directly with linker flags
+  set_property(TARGET ${PROJECT_NAME} APPEND_STRING PROPERTY
+    LINK_FLAGS " -Wl,-rpath,'$ORIGIN'")
+    
+  # Link using Linux-specific syntax with colon
   target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB} -l:${RTMS_LIB_FILENAME})
+endif()
+
 
   # Post-build: TypeScript compilation
   add_custom_command(
