@@ -34,7 +34,9 @@ set(RTMS_SOURCE_DIR "${CMAKE_SOURCE_DIR}/src")
 set(RTMS_LIB_DIR "${CMAKE_SOURCE_DIR}/lib")
 set(RTMS_PLATFORM_LIB_DIR "${RTMS_LIB_DIR}/${RTMS_PLATFORM}-${RTMS_ARCH}")
 set(RTMS_INCLUDE_DIR "${RTMS_LIB_DIR}/include")
+
 set(RTMS_OUTPUT_DIR "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}")
+get_filename_component(RTMS_OUTPUT_DIR "${RTMS_OUTPUT_DIR}" ABSOLUTE)
 
 # ===== Library file extensions by platform =====
 if(APPLE)
