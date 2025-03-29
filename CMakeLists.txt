@@ -6,7 +6,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 cmake_policy(SET CMP0091 NEW)
-cmake_policy(SET CMP0042 NEW)
 
 # ===== Platform detection =====
 if(APPLE)
@@ -37,17 +36,6 @@ set(RTMS_INCLUDE_DIR "${RTMS_LIB_DIR}/include")
 
 set(RTMS_OUTPUT_DIR "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}")
 get_filename_component(RTMS_OUTPUT_DIR "${RTMS_OUTPUT_DIR}" ABSOLUTE)
-
-# ===== Library file extensions by platform =====
-if(APPLE)
-  set(RTMS_LIB_EXT "dylib")
-elseif(UNIX AND NOT APPLE)
-  set(RTMS_LIB_EXT "so")
-endif()
-
-# ===== RPATH settings (most important part) =====
-# Completely disable CMake's automatic RPATH handling
-set(CMAKE_SKIP_RPATH TRUE)
 
 # ===== Library search locations =====
 set(RTMS_SEARCH_PATHS
@@ -127,45 +115,29 @@ if(DEFINED CMAKE_JS_VERSION)
     OUTPUT_NAME "rtms"
   )
 
+  set_target_properties(
+    ${PROJECT_NAME}
+    PROPERTIES
+    BUILD_RPATH "${RTMS_OUTPUT_DIR}"
+    INSTALL_RPATH "${RTMS_OUTPUT_DIR}")
+
+
   # Set up direct linking to the RTMS library
   set_property(TARGET ${PROJECT_NAME} APPEND_STRING PROPERTY
     LINK_FLAGS " -L${RTMS_LIB_DIR}")
 
-# Platform-specific linker settings
-if(APPLE)
-  # Convert library name for macOS linking (remove lib prefix and extension)
-  string(REGEX REPLACE "^lib" "" RTMS_LIB_NAME_CLEAN ${RTMS_LIB_FILENAME})
-  string(REGEX REPLACE "\\.dylib$" "" RTMS_LIB_NAME_CLEAN ${RTMS_LIB_NAME_CLEAN})
-  
-  # Use standard -l syntax on macOS (no colon)
-  set_property(TARGET ${PROJECT_NAME} APPEND_STRING PROPERTY
-    LINK_FLAGS " -install_name @loader_path/${RTMS_LIB_FILENAME}")
-  
-  # Enable RPATH
-  set(CMAKE_MACOSX_RPATH ON)
-  
-  # Link using standard macOS syntax
-  target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB} ${RTMS_LIBRARY})
-else() # Linux
-  # Add RPATH directly with linker flags
-  set_property(TARGET ${PROJECT_NAME} APPEND_STRING PROPERTY
-    LINK_FLAGS " -Wl,-rpath,'$ORIGIN'")
-    
-  # Link using Linux-specific syntax with colon
-  target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB} -l:${RTMS_LIB_FILENAME})
-endif()
 
+  # Platform-specific linker settings
+  if(${RTMS_PLATFORM} STREQUAL "darwin")
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/build/${CMAKE_BUILD_TYPE}")
 
-  # Post-build: TypeScript compilation
-  add_custom_command(
-    TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND tsc --outDir ${RTMS_OUTPUT_DIR}
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    COMMENT "Compiling TypeScript files"
-  )
+    # Convert library name for macOS linking (remove lib prefix and extension)
+    string(REGEX REPLACE "^lib" "" RTMS_LIB_NAME_CLEAN ${RTMS_LIB_FILENAME})
+    string(REGEX REPLACE "\\.dylib$" "" RTMS_LIB_NAME_CLEAN ${RTMS_LIB_NAME_CLEAN})
 
-  # Post-build: Special handling for macOS frameworks
-  if(APPLE)
+    # Link using standard macOS syntax
+    target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB} ${RTMS_LIBRARY})
+
     # Find all .framework directories
     file(GLOB FRAMEWORK_DIRS ${RTMS_PLATFORM_LIB_DIR}/*.framework)
 
@@ -181,8 +153,23 @@ endif()
         COMMENT "Tarring ${FRAMEWORK_NAME} framework for bundling"
       )
     endforeach()
-  else()
-    # For Linux, we can just copy the library to the output directory
+
+    add_custom_command(
+      TARGET ${PROJECT_NAME} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+      ${RTMS_LIB_DIR}
+      ${RTMS_OUTPUT_DIR}
+      COMMENT "Copying .dylibs to output directory"
+    )
+  elseif(${RTMS_PLATFORM} STREQUAL "linux")
+    set(CMAKE_SKIP_RPATH TRUE)
+
+    set_property(TARGET ${PROJECT_NAME} APPEND_STRING PROPERTY
+      LINK_FLAGS " -Wl,-rpath,'$ORIGIN'")
+
+    # Link using Linux-specific syntax with colon
+    target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB} -l:${RTMS_LIB_FILENAME})
+
     add_custom_command(
       TARGET ${PROJECT_NAME} POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy
@@ -191,6 +178,14 @@ endif()
       COMMENT "Copying ${RTMS_LIB_FILENAME} to output directory"
     )
   endif()
+
+  # Post-build: TypeScript compilation
+  add_custom_command(
+    TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND tsc --outDir ${RTMS_OUTPUT_DIR}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Compiling TypeScript files"
+  )
 
   # ===== Python binding target =====
 elseif(DEFINED SKBUILD_PROJECT_NAME)
