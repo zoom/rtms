@@ -1,13 +1,13 @@
 {
   "name": "@zoom/rtms",
   "private": true,
-  "version": "0.0.1",
-  "description": "Node.js Wrapper for the Zoom RTMS CSDK",
+  "version": "0.0.1-alpha.1",
+  "description": "Node.js Wrapper for the Zoom RTMS C SDK",
   "main": "build/Release/index.js",
   "types": "rtms.d.ts",
   "type": "module",
   "scripts": {
-    "fetch": "node scripts/rtms.js build setupFrameworks && npx --yes prebuild-install -r napi -T",
+    "install": "npx --yes prebuild-install -r napi -T $GITHUB_TOKEN || npm run build:js",
 
     "// CLI commands": "Use the unified CLI for most operations",
     "rtms": "node scripts/rtms.js",
@@ -63,11 +63,10 @@
   },
   "files": [
     "CMakeLists.txt",
-    "dist/js",
     "index.ts",
-    "lib/darwin-arm64/",
-    "lib/include/",
-    "lib/linux-x64/",
+    "lib/darwin-arm64/.gitkeep",
+    "lib/include/.gitkeep/",
+    "lib/linux-x64/.gitkeep",
     "rtms.d.ts",
     "scripts",
     "src/{node,rtms}.cpp",
