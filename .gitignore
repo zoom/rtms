@@ -7,6 +7,7 @@ build
 prebuilds
 
 .env
+.prebuild-installrc
 *.pem
 
 ### Zoom RTMS C SDK
