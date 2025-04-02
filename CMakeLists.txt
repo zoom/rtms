@@ -138,6 +138,15 @@ if(DEFINED CMAKE_JS_VERSION)
     # Link using standard macOS syntax
     target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB} ${RTMS_LIBRARY})
 
+
+    add_custom_command(
+      TARGET ${PROJECT_NAME} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+      ${RTMS_LIB_DIR}
+      ${RTMS_OUTPUT_DIR}
+      COMMENT "Copying libraries to output directory"
+    )
+
   # Find all .framework directories
   file(GLOB FRAMEWORK_DIRS ${RTMS_PLATFORM_LIB_DIR}/*.framework)
 
@@ -145,22 +154,16 @@ if(DEFINED CMAKE_JS_VERSION)
   foreach(FRAMEWORK_PATH ${FRAMEWORK_DIRS})
     get_filename_component(FRAMEWORK_NAME ${FRAMEWORK_PATH} NAME)
     add_custom_command(
+      WORKING_DIRECTORY ${RTMS_OUTPUT_DIR}
       TARGET ${PROJECT_NAME} POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E tar czf
-      "${RTMS_OUTPUT_DIR}/${FRAMEWORK_NAME}.tar.gz"
+      "${FRAMEWORK_NAME}.tar.gz"
       "${FRAMEWORK_NAME}"
-      WORKING_DIRECTORY ${RTMS_PLATFORM_LIB_DIR}
       COMMENT "Tarring ${FRAMEWORK_NAME} framework for bundling"
     )
   endforeach()
 
-    add_custom_command(
-      TARGET ${PROJECT_NAME} POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy_directory
-      ${RTMS_LIB_DIR}
-      ${RTMS_OUTPUT_DIR}
-      COMMENT "Copying .dylibs to output directory"
-    )
+
   elseif(${RTMS_PLATFORM} STREQUAL "linux")
     set(CMAKE_SKIP_RPATH TRUE)
 
