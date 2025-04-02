@@ -1,13 +1,13 @@
 {
   "name": "@zoom/rtms",
   "private": true,
-  "version": "0.0.1-alpha.2",
+  "version": "0.0.1-alpha.3",
   "description": "Node.js Wrapper for the Zoom RTMS C SDK",
   "main": "build/Release/index.js",
   "types": "rtms.d.ts",
   "type": "module",
   "scripts": {
-    "fetch": "npx --yes prebuild-install -r napi -T",
+    "fetch": "node scripts/rtms.js fetch",
 
     "// CLI commands": "Use the unified CLI for most operations",
     "rtms": "node scripts/rtms.js",
@@ -43,7 +43,6 @@
     "prebuild": "node scripts/common/build.js prebuild",
     "upload": "node scripts/common/build.js upload",
     "upload_linux": "node scripts/common/build.js upload_linux"
-
   },
   "dependencies": {
     "bindings": "^1.5.0",

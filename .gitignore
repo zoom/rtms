@@ -13,6 +13,7 @@ prebuilds
 ### Zoom RTMS C SDK
 lib/darwin-arm64/*
 lib/linux-x64/*
+lib/include/*
 !lib/*/.gitkeep
 
 !lib/librtmsdk/.gitkeep

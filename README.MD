@@ -20,6 +20,8 @@ The RTMS SDK allows developers to:
 
 ## Installation
 
+**Beta** Currently only Node.js is supported for linux-x64 and darwin-arm64 platforms.
+
 ### Node.js
 ```bash
 npm install @zoom/rtms
@@ -131,7 +133,11 @@ The RTMS SDK can be built from source using either Docker (recommended) or local
 git clone https://github.com/zoom/rtms.git
 cd rtms
 
-# Place SDK files in lib/librtmsdk/
+# Place your SDK library files in the lib/{arch} folder
+cp ../librtmsdk.0.2025xxxx/librtmsdk.so.0 lib/linux-x64
+
+# Place the include files in the proper directory
+cp ../librtmsdk.0.2025xxxx/h/* lib/include
 
 # Build and run using Docker Compose
 docker compose up js  # For Node.js
