@@ -23,8 +23,6 @@ async function extractFrameworks() {
     const frameworksDir = dir
     const outputDir = dir
 
-    log(PREFIX, `Extracting Framworks... ${frameworksDir}`);
-
     try {
         // Create output directory if it doesn't exist
         await fs.mkdir(outputDir, { recursive: true });

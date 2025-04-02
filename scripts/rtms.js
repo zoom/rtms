@@ -4,7 +4,7 @@ import fs from 'fs';
 import os from 'os';
 import { join } from 'path';
 import { execSync } from 'child_process';
-import { log, error, success, getProjectRoot } from './common/utils.js';
+import { log, error, run, success, getProjectRoot } from './common/utils.js';
 import { setupFrameworks } from './common/frameworks.js';
 
 const PREFIX = "CLI";
@@ -130,12 +130,6 @@ function setBuildMode(mode) {
       return true;
     }
   }
-
-  function postinstall() {
-    if (os.platform() === 'darwin') {
-      setupFrameworks();
-    }
-  }
   
   function main() {
     const command = process.argv[2];
@@ -193,8 +187,10 @@ function setBuildMode(mode) {
       case 'mode':
         setBuildMode(target);
         break;
-      case 'postinstall':
-        postinstall();
+      case 'fetch':
+        log(PREFIX, 'Fetching dependencies...');
+        run(`npx --yes prebuild-install -r napi -T ${target}`, PREFIX);
+        setupFrameworks();
         break;
       default:
         error(PREFIX, `Unknown command: ${command}`);
