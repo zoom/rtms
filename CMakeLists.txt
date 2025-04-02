@@ -115,11 +115,11 @@ if(DEFINED CMAKE_JS_VERSION)
     OUTPUT_NAME "rtms"
   )
 
-  set_target_properties(
-    ${PROJECT_NAME}
-    PROPERTIES
-    BUILD_RPATH "${RTMS_OUTPUT_DIR}"
-    INSTALL_RPATH "${RTMS_OUTPUT_DIR}")
+  # Use @loader_path to make RPATH relative to the binary
+  set_target_properties(${PROJECT_NAME} PROPERTIES
+    BUILD_WITH_INSTALL_RPATH TRUE
+    INSTALL_RPATH "@loader_path"
+    MACOSX_RPATH TRUE)
 
 
   # Set up direct linking to the RTMS library
@@ -129,7 +129,6 @@ if(DEFINED CMAKE_JS_VERSION)
 
   # Platform-specific linker settings
   if(${RTMS_PLATFORM} STREQUAL "darwin")
-    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/build/${CMAKE_BUILD_TYPE}")
 
     # Convert library name for macOS linking (remove lib prefix and extension)
     string(REGEX REPLACE "^lib" "" RTMS_LIB_NAME_CLEAN ${RTMS_LIB_FILENAME})
