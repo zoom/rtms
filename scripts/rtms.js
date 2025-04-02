@@ -129,6 +129,12 @@ function setBuildMode(mode) {
       return true;
     }
   }
+
+  function postinstall() {
+    if (os.platform() === 'darwin') {
+      setupFrameworks();
+    }
+  }
   
   function main() {
     const command = process.argv[2];
@@ -185,6 +191,9 @@ function setBuildMode(mode) {
         break;
       case 'mode':
         setBuildMode(target);
+        break;
+      case 'postinstall':
+        postinstall();
         break;
       default:
         error(PREFIX, `Unknown command: ${command}`);

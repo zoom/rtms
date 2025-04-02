@@ -8,6 +8,7 @@
   "type": "module",
   "scripts": {
     "fetch": "npx --yes prebuild-install -r napi -T",
+    "postinstall": "node scripts/rtms.js postinstall",
     "// CLI commands": "Use the unified CLI for most operations",
     "rtms": "node scripts/rtms.js",
     "cli": "node scripts/rtms.js",

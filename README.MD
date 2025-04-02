@@ -20,6 +20,8 @@ The RTMS SDK allows developers to:
 
 ## Installation
 
+**Beta** Currently only Node.js is supported for linux-x64 and darwin-arm64 platforms.
+
 ### Node.js
 ```bash
 npm install @zoom/rtms

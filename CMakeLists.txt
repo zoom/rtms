@@ -138,21 +138,21 @@ if(DEFINED CMAKE_JS_VERSION)
     # Link using standard macOS syntax
     target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB} ${RTMS_LIBRARY})
 
-    # Find all .framework directories
-    file(GLOB FRAMEWORK_DIRS ${RTMS_PLATFORM_LIB_DIR}/*.framework)
+  # Find all .framework directories
+  file(GLOB FRAMEWORK_DIRS ${RTMS_PLATFORM_LIB_DIR}/*.framework)
 
-    # Create tar archives for each .framework directory
-    foreach(FRAMEWORK_PATH ${FRAMEWORK_DIRS})
-      get_filename_component(FRAMEWORK_NAME ${FRAMEWORK_PATH} NAME)
-      add_custom_command(
-        TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E tar czf
-        "${RTMS_OUTPUT_DIR}/${FRAMEWORK_NAME}.tar.gz"
-        "${FRAMEWORK_PATH}"
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        COMMENT "Tarring ${FRAMEWORK_NAME} framework for bundling"
-      )
-    endforeach()
+  # Create tar archives for each .framework directory
+  foreach(FRAMEWORK_PATH ${FRAMEWORK_DIRS})
+    get_filename_component(FRAMEWORK_NAME ${FRAMEWORK_PATH} NAME)
+    add_custom_command(
+      TARGET ${PROJECT_NAME} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E tar czf
+      "${RTMS_OUTPUT_DIR}/${FRAMEWORK_NAME}.tar.gz"
+      "${FRAMEWORK_NAME}"
+      WORKING_DIRECTORY ${RTMS_PLATFORM_LIB_DIR}
+      COMMENT "Tarring ${FRAMEWORK_NAME} framework for bundling"
+    )
+  endforeach()
 
     add_custom_command(
       TARGET ${PROJECT_NAME} POST_BUILD
