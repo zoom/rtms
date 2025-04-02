@@ -188,7 +188,7 @@ function setBuildMode(mode) {
         setBuildMode(target);
         break;
       case 'fetch':
-        log(PREFIX, 'Fetching dependencies...');
+        log(PREFIX, 'Fetching prebuilt libraries...');
         run(`npx --yes prebuild-install -r napi -T ${target}`, PREFIX);
         setupFrameworks();
         break;
