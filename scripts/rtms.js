@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from 'fs';
+import os from 'os';
 import { join } from 'path';
 import { execSync } from 'child_process';
 import { log, error, success, getProjectRoot } from './common/utils.js';
