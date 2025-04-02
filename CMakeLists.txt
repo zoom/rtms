@@ -56,7 +56,7 @@ find_path(RTMS_HEADER_DIR
 )
 
 find_library(RTMS_LIBRARY
-  NAMES librtmsdk.so.0 librtms-sdk.dylib
+  NAMES librtmsdk.so.0 librtms_sdk.dylib
   PATHS ${RTMS_SEARCH_PATHS}
   DOC "RTMS SDK library"
 )
