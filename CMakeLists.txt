@@ -129,6 +129,7 @@ if(DEFINED CMAKE_JS_VERSION)
 
   # Platform-specific linker settings
   if(${RTMS_PLATFORM} STREQUAL "darwin")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum OS X deployment version")
 
     # Convert library name for macOS linking (remove lib prefix and extension)
     string(REGEX REPLACE "^lib" "" RTMS_LIB_NAME_CLEAN ${RTMS_LIB_FILENAME})

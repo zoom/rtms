@@ -75,7 +75,7 @@ export interface LoggerConfig {
 namespace Logger {
   // Default configuration
   let config: LoggerConfig = {
-    level: LogLevel.ERROR,
+    level: LogLevel.INFO,
     format: LogFormat.PROGRESSIVE,
     enabled: true
   };
