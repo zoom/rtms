@@ -1,4 +1,4 @@
-# Zoom Realtime Media Streaming (RTMS) SDK
+# Zoom Realtime Media Streams (RTMS) SDK
 
 Bindings for Node.js, Python, and Go to easily consume real-time audio, video, and transcript streams from Zoom Meetings
 
