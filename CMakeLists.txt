@@ -182,10 +182,11 @@ if(DEFINED CMAKE_JS_VERSION)
     )
   endif()
 
+    
   # Post-build: TypeScript compilation
   add_custom_command(
     TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND tsc --outDir ${RTMS_OUTPUT_DIR}
+    COMMAND npx rollup -c
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Compiling TypeScript files"
   )
