@@ -3,9 +3,9 @@
 Bindings for Node.js, Python, and Go to easily consume real-time audio, video, and transcript streams from Zoom Meetings
 
 > [!IMPORTANT]
-> **Confidential under NDA  - Do not distribute during beta**
-> This document contains confidential information that requires an NDA. It is intended only for partners in the Zoom RTMS Beta Developers program.
-> Participation in the RTMS Beta Offering, including access to and use of these RTMS Beta Offering materials, is subject to [Zoom’s Beta Program - Terms of Use](https://www.zoom.com/en/trust/beta-terms-and-conditions/).
+> **Confidential under NDA  - Do not distribute during developer preview**<br />
+> This document contains confidential information that requires an NDA. It is intended only for partners in the Zoom RTMS developer preview.
+> Participation in the RTMS Developer Preview, including access to and use of these materials, is subject to [Zoom’s Beta Program - Terms of Use](https://www.zoom.com/en/trust/beta-terms-and-conditions/).
 
 
 ## Overview
@@ -20,7 +20,7 @@ The RTMS SDK allows developers to:
 
 ## Installation
 
-**Beta** Currently only Node.js is supported for linux-x64 and darwin-arm64 platforms.
+**Beta** - Currently only Node.js is supported for linux-x64 and darwin-arm64 platforms.
 
 ### Node.js
 ```bash
