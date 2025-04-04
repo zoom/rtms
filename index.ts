@@ -615,11 +615,6 @@ function startGlobalPolling(): void {
     clearInterval(globalPollingInterval);
   }
   
-  if (globalPollRate <= 0) {
-    Logger.debug('global', `Global polling disabled (rate = ${globalPollRate})`);
-    return; // Don't start polling if rate is 0 or negative
-  }
-  
   Logger.debug('global', `Starting global polling with interval: ${globalPollRate}ms`);
   
   globalPollingInterval = setInterval(() => {

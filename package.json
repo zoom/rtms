@@ -3,8 +3,10 @@
   "private": true,
   "version": "0.0.1-alpha.4",
   "description": "Node.js Wrapper for the Zoom RTMS C SDK",
-  "main": "build/Release/index.cjs",
-  "module": "build/Release/index.js",
+  "exports": {
+    "import": "./build/Release/index.js",
+    "require": "./build/Release/index.cjs"
+  },
   "type": "module",
   "types": "rtms.d.ts",
   "scripts": {
