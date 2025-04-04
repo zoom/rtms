@@ -1,12 +1,3 @@
-/**
- * Zoom Realtime Media Streams (RTMS) SDK for Node.js
- * 
- * This module provides a JavaScript wrapper around the Zoom RTMS C SDK, allowing
- * developers to easily connect to and process real-time media streams from Zoom meetings.
- * 
- * @module rtms
- */
-
 import * as fs from 'fs';
 import * as http from 'http';
 import * as https from 'https';
@@ -387,26 +378,6 @@ function createWebhookHandler(callback: WebhookCallback, path: string) {
  * 
  * @param callback Function to call when webhook events are received
  * 
- * @example
- * import rtms from '@zoom/rtms';
- * 
- * // Set up the webhook listener (uses HTTPS if certificates are provided)
- * rtms.onWebhookEvent(({event, payload}) => {
- *   if (event === "meeting.rtms.started") {
- *     console.log(`RTMS started for meeting: ${payload.meeting_uuid}`);
- *     
- *     // Create a dedicated client for this meeting
- *     const client = new rtms.Client();
- *     
- *     // Set up callbacks
- *     client.onAudioData((data, timestamp, metadata) => {
- *       console.log(`Received audio: ${data.length} bytes from ${metadata.userName}`);
- *     });
- *     
- *     // Join the meeting
- *     client.join(payload);
- *   }
- * });
  */
 export function onWebhookEvent(callback: WebhookCallback): void {
   if (webhookServer?.listening) {
@@ -490,20 +461,6 @@ export function onWebhookEvent(callback: WebhookCallback): void {
  * processing Zoom RTMS streams. Use this approach when you need to connect
  * to multiple meetings simultaneously.
  * 
- * @example
- * import rtms from '@zoom/rtms';
- * 
- * const client = new rtms.Client();
- * 
- * client.onAudioData((data, timestamp, metadata) => {
- *   console.log(`Received audio: ${data.length} bytes from ${metadata.userName}`);
- * });
- * 
- * client.join({
- *   meeting_uuid: "meeting_uuid_here",
- *   rtms_stream_id: "stream_id_here",
- *   server_urls: "wss://example.zoom.us"
- * });
  */
 class Client extends nativeRtms.Client {
   private pollingInterval: NodeJS.Timeout | null = null;
@@ -528,15 +485,7 @@ class Client extends nativeRtms.Client {
    * 
    * @param options Object containing join parameters
    * @returns true if the join operation succeeds
-   * 
-   * @example
-   * // Join with parameters object
-   * client.join({
-   *   meeting_uuid: "meeting_uuid_here",
-   *   rtms_stream_id: "stream_id_here",
-   *   server_urls: "wss://example.zoom.us",
-   *   pollInterval: 10 // Poll every 10ms
-   * });
+
    */
   join(options: JoinParams): boolean;
   
@@ -553,21 +502,6 @@ class Client extends nativeRtms.Client {
    * @param timeout Optional timeout in milliseconds
    * @returns true if the join operation succeeds
    * 
-   * @example
-   * // Join with individual parameters
-   * const signature = rtms.generateSignature({
-   *   client: "client_id",
-   *   secret: "client_secret",
-   *   uuid: "meeting_uuid",
-   *   streamId: "stream_id"
-   * });
-   * 
-   * client.join(
-   *   "meeting_uuid",
-   *   "stream_id",
-   *   signature,
-   *   "wss://example.zoom.us"
-   * );
    */
   join(meetingUuid: string, rtmsStreamId: string, signature: string, serverUrls: string, timeout?: number): boolean;
   join(optionsOrMeetingUuid: JoinParams | string, rtmsStreamId?: string, signature?: string, serverUrls?: string, timeout: number = -1): boolean {
@@ -702,10 +636,6 @@ class Client extends nativeRtms.Client {
    * background polling, and releases resources.
    * 
    * @returns true if the leave operation succeeds
-   * 
-   * @example
-   * // Leave the meeting when done
-   * client.leave();
    */
   leave(): boolean {
     Logger.info('client', `Leaving meeting: ${this.uuid()}`);
@@ -783,15 +713,6 @@ function stopGlobalPolling(): void {
  * 
  * @param options Object containing join parameters
  * @returns true if the join operation succeeds
- * 
- * @example
- * // Join with parameters object
- * rtms.join({
- *   meeting_uuid: "meeting_uuid_here",
- *   rtms_stream_id: "stream_id_here",
- *   server_urls: "wss://example.zoom.us",
- *   pollInterval: 10 // Poll every 10ms
- * });
  */
 function join(options: JoinParams): boolean;
 
@@ -808,22 +729,6 @@ function join(options: JoinParams): boolean;
  * @param serverUrls The server URL(s) to connect to
  * @param timeout Optional timeout in milliseconds
  * @returns true if the join operation succeeds
- * 
- * @example
- * // Join with individual parameters
- * const signature = rtms.generateSignature({
- *   client: "client_id",
- *   secret: "client_secret",
- *   uuid: "meeting_uuid",
- *   streamId: "stream_id"
- * });
- * 
- * rtms.join(
- *   "meeting_uuid",
- *   "stream_id",
- *   signature,
- *   "wss://example.zoom.us"
- * );
  */
 function join(meetingUuid: string, rtmsStreamId: string, signature: string, serverUrls: string, timeout?: number): boolean;
 function join(optionsOrMeetingUuid: JoinParams | string, rtmsStreamId?: string, signature?: string, serverUrls?: string, timeout: number = -1): boolean {
@@ -915,10 +820,7 @@ function join(optionsOrMeetingUuid: JoinParams | string, rtmsStreamId?: string, 
  * background polling, and releases resources for the global client.
  * 
  * @returns true if the leave operation succeeds
- * 
- * @example
- * // Leave the meeting when done
- * rtms.leave();
+ *
  */
 function leave(): boolean {
   Logger.info('global', 'Leaving meeting');
@@ -963,25 +865,6 @@ function leave(): boolean {
  * You can change the log level, format, and enable/disable logging.
  * 
  * @param options Configuration options for the logger
- * 
- * @example
- * // Enable debug logging with JSON format
- * rtms.configureLogger({
- *   level: rtms.LogLevel.DEBUG,
- *   format: rtms.LogFormat.JSON,
- *   enabled: true
- * });
- * 
- * // Disable logging
- * rtms.configureLogger({
- *   enabled: false
- * });
- * 
- * // Switch to progressive format with info level
- * rtms.configureLogger({
- *   level: rtms.LogLevel.INFO,
- *   format: rtms.LogFormat.PROGRESSIVE
- * });
  */
 function configureLogger(options: Partial<LoggerConfig>): void {
   Logger.info('rtms', 'Configuring logger', options);
