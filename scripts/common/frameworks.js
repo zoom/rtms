@@ -19,7 +19,7 @@ async function extractFrameworks() {
     const tar = require('tar');
     
     const dir = join(__dirname, `../../build/${buildDir}/`);
-    log(PREFIX, `Extracting Framworks... ${dir}`);
+    log(PREFIX, `Extracting Frameworks... ${dir}`);
     const frameworksDir = dir
     const outputDir = dir
 
