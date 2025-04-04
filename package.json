@@ -39,7 +39,8 @@
     "docs:py": "node scripts/rtms.js docs python",
 
     "// Utility commands": "Various helper commands",
-    "clean": "node scripts/rtms.js clean",
+    "clean": "node scripts/rtms.js clean project",
+    "clean:all": "node scripts/rtms.js clean all",
     "setup": "npm install && node scripts/rtms.js build all",
     "prebuild": "node scripts/rtms.js build prebuild",
     "upload": "node scripts/rtms.js build upload",
