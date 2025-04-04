@@ -129,6 +129,7 @@ if(DEFINED CMAKE_JS_VERSION)
 
   # Platform-specific linker settings
   if(${RTMS_PLATFORM} STREQUAL "darwin")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum OS X deployment version")
 
     # Convert library name for macOS linking (remove lib prefix and extension)
     string(REGEX REPLACE "^lib" "" RTMS_LIB_NAME_CLEAN ${RTMS_LIB_FILENAME})
@@ -181,10 +182,11 @@ if(DEFINED CMAKE_JS_VERSION)
     )
   endif()
 
+    
   # Post-build: TypeScript compilation
   add_custom_command(
     TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND tsc --outDir ${RTMS_OUTPUT_DIR}
+    COMMAND npx rollup -c
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Compiling TypeScript files"
   )

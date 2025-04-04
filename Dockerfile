@@ -27,4 +27,3 @@ RUN if [ "$TARGET" = "js" ] || [ "$TARGET" = "all" ]; then \
     fi
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD [ "npm", "install" ]
