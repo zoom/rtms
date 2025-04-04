@@ -66,7 +66,7 @@ export interface LoggerConfig {
 namespace Logger {
   // Default configuration
   let config: LoggerConfig = {
-    level: LogLevel.INFO,
+    level: LogLevel.DEBUG,
     format: LogFormat.PROGRESSIVE,
     enabled: true
   };
@@ -465,15 +465,9 @@ export function onWebhookEvent(callback: WebhookCallback): void {
 class Client extends nativeRtms.Client {
   private pollingInterval: NodeJS.Timeout | null = null;
   private pollRate: number = 0;
-  private clientId: string = '';
   
-  /**
-   * Creates a new RTMS client instance
-   */
   constructor() {
     super();
-    this.clientId = `client_${Date.now().toString(36)}`;
-    Logger.debug('client', `Created new client instance: ${this.clientId}`);
   }
   
   /**
@@ -487,105 +481,58 @@ class Client extends nativeRtms.Client {
    * @returns true if the join operation succeeds
 
    */
-  join(options: JoinParams): boolean;
-  
-  /**
-   * Join a Zoom RTMS session
-   * 
-   * This method establishes a connection to a Zoom RTMS stream.
-   * It automatically handles initialization and starts background polling for events.
-   * 
-   * @param meetingUuid The UUID of the Zoom meeting
-   * @param rtmsStreamId The RTMS stream ID
-   * @param signature The authentication signature
-   * @param serverUrls The server URL(s) to connect to
-   * @param timeout Optional timeout in milliseconds
-   * @returns true if the join operation succeeds
-   * 
-   */
-  join(meetingUuid: string, rtmsStreamId: string, signature: string, serverUrls: string, timeout?: number): boolean;
-  join(optionsOrMeetingUuid: JoinParams | string, rtmsStreamId?: string, signature?: string, serverUrls?: string, timeout: number = -1): boolean {
-    // Initialize the SDK if needed
-    if (typeof optionsOrMeetingUuid === 'object') {
-      ensureInitialized(optionsOrMeetingUuid.ca);
-    } else {
-      ensureInitialized();
-    }
+  join(options: JoinParams): boolean {
+    let ret = false;
+    const caPath = options.ca || process.env['ZM_RTMS_CA'];
+    ret = ensureInitialized(caPath);
+
+    const {
+      meeting_uuid,
+      rtms_stream_id,
+      server_urls,
+      signature: providedSignature,
+      client = process.env['ZM_RTMS_CLIENT'] || "",
+      secret = process.env['ZM_RTMS_SECRET'] || "",
+      timeout: providedTimeout = -1,
+      pollInterval = 0
+    } = options;
+
+    this.pollRate = pollInterval;
+
+    Logger.info('client', `Joining meeting: ${meeting_uuid}`, {
+      streamId: rtms_stream_id,
+      serverUrls: server_urls,
+      timeout: providedTimeout,
+      pollInterval
+    });
     
-    let joinResult: boolean;
-    
-    if (typeof optionsOrMeetingUuid === 'object') {
-      const options = optionsOrMeetingUuid;
+
+    const finalSignature = providedSignature || generateSignature({
+      client,
+      secret,
+      uuid: meeting_uuid,
+      streamId: rtms_stream_id
+    });
+
+    try {
+      ret = super.join(meeting_uuid, rtms_stream_id, finalSignature, server_urls, providedTimeout);
       
-      const { 
-        meeting_uuid, 
-        rtms_stream_id, 
-        server_urls,
-        signature: providedSignature,
-        client = process.env['ZM_RTMS_CLIENT'] || "",
-        secret = process.env['ZM_RTMS_SECRET'] || "",
-        timeout: providedTimeout = -1,
-        pollInterval = 0
-      } = options;
-      
-      this.pollRate = pollInterval;
-      
-      Logger.info('client', `Joining meeting: ${meeting_uuid}`, {
-        clientId: this.clientId,
-        streamId: rtms_stream_id,
-        serverUrls: server_urls,
-        timeout: providedTimeout,
-        pollInterval
-      });
-      
-      const finalSignature = providedSignature || generateSignature({
-        client,
-        secret,
-        uuid: meeting_uuid,
-        streamId: rtms_stream_id
-      });
-      
-      try {
-        joinResult = super.join(meeting_uuid, rtms_stream_id, finalSignature, server_urls, providedTimeout);
-        
-        if (joinResult) {
-          Logger.info('client', `Successfully joined meeting: ${meeting_uuid}`);
-        } else {
-          Logger.error('client', `Failed to join meeting: ${meeting_uuid}`);
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        Logger.error('client', `Error joining meeting: ${errorMessage}`, { meeting_uuid });
-        throw error;
+      if (ret) {
+        Logger.info('client', `Successfully joined meeting: ${meeting_uuid}`);
+      } else {
+        Logger.error('client', `Failed to join meeting: ${meeting_uuid}`);
       }
-    } else {
-      Logger.info('client', `Joining meeting: ${optionsOrMeetingUuid}`, {
-        clientId: this.clientId,
-        streamId: rtmsStreamId,
-        serverUrls,
-        timeout
-      });
-      
-      try {
-        joinResult = super.join(optionsOrMeetingUuid, rtmsStreamId, signature, serverUrls, timeout);
-        
-        if (joinResult) {
-          Logger.info('client', `Successfully joined meeting: ${optionsOrMeetingUuid}`);
-        } else {
-          Logger.error('client', `Failed to join meeting: ${optionsOrMeetingUuid}`);
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        Logger.error('client', `Error joining meeting: ${errorMessage}`, { meeting_uuid: optionsOrMeetingUuid });
-        throw error;
-      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      Logger.error('client', `Error joining meeting: ${errorMessage}`, { meeting_uuid });
+      throw error;
     }
-    
-    if (joinResult) {
+
+    if (ret)
       this.startPolling();
-    }
-    
-    return joinResult;
+
+
+    return ret;
   }
   
   /**
@@ -596,11 +543,6 @@ class Client extends nativeRtms.Client {
   private startPolling(): void {
     if (this.pollingInterval) {
       clearInterval(this.pollingInterval);
-    }
-    
-    if (this.pollRate <= 0) {
-      Logger.debug('client', `Polling disabled (rate = ${this.pollRate})`);
-      return; // Don't start polling if rate is 0 or negative
     }
     
     Logger.debug('client', `Starting polling with interval: ${this.pollRate}ms`);
@@ -714,103 +656,59 @@ function stopGlobalPolling(): void {
  * @param options Object containing join parameters
  * @returns true if the join operation succeeds
  */
-function join(options: JoinParams): boolean;
+function join(options: JoinParams): boolean {
+ 
+  let ret = false;
+  const caPath = options.ca || process.env['ZM_RTMS_CA'];
+  ret = ensureInitialized(caPath);
 
-/**
- * Join a Zoom RTMS session using the global client
- * 
- * This function establishes a connection to a Zoom RTMS stream using the
- * global client singleton. It automatically handles initialization and
- * starts background polling for events.
- * 
- * @param meetingUuid The UUID of the Zoom meeting
- * @param rtmsStreamId The RTMS stream ID
- * @param signature The authentication signature
- * @param serverUrls The server URL(s) to connect to
- * @param timeout Optional timeout in milliseconds
- * @returns true if the join operation succeeds
- */
-function join(meetingUuid: string, rtmsStreamId: string, signature: string, serverUrls: string, timeout?: number): boolean;
-function join(optionsOrMeetingUuid: JoinParams | string, rtmsStreamId?: string, signature?: string, serverUrls?: string, timeout: number = -1): boolean {
-  // Initialize the SDK if needed
-  if (typeof optionsOrMeetingUuid === 'object') {
-    ensureInitialized(optionsOrMeetingUuid.ca);
-  } else {
-    ensureInitialized();
-  }
+  const {
+    meeting_uuid,
+    rtms_stream_id,
+    server_urls,
+    signature: providedSignature,
+    client = process.env['ZM_RTMS_CLIENT'] || "",
+    secret = process.env['ZM_RTMS_SECRET'] || "",
+    timeout: providedTimeout = -1,
+    pollInterval = 0
+  } = options;
+
+  globalPollRate = pollInterval;
+
+  Logger.info('global', `Joining meeting: ${meeting_uuid}`, {
+    streamId: rtms_stream_id,
+    serverUrls: server_urls,
+    timeout: providedTimeout,
+    globalPollingInterval
+  });
   
-  let joinResult: boolean;
-  
-  if (typeof optionsOrMeetingUuid === 'object') {
-    const options = optionsOrMeetingUuid;
+
+  const finalSignature = providedSignature || generateSignature({
+    client,
+    secret,
+    uuid: meeting_uuid,
+    streamId: rtms_stream_id
+  });
+
+  try {
+    ret = nativeRtms.join(meeting_uuid, rtms_stream_id, finalSignature, server_urls, providedTimeout);
     
-    const { 
-      meeting_uuid, 
-      rtms_stream_id, 
-      server_urls,
-      signature: providedSignature,
-      client = process.env['ZM_RTMS_CLIENT'] || "",
-      secret = process.env['ZM_RTMS_SECRET'] || "",
-      timeout: providedTimeout = -1,
-      pollInterval = 0
-    } = options;
-    
-    globalPollRate = pollInterval;
-    
-    Logger.info('global', `Joining meeting: ${meeting_uuid}`, {
-      streamId: rtms_stream_id,
-      serverUrls: server_urls,
-      timeout: providedTimeout,
-      pollInterval
-    });
-    
-    const finalSignature = providedSignature || generateSignature({
-      client,
-      secret,
-      uuid: meeting_uuid,
-      streamId: rtms_stream_id
-    });
-    
-    try {
-      joinResult = nativeRtms.join(meeting_uuid, rtms_stream_id, finalSignature, server_urls, providedTimeout);
-      
-      if (joinResult) {
-        Logger.info('global', `Successfully joined meeting: ${meeting_uuid}`);
-      } else {
-        Logger.error('global', `Failed to join meeting: ${meeting_uuid}`);
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      Logger.error('global', `Error joining meeting: ${errorMessage}`, { meeting_uuid });
-      throw error;
+    if (ret) {
+      Logger.info('global', `Successfully joined meeting: ${meeting_uuid}`);
+    } else {
+      Logger.error('global', `Failed to join meeting: ${meeting_uuid}`);
     }
-  } else {
-    Logger.info('global', `Joining meeting: ${optionsOrMeetingUuid}`, {
-      streamId: rtmsStreamId,
-      serverUrls,
-      timeout
-    });
-    
-    try {
-      joinResult = nativeRtms.join(optionsOrMeetingUuid, rtmsStreamId, signature, serverUrls, timeout);
-      
-      if (joinResult) {
-        Logger.info('global', `Successfully joined meeting: ${optionsOrMeetingUuid}`);
-      } else {
-        Logger.error('global', `Failed to join meeting: ${optionsOrMeetingUuid}`);
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      Logger.error('global', `Error joining meeting: ${errorMessage}`, { meeting_uuid: optionsOrMeetingUuid });
-      throw error;
-    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    Logger.error('global', `Error joining meeting: ${errorMessage}`, { meeting_uuid });
+    throw error;
   }
-  
-  if (joinResult) {
+
+  if (ret)
     startGlobalPolling();
-  }
-  
-  return joinResult;
+
+
+  return ret;
 }
 
 /**
