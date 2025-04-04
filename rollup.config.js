@@ -4,9 +4,8 @@ export default {
   input: 'index.ts', // Your entry file
   output: [
     {
-      file: 'build/Release/index.cjs.js', // CommonJS format
+      file: 'build/Release/index.cjs', // CommonJS format
       format: 'cjs',
-      exports: 'named',
       sourcemap: true,
     },
     {
