@@ -5,6 +5,7 @@
   "main": "./build/Release/index.js",
   "types": "rtms.d.ts",
   "private": true,
+  "type": "module",
   "scripts": {
     "fetch": "node scripts/rtms.js fetch",
 
