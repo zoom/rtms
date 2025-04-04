@@ -30,6 +30,8 @@ scripts/**/*
 !src/rtms/*.py
 !src/rtms/*.pyi
 
+# allow rollup
+!rollup.config.js
 
 # MacOS
 .DS_Store
