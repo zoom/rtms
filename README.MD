@@ -1,12 +1,21 @@
 # Zoom Realtime Media Streams (RTMS) SDK
 
-Bindings for Node.js, Python, and Go to easily consume real-time audio, video, and transcript streams from Zoom Meetings
+Bindings for real-time audio, video, and transcript streams from Zoom Meetings
 
 > [!IMPORTANT]
-> **Confidential under NDA  - Do not distribute during developer preview**<br />
+> **Confidential under NDA - Do not distribute during developer preview**<br />
 > This document contains confidential information that requires an NDA. It is intended only for partners in the Zoom RTMS developer preview.
-> Participation in the RTMS Developer Preview, including access to and use of these materials, is subject to [Zoom’s Beta Program - Terms of Use](https://www.zoom.com/en/trust/beta-terms-and-conditions/).
+> Participation in the RTMS Developer Preview, including access to and use of these materials, is subject to [Zoom's Beta Program - Terms of Use](https://www.zoom.com/en/trust/beta-terms-and-conditions/).
 
+## Platform Support Status
+
+| Language | Status | Supported Platforms |
+|----------|--------|---------------------|
+| Node.js | ✅ Supported | darwin-arm64, linux-x64 |
+| Python | 🚧 Under Development | - |
+| Go | 📅 Planned | - |
+
+> We are actively working to expand both language and platform support in future releases.
 
 ## Overview
 
@@ -17,24 +26,21 @@ The RTMS SDK allows developers to:
 - Receive events about session and participant updates
 - Build applications that interact with Zoom meetings in real-time
 
-
 ## Installation
 
-**Beta** - Currently only Node.js is supported for linux-x64 and darwin-arm64 platforms.
-
-### Node.js
+### Node.js (Currently Supported)
 ```bash
 npm install @zoom/rtms
 ```
 
 The Node.js package provides both class-based and singleton APIs for connecting to RTMS streams.
 
-### Python
+### Python (Under Development)
 ```bash
 pip install rtms
 ```
 
-The Python package offers a decorator-based API for handling RTMS events and data streams.
+> ⚠️ The Python package is under active development. Some features may be limited or experimental.
 
 ## Usage
 
@@ -44,6 +50,9 @@ Easily respond to Zoom webhooks and connect to RTMS streams:
 
 ```javascript
 import rtms from "@zoom/rtms";
+
+// CommonJS
+// const rtms = require('@zoom/rtms').default;
 
 rtms.onWebhookEvent(({event, payload}) => {
     if (event !== "meeting.rtms.started") return;
@@ -96,9 +105,9 @@ rtms.join({
 });
 ```
 
-### Python Integration
+### Python Integration (Planned API)
 
-Python offers a similar experience with decorator-based event handling:
+This shows the planned decorator-based API for Python (under development):
 
 ```python
 import rtms
@@ -134,7 +143,11 @@ git clone https://github.com/zoom/rtms.git
 cd rtms
 
 # Place your SDK library files in the lib/{arch} folder
+# For linux-x64:
 cp ../librtmsdk.0.2025xxxx/librtmsdk.so.0 lib/linux-x64
+
+# For darwin-arm64 (Apple Silicon):
+cp ../librtmsdk.0.2025xxxx/librtmsdk.dylib lib/darwin-arm64
 
 # Place the include files in the proper directory
 cp ../librtmsdk.0.2025xxxx/h/* lib/include
@@ -142,7 +155,7 @@ cp ../librtmsdk.0.2025xxxx/h/* lib/include
 # Build and run using Docker Compose
 docker compose up js  # For Node.js
 # or
-docker compose up py  # For Python
+docker compose up py  # For Python (experimental)
 ```
 
 Docker Compose provides an isolated build environment with all necessary dependencies preconfigured, making it the simplest way to build the SDK.
@@ -151,7 +164,7 @@ Docker Compose provides an isolated build environment with all necessary depende
 
 #### Prerequisites
 - Node.js (>= 22.14.0)
-- Python 3.8+ with pip
+- Python 3.8+ with pip (for Python build)
 - CMake 3.25+
 - C/C++ build tools
 - Zoom RTMS C SDK files (contact Zoom for access)
@@ -168,13 +181,14 @@ pip install "pybind11[global]" python-dotenv pdoc3
 git clone https://github.com/zoom/rtms.git
 cd rtms
 
-# Place SDK files in lib/librtmsdk/
+# Place SDK files in the appropriate lib directory
+# lib/linux-x64/ or lib/darwin-arm64/
 
 # Install project dependencies and build
 npm install
-npm run build:js  # For Node.js
+npm run build:js  # For Node.js (fully supported)
 # or
-npm run build:py  # For Python
+npm run build:py  # For Python (experimental)
 ```
 
 ### Development Commands
@@ -185,12 +199,12 @@ The project includes several npm scripts for common development tasks:
 # Building modules
 npm run build         # Build all modules
 npm run build:js      # Build only Node.js module
-npm run build:py      # Build only Python module
+npm run build:py      # Build only Python module (experimental)
 
 # Testing
 npm run test          # Run all tests
 npm run test:js       # Run Node.js tests
-npm run test:py       # Run Python tests
+npm run test:py       # Run Python tests (experimental)
 
 # Build modes
 npm run debug         # Switch to debug mode
@@ -199,6 +213,15 @@ npm run rtms mode     # Check current build mode
 ```
 
 These commands help you manage different aspects of the build process and testing workflow.
+
+## Troubleshooting
+
+If you encounter issues:
+
+1. **Platform Support**: Verify you're using a supported platform (darwin-arm64 or linux-x64)
+2. **SDK Files**: Ensure RTMS C SDK files are correctly placed in the appropriate lib directory
+3. **Build Mode**: Try both debug and release modes (`npm run debug` or `npm run release`)
+4. **Dependencies**: Verify all prerequisites are installed
 
 ## License
 
