@@ -1,12 +1,10 @@
 {
   "name": "@zoom/rtms",
-  "private": true,
   "version": "0.0.1-alpha.4",
   "description": "Node.js Wrapper for the Zoom RTMS C SDK",
-  "main": "build/Release/index.cjs",
-  "module": "build/Release/index.js",
-  "type": "module",
+  "main": "./build/Release/index.js",
   "types": "rtms.d.ts",
+  "private": true,
   "scripts": {
     "fetch": "node scripts/rtms.js fetch",
 
@@ -37,10 +35,9 @@
     "docs": "node scripts/rtms.js docs all",
     "docs:js": "node scripts/rtms.js docs js",
     "docs:py": "node scripts/rtms.js docs python",
-
+    
     "// Utility commands": "Various helper commands",
-    "clean": "node scripts/rtms.js clean project",
-    "clean:all": "node scripts/rtms.js clean all",
+    "clean": "node scripts/rtms.js clean",
     "setup": "npm install && node scripts/rtms.js build all",
     "prebuild": "node scripts/rtms.js build prebuild",
     "upload": "node scripts/rtms.js build upload",
@@ -53,8 +50,6 @@
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "cmake-js": "^7.3.0",
-    "rollup": "^4.39.0",
-    "rollup-plugin-typescript2": "^0.36.0",
     "typedoc": "^0.28.1",
     "typedoc-plugin-missing-exports": "^4.0.0",
     "typescript": "^5.7.3"
