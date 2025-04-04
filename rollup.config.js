@@ -1,22 +1,15 @@
-import typescript from 'rollup-plugin-typescript2';
+import commonjs from '@rollup/plugin-commonjs';
 
 export default {
-  input: 'index.ts', // Your entry file
+  input: 'build/Release/index.js', // Your entry file
   output: [
     {
       file: 'build/Release/index.cjs', // CommonJS format
       format: 'cjs',
       sourcemap: true,
     },
-    {
-      file: 'build/Release/index.js', // ES module format
-      format: 'es',
-      sourcemap: true,
-    }
   ],
-  plugins: [
-    typescript() // Use the TypeScript plugin
-  ],
+  plugins: [commonjs()],
   external: [
     'fs',
     'http',
