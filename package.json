@@ -53,7 +53,7 @@
     "cmake-js": "^7.3.0",
     "typedoc": "^0.28.1",
     "typedoc-plugin-missing-exports": "^4.0.0",
-    "typescript": "^5.7.3"
+    "typescript": "^5.8.3"
   },
   "binary": {
     "napi_versions": [
