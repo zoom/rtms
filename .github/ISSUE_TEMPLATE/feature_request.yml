@@ -1,0 +1,97 @@
+name: Feature Request
+description: Suggest a new feature or improvement for the RTMS SDK
+title: "[FEAT] "
+labels: ["type: enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature! Please fill out this form as completely as possible.
+        
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature Description
+      description: A clear and concise description of the feature you'd like to see implemented.
+      placeholder: I would like to see support for...
+    validations:
+      required: true
+      
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use Case
+      description: Describe the specific use case this feature would address.
+      placeholder: This feature would allow developers to...
+    validations:
+      required: true
+      
+  - type: dropdown
+    id: language
+    attributes:
+      label: Affected Language Bindings
+      description: Which language binding(s) would this feature affect?
+      multiple: true
+      options:
+        - Node.js
+        - Python
+        - Go
+        - Core SDK (all languages)
+    validations:
+      required: true
+      
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: Proposed Solution
+      description: If you have ideas on how this feature could be implemented, please describe them here.
+      placeholder: |
+        The API could look like this:
+        ```javascript
+        client.newFeature({
+          option1: value1,
+          option2: value2
+        });
+        ```
+    validations:
+      required: false
+      
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Implementation Considerations
+      description: Any technical considerations for implementing this feature?
+      placeholder: |
+        - Would this require changes to the core C++ implementation?
+        - Are there any potential compatibility issues?
+        - Would this impact performance?
+    validations:
+      required: false
+      
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any alternative solutions or workarounds?
+      placeholder: I've tried to accomplish this by...
+    validations:
+      required: false
+      
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any other information, mockups, or examples that might help illustrate the feature request.
+    validations:
+      required: false
+      
+  - type: checkboxes
+    id: verification
+    attributes:
+      label: Verification
+      description: Before submitting, please verify the following:
+      options:
+        - label: I've searched existing issues to ensure this feature hasn't already been requested
+          required: true
+        - label: This feature would benefit a significant portion of RTMS SDK users
+          required: false

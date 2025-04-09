@@ -1,0 +1,138 @@
+name: Bug Report
+description: Report a bug in the RTMS SDK
+title: "[BUG] "
+labels: ["type: bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+        
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: The SDK crashes when...
+    validations:
+      required: true
+      
+  - type: dropdown
+    id: language
+    attributes:
+      label: Language/Runtime
+      description: Which language binding are you using?
+      options:
+        - Node.js
+        - Python
+        - Go
+        - Other (specify in environment details)
+    validations:
+      required: true
+      
+  - type: input
+    id: version
+    attributes:
+      label: SDK Version
+      description: What version of the RTMS SDK are you using?
+      placeholder: e.g., 0.0.1
+    validations:
+      required: true
+      
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Details
+      description: "Please provide details about your environment:"
+      placeholder: |
+        - OS and Version: Ubuntu 22.04
+        - Node.js version: 22.14.0
+        - Zoom Client version (if applicable): 5.16.5
+    validations:
+      required: true
+      
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps To Reproduce
+      description: How can we reproduce this issue?
+      placeholder: |
+        1. Install package '...'
+        2. Create client with '...'
+        3. Call function '...'
+        4. See error
+    validations:
+      required: true
+      
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: The function should return a valid stream ID
+    validations:
+      required: true
+      
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: |
+        The function throws an "Invalid stream ID" error.
+        
+        Error: Invalid stream ID
+            at Client.join (/path/to/rtms.js:123:45)
+            at Object.<anonymous> (/path/to/myapp.js:67:89)
+    validations:
+      required: true
+      
+  - type: textarea
+    id: code
+    attributes:
+      label: Code Example
+      description: If possible, provide a minimal code example that reproduces the issue.
+      render: javascript
+      placeholder: |
+        const rtms = require('@zoom/rtms');
+        
+        // Minimum code needed to demonstrate the issue
+        const client = new rtms.Client();
+        client.join({
+          meeting_uuid: "abc123",
+          rtms_stream_id: "xyz789",
+          server_urls: "wss://example.zoom.us"
+        });
+    validations:
+      required: false
+      
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Log Output
+      description: Please copy and paste any relevant log output.
+      render: shell
+    validations:
+      required: false
+      
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem here.
+      placeholder: Have you found any workarounds? Is this related to specific hardware?
+    validations:
+      required: false
+      
+  - type: checkboxes
+    id: verification
+    attributes:
+      label: Verification
+      description: Before submitting, please verify the following:
+      options:
+        - label: I've searched existing issues to ensure this bug hasn't already been reported
+          required: true
+        - label: I've verified this bug still exists in the latest version of the SDK
+          required: true
+        - label: I've included all necessary information to reproduce this issue
+          required: true
