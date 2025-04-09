@@ -1,6 +1,6 @@
 name: Feature Request
 description: Suggest a new feature or improvement for the RTMS SDK
-title: "[FEAT] "
+title: "[FEATURE] "
 labels: ["type: enhancement"]
 body:
   - type: markdown
@@ -12,7 +12,7 @@ body:
     id: description
     attributes:
       label: Feature Description
-      description: A clear and concise description of the feature you'd like to see implemented.
+      description: A clear and concise description of the feature you would like to see implemented
       placeholder: I would like to see support for...
     validations:
       required: true
@@ -21,7 +21,7 @@ body:
     id: use_case
     attributes:
       label: Use Case
-      description: Describe the specific use case this feature would address.
+      description: Describe the specific use case this feature would address
       placeholder: This feature would allow developers to...
     validations:
       required: true
@@ -30,7 +30,7 @@ body:
     id: language
     attributes:
       label: Affected Language Bindings
-      description: Which language binding(s) would this feature affect?
+      description: Which language binding(s) would this feature affect
       multiple: true
       options:
         - Node.js
@@ -44,15 +44,8 @@ body:
     id: proposed_solution
     attributes:
       label: Proposed Solution
-      description: If you have ideas on how this feature could be implemented, please describe them here.
-      placeholder: |
-        The API could look like this:
-        ```javascript
-        client.newFeature({
-          option1: value1,
-          option2: value2
-        });
-        ```
+      description: If you have ideas on how this feature could be implemented, please describe them here
+      placeholder: The API could look like this
     validations:
       required: false
       
@@ -60,11 +53,8 @@ body:
     id: implementation
     attributes:
       label: Implementation Considerations
-      description: Any technical considerations for implementing this feature?
-      placeholder: |
-        - Would this require changes to the core C++ implementation?
-        - Are there any potential compatibility issues?
-        - Would this impact performance?
+      description: Any technical considerations for implementing this feature
+      placeholder: Would this require changes to the core implementation?
     validations:
       required: false
       
@@ -72,8 +62,8 @@ body:
     id: alternatives
     attributes:
       label: Alternatives Considered
-      description: Have you considered any alternative solutions or workarounds?
-      placeholder: I've tried to accomplish this by...
+      description: Have you considered any alternative solutions or workarounds
+      placeholder: I have tried to accomplish this by...
     validations:
       required: false
       
@@ -81,7 +71,7 @@ body:
     id: context
     attributes:
       label: Additional Context
-      description: Any other information, mockups, or examples that might help illustrate the feature request.
+      description: Any other information, mockups, or examples that might help illustrate the feature request
     validations:
       required: false
       
@@ -89,9 +79,9 @@ body:
     id: verification
     attributes:
       label: Verification
-      description: Before submitting, please verify the following:
+      description: Before submitting, please verify the following
       options:
-        - label: I've searched existing issues to ensure this feature hasn't already been requested
+        - label: I have searched existing issues to ensure this feature has not already been requested
           required: true
         - label: This feature would benefit a significant portion of RTMS SDK users
           required: false
