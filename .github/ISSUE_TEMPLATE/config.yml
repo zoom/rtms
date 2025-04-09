@@ -1,11 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Zoom Developer Forum
-    url: https://devforum.zoom.us/
+    url: https://devforum.zoom.us/c/rtms/99
     about: Please ask general questions about the Zoom APIs and SDKs here.
   - name: Zoom Developer Platform Documentation
     url: https://developers.zoom.us/docs/
     about: Check the official documentation for guides and API reference.
-  - name: Zoom Support
-    url: https://support.zoom.us/hc/en-us/articles/201362003
-    about: Contact Zoom support for account-specific issues or business inquiries.
