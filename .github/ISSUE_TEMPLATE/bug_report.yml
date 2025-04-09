@@ -35,7 +35,7 @@ body:
     attributes:
       label: SDK Version
       description: What version of the RTMS SDK are you using?
-      placeholder: "e.g., 0.0.1-alpha.4"
+      placeholder: "e.g., 0.0.1"
     validations:
       required: true
       
