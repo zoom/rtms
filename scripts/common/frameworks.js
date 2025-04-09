@@ -53,6 +53,9 @@ async function extractFrameworks() {
 
 // Call this function during installation/initialization
 export async function setupFrameworks() {
+    if (process.platform() !== 'darwin') 
+        return 
+
     try {
         await extractFrameworks();
         return true;
