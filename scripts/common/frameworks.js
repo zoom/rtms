@@ -1,3 +1,4 @@
+import os from 'os';
 import { promises as fs } from 'fs';
 import { join, dirname } from 'path';
 import { createRequire } from 'module';
@@ -53,7 +54,7 @@ async function extractFrameworks() {
 
 // Call this function during installation/initialization
 export async function setupFrameworks() {
-    if (process.platform() !== 'darwin') 
+    if (os.platform() !== 'darwin') 
         return 
 
     try {
