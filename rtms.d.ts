@@ -1084,6 +1084,153 @@ export function generateSignature(params: SignatureParams): string;
  */
 export function isInitialized(): boolean;
 
+
+// In rtms.d.ts
+
+// Audio parameter interfaces
+export interface AudioContentType {
+  UNDEFINED: number;
+  RTP: number;
+  RAW_AUDIO: number;
+  FILE_STREAM: number;
+  TEXT: number;
+}
+
+export interface AudioCodec {
+  UNDEFINED: number;
+  L16: number;
+  G711: number;
+  G722: number;
+  OPUS: number;
+}
+
+export interface AudioSampleRate {
+  SR_8K: number;
+  SR_16K: number;
+  SR_32K: number;
+  SR_48K: number;
+}
+
+export interface AudioChannel {
+  MONO: number;
+  STEREO: number;
+}
+
+export interface AudioDataOption {
+  UNDEFINED: number;
+  AUDIO_MIXED_STREAM: number;
+  AUDIO_MULTI_STREAMS: number;
+}
+
+// Video parameter interfaces
+export interface VideoContentType {
+  UNDEFINED: number;
+  RTP: number;
+  RAW_VIDEO: number;
+  FILE_STREAM: number;
+  TEXT: number;
+}
+
+export interface VideoCodec {
+  UNDEFINED: number;
+  JPG: number;
+  PNG: number;
+  H264: number;
+}
+
+export interface VideoResolution {
+  SD: number;
+  HD: number;
+  FHD: number;
+  QHD: number;
+}
+
+export interface VideoDataOption {
+  UNDEFINED: number;
+  VIDEO_SINGLE_ACTIVE_STREAM: number;
+  VIDEO_MIXED_SPEAKER_VIEW: number;
+  VIDEO_MIXED_GALLERY_VIEW: number;
+}
+
+export interface MediaDataType {
+  UNDEFINED: number;
+  AUDIO: number;
+  VIDEO: number;
+  DESKSHARE: number;
+  TRANSCRIPT: number;
+  CHAT: number;
+  ALL: number;
+}
+
+export interface SessionState {
+  INACTIVE: number;
+  INITIALIZE: number;
+  STARTED: number;
+  PAUSED: number;
+  RESUMED: number;
+  STOPPED: number;
+}
+
+export interface StreamState {
+  INACTIVE: number;
+  ACTIVE: number;
+  INTERRUPTED: number;
+  TERMINATING: number;
+  TERMINATED: number;
+}
+
+export interface EventType {
+  UNDEFINED: number;
+  FIRST_PACKET_TIMESTAMP: number;
+  ACTIVE_SPEAKER_CHANGE: number;
+  PARTICIPANT_JOIN: number;
+  PARTICIPANT_LEAVE: number;
+}
+
+export interface MessageType {
+  UNDEFINED: number;
+  SIGNALING_HAND_SHAKE_REQ: number;
+  SIGNALING_HAND_SHAKE_RESP: number;
+  DATA_HAND_SHAKE_REQ: number;
+  DATA_HAND_SHAKE_RESP: number;
+  EVENT_SUBSCRIPTION: number;
+  EVENT_UPDATE: number;
+  CLIENT_READY_ACK: number;
+  STREAM_STATE_UPDATE: number;
+  SESSION_STATE_UPDATE: number;
+  SESSION_STATE_REQ: number;
+  SESSION_STATE_RESP: number;
+  KEEP_ALIVE_REQ: number;
+  KEEP_ALIVE_RESP: number;
+  MEDIA_DATA_AUDIO: number;
+  MEDIA_DATA_VIDEO: number;
+  MEDIA_DATA_SHARE: number;
+  MEDIA_DATA_TRANSCRIPT: number;
+  MEDIA_DATA_CHAT: number;
+}
+
+export interface StopReason {
+  UNDEFINED: number;
+  STOP_BC_HOST_TRIGGERED: number;
+  STOP_BC_USER_TRIGGERED: number;
+  STOP_BC_USER_LEFT: number;
+  STOP_BC_USER_EJECTED: number;
+  STOP_BC_APP_DISABLED_BY_HOST: number;
+  STOP_BC_MEETING_ENDED: number;
+  STOP_BC_STREAM_CANCELED: number;
+  STOP_BC_STREAM_REVOKED: number;
+  STOP_BC_ALL_APPS_DISABLED: number;
+  STOP_BC_INTERNAL_EXCEPTION: number;
+  STOP_BC_CONNECTION_TIMEOUT: number;
+  STOP_BC_MEETING_CONNECTION_INTERRUPTED: number;
+  STOP_BC_SIGNAL_CONNECTION_INTERRUPTED: number;
+  STOP_BC_DATA_CONNECTION_INTERRUPTED: number;
+  STOP_BC_SIGNAL_CONNECTION_CLOSED_ABNORMALLY: number;
+  STOP_BC_DATA_CONNECTION_CLOSED_ABNORMALLY: number;
+  STOP_BC_EXIT_SIGNAL: number;
+  STOP_BC_AUTHENTICATION_FAILURE: number;
+}
+
 /**
  * Default export of the RTMS module
  * 
@@ -1143,6 +1290,22 @@ declare const rtms: {
   
   SESS_STATUS_ACTIVE: number;
   SESS_STATUS_PAUSED: number;
+
+  AudioContentType: AudioContentType;
+  AudioCodec: AudioCodec;
+  AudioSampleRate: AudioSampleRate;
+  AudioChannel: AudioChannel;
+  AudioDataOption: AudioDataOption;
+  VideoContentType: VideoContentType;
+  VideoCodec: VideoCodec;
+  VideoResolution: VideoResolution;
+  VideoDataOption: VideoDataOption;
+  MediaDataType: MediaDataType;
+  SessionState: SessionState;
+  StreamState: StreamState;
+  EventType: EventType;
+  MessageType: MessageType;
+  StopReason: StopReason;
 };
 
 export default rtms;

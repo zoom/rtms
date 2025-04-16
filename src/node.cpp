@@ -1103,6 +1103,171 @@ Napi::Object NodeClient::init(Napi::Env env, Napi::Object exports) {
     exports.Set(Napi::String::New(env, "SESS_STATUS_ACTIVE"), Napi::Number::New(env, SESS_STATUS_ACTIVE));
     exports.Set(Napi::String::New(env, "SESS_STATUS_PAUSED"), Napi::Number::New(env, SESS_STATUS_PAUSED));
 
+    // ===== Audio Parameters =====
+
+    // Audio Content Type
+    Napi::Object audioContentType = Napi::Object::New(env);
+    audioContentType.Set("UNDEFINED", Napi::Number::New(env, 0));
+    audioContentType.Set("RTP", Napi::Number::New(env, 1));
+    audioContentType.Set("RAW_AUDIO", Napi::Number::New(env, 2));
+    audioContentType.Set("FILE_STREAM", Napi::Number::New(env, 4));
+    audioContentType.Set("TEXT", Napi::Number::New(env, 5));
+    exports.Set("AudioContentType", audioContentType);
+
+    // Audio Codec
+    Napi::Object audioCodec = Napi::Object::New(env);
+    audioCodec.Set("UNDEFINED", Napi::Number::New(env, 0));
+    audioCodec.Set("L16", Napi::Number::New(env, 1));
+    audioCodec.Set("G711", Napi::Number::New(env, 2));
+    audioCodec.Set("G722", Napi::Number::New(env, 3));
+    audioCodec.Set("OPUS", Napi::Number::New(env, 4));
+    exports.Set("AudioCodec", audioCodec);
+
+    // Audio Sample Rate
+    Napi::Object audioSampleRate = Napi::Object::New(env);
+    audioSampleRate.Set("SR_8K", Napi::Number::New(env, 0));
+    audioSampleRate.Set("SR_16K", Napi::Number::New(env, 1));
+    audioSampleRate.Set("SR_32K", Napi::Number::New(env, 2));
+    audioSampleRate.Set("SR_48K", Napi::Number::New(env, 3));
+    exports.Set("AudioSampleRate", audioSampleRate);
+
+    // Audio Channel
+    Napi::Object audioChannel = Napi::Object::New(env);
+    audioChannel.Set("MONO", Napi::Number::New(env, 1));
+    audioChannel.Set("STEREO", Napi::Number::New(env, 2));
+    exports.Set("AudioChannel", audioChannel);
+
+    // Audio Data Option
+    Napi::Object audioDataOption = Napi::Object::New(env);
+    audioDataOption.Set("UNDEFINED", Napi::Number::New(env, 0));
+    audioDataOption.Set("AUDIO_MIXED_STREAM", Napi::Number::New(env, 1));
+    audioDataOption.Set("AUDIO_MULTI_STREAMS", Napi::Number::New(env, 2));
+    exports.Set("AudioDataOption", audioDataOption);
+
+    // ===== Video Parameters =====
+
+    // Video Content Type
+    Napi::Object videoContentType = Napi::Object::New(env);
+    videoContentType.Set("UNDEFINED", Napi::Number::New(env, 0));
+    videoContentType.Set("RTP", Napi::Number::New(env, 1));
+    videoContentType.Set("RAW_VIDEO", Napi::Number::New(env, 3));
+    videoContentType.Set("FILE_STREAM", Napi::Number::New(env, 4));
+    videoContentType.Set("TEXT", Napi::Number::New(env, 5));
+    exports.Set("VideoContentType", videoContentType);
+
+    // Video Codec
+    Napi::Object videoCodec = Napi::Object::New(env);
+    videoCodec.Set("UNDEFINED", Napi::Number::New(env, 0));
+    videoCodec.Set("JPG", Napi::Number::New(env, 5));
+    videoCodec.Set("PNG", Napi::Number::New(env, 6));
+    videoCodec.Set("H264", Napi::Number::New(env, 7));
+    exports.Set("VideoCodec", videoCodec);
+
+    // Video Resolution
+    Napi::Object videoResolution = Napi::Object::New(env);
+    videoResolution.Set("SD", Napi::Number::New(env, 1));
+    videoResolution.Set("HD", Napi::Number::New(env, 2));
+    videoResolution.Set("FHD", Napi::Number::New(env, 3));
+    videoResolution.Set("QHD", Napi::Number::New(env, 4));
+    exports.Set("VideoResolution", videoResolution);
+
+    // Video Data Option
+    Napi::Object videoDataOption = Napi::Object::New(env);
+    videoDataOption.Set("UNDEFINED", Napi::Number::New(env, 0));
+    videoDataOption.Set("VIDEO_SINGLE_ACTIVE_STREAM", Napi::Number::New(env, 3));
+    videoDataOption.Set("VIDEO_MIXED_SPEAKER_VIEW", Napi::Number::New(env, 4));
+    videoDataOption.Set("VIDEO_MIXED_GALLERY_VIEW", Napi::Number::New(env, 5));
+    exports.Set("VideoDataOption", videoDataOption);
+
+    // ===== Media Types =====
+
+    // Media Data Type 
+    Napi::Object mediaDataType = Napi::Object::New(env);
+    mediaDataType.Set("UNDEFINED", Napi::Number::New(env, 0));
+    mediaDataType.Set("AUDIO", Napi::Number::New(env, 1));
+    mediaDataType.Set("VIDEO", Napi::Number::New(env, 2));
+    mediaDataType.Set("DESKSHARE", Napi::Number::New(env, 4));
+    mediaDataType.Set("TRANSCRIPT", Napi::Number::New(env, 8));
+    mediaDataType.Set("CHAT", Napi::Number::New(env, 16));
+    mediaDataType.Set("ALL", Napi::Number::New(env, 32));
+    exports.Set("MediaDataType", mediaDataType);
+
+    // ===== Session States =====
+
+    // Session State
+    Napi::Object sessionState = Napi::Object::New(env);
+    sessionState.Set("INACTIVE", Napi::Number::New(env, 0));
+    sessionState.Set("INITIALIZE", Napi::Number::New(env, 1));
+    sessionState.Set("STARTED", Napi::Number::New(env, 2));
+    sessionState.Set("PAUSED", Napi::Number::New(env, 3));
+    sessionState.Set("RESUMED", Napi::Number::New(env, 4));
+    sessionState.Set("STOPPED", Napi::Number::New(env, 5));
+    exports.Set("SessionState", sessionState);
+
+    // Stream State
+    Napi::Object streamState = Napi::Object::New(env);
+    streamState.Set("INACTIVE", Napi::Number::New(env, 0));
+    streamState.Set("ACTIVE", Napi::Number::New(env, 1));
+    streamState.Set("INTERRUPTED", Napi::Number::New(env, 2));
+    streamState.Set("TERMINATING", Napi::Number::New(env, 3));
+    streamState.Set("TERMINATED", Napi::Number::New(env, 4));
+    exports.Set("StreamState", streamState);
+
+    // Event Type
+    Napi::Object eventType = Napi::Object::New(env);
+    eventType.Set("UNDEFINED", Napi::Number::New(env, 0));
+    eventType.Set("FIRST_PACKET_TIMESTAMP", Napi::Number::New(env, 1));
+    eventType.Set("ACTIVE_SPEAKER_CHANGE", Napi::Number::New(env, 2));
+    eventType.Set("PARTICIPANT_JOIN", Napi::Number::New(env, 3));
+    eventType.Set("PARTICIPANT_LEAVE", Napi::Number::New(env, 4));
+    exports.Set("EventType", eventType);
+
+    // Message Type
+    Napi::Object messageType = Napi::Object::New(env);
+    messageType.Set("UNDEFINED", Napi::Number::New(env, 0));
+    messageType.Set("SIGNALING_HAND_SHAKE_REQ", Napi::Number::New(env, 1));
+    messageType.Set("SIGNALING_HAND_SHAKE_RESP", Napi::Number::New(env, 2));
+    messageType.Set("DATA_HAND_SHAKE_REQ", Napi::Number::New(env, 3));
+    messageType.Set("DATA_HAND_SHAKE_RESP", Napi::Number::New(env, 4));
+    messageType.Set("EVENT_SUBSCRIPTION", Napi::Number::New(env, 5));
+    messageType.Set("EVENT_UPDATE", Napi::Number::New(env, 6));
+    messageType.Set("CLIENT_READY_ACK", Napi::Number::New(env, 7));
+    messageType.Set("STREAM_STATE_UPDATE", Napi::Number::New(env, 8));
+    messageType.Set("SESSION_STATE_UPDATE", Napi::Number::New(env, 9));
+    messageType.Set("SESSION_STATE_REQ", Napi::Number::New(env, 10));
+    messageType.Set("SESSION_STATE_RESP", Napi::Number::New(env, 11));
+    messageType.Set("KEEP_ALIVE_REQ", Napi::Number::New(env, 12));
+    messageType.Set("KEEP_ALIVE_RESP", Napi::Number::New(env, 13));
+    messageType.Set("MEDIA_DATA_AUDIO", Napi::Number::New(env, 14));
+    messageType.Set("MEDIA_DATA_VIDEO", Napi::Number::New(env, 15));
+    messageType.Set("MEDIA_DATA_SHARE", Napi::Number::New(env, 16));
+    messageType.Set("MEDIA_DATA_TRANSCRIPT", Napi::Number::New(env, 17));
+    messageType.Set("MEDIA_DATA_CHAT", Napi::Number::New(env, 18));
+    exports.Set("MessageType", messageType);
+
+    // Stop Reason
+    Napi::Object stopReason = Napi::Object::New(env);
+    stopReason.Set("UNDEFINED", Napi::Number::New(env, 0));
+    stopReason.Set("STOP_BC_HOST_TRIGGERED", Napi::Number::New(env, 1));
+    stopReason.Set("STOP_BC_USER_TRIGGERED", Napi::Number::New(env, 2));
+    stopReason.Set("STOP_BC_USER_LEFT", Napi::Number::New(env, 3));
+    stopReason.Set("STOP_BC_USER_EJECTED", Napi::Number::New(env, 4));
+    stopReason.Set("STOP_BC_APP_DISABLED_BY_HOST", Napi::Number::New(env, 5));
+    stopReason.Set("STOP_BC_MEETING_ENDED", Napi::Number::New(env, 6));
+    stopReason.Set("STOP_BC_STREAM_CANCELED", Napi::Number::New(env, 7));
+    stopReason.Set("STOP_BC_STREAM_REVOKED", Napi::Number::New(env, 8));
+    stopReason.Set("STOP_BC_ALL_APPS_DISABLED", Napi::Number::New(env, 9));
+    stopReason.Set("STOP_BC_INTERNAL_EXCEPTION", Napi::Number::New(env, 10));
+    stopReason.Set("STOP_BC_CONNECTION_TIMEOUT", Napi::Number::New(env, 11));
+    stopReason.Set("STOP_BC_MEETING_CONNECTION_INTERRUPTED", Napi::Number::New(env, 12));
+    stopReason.Set("STOP_BC_SIGNAL_CONNECTION_INTERRUPTED", Napi::Number::New(env, 13));
+    stopReason.Set("STOP_BC_DATA_CONNECTION_INTERRUPTED", Napi::Number::New(env, 14));
+    stopReason.Set("STOP_BC_SIGNAL_CONNECTION_CLOSED_ABNORMALLY", Napi::Number::New(env, 15));
+    stopReason.Set("STOP_BC_DATA_CONNECTION_CLOSED_ABNORMALLY", Napi::Number::New(env, 16));
+    stopReason.Set("STOP_BC_EXIT_SIGNAL", Napi::Number::New(env, 17));
+    stopReason.Set("STOP_BC_AUTHENTICATION_FAILURE", Napi::Number::New(env, 18));
+    exports.Set("StopReason", stopReason);
+
     return exports;
 }
 

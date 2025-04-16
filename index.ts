@@ -5,7 +5,7 @@ import { createHmac } from 'crypto';
 import { createRequire } from 'module';
 import { IncomingMessage, Server, ServerResponse } from 'http';
 
-import type { JoinParams, SignatureParams, WebhookCallback } from "./rtms.d.ts";
+import type { JoinParams, SignatureParams, WebhookCallback, VideoParameters, AudioParameters } from "./rtms.d.ts";
 
 const require = createRequire(import.meta.url);
 const nativeRtms = require('bindings')('rtms');
@@ -198,6 +198,35 @@ namespace Logger {
 
 // Initialize logger from environment variables
 Logger.init();
+
+
+/**
+ * Expose all constants from the native module
+ * @param nativeModule the rtms .node module
+ * @returns all native constants ready for export
+ */
+function exposeNativeConstants(nativeModule: any): Record<string, any> {
+  const constants: Record<string, any> = {};
+  
+  // Check if the object has properties and isn't a function or primitive
+  function isConstantObject(obj: any): boolean {
+    return obj !== null && 
+           typeof obj === 'object' && 
+           !Array.isArray(obj) &&
+           Object.keys(obj).length > 0 &&
+           Object.values(obj).every(val => typeof val === 'number' || typeof val === 'string');
+  }
+  
+  // Identify and collect all constants
+  for (const key in nativeModule) {
+    const value = nativeModule[key];
+    if (isConstantObject(value)) {
+      constants[key] = value;
+    }
+  }
+  
+  return constants;
+}
 
 /**
  * Finds a suitable CA certificate file for SSL verification
@@ -455,6 +484,38 @@ export function onWebhookEvent(callback: WebhookCallback): void {
 }
 
 /**
+ * Generic function to set media parameters with consistent logging
+ * 
+ * @param context Context identifier for logging (client/global)
+ * @param operation Function name for parameter setting 
+ * @param type Parameter type (audio/video)
+ * @param params Parameter object to pass to the operation
+ * @param operation Function to call with the parameters
+ * @returns Result of the operation
+ */
+function setParameters<T>(
+  context: string,
+  type: string, 
+  params: T, 
+  operation: (params: T) => boolean
+): boolean {
+  Logger.debug(context, `Setting ${type} parameters: ${JSON.stringify(params)}`);
+  try {
+    const result = operation(params);
+    if (result) {
+      Logger.debug(context, `${type} parameters set successfully`);
+    } else {
+      Logger.warn(context, `Setting ${type} parameters returned false`);
+    }
+    return result;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    Logger.error(context, `Error setting ${type} parameters: ${errorMessage}`);
+    throw error;
+  }
+}
+
+/**
  * Client class for connecting to Zoom RTMS streams
  * 
  * This class provides an object-oriented interface for connecting to and
@@ -533,6 +594,30 @@ class Client extends nativeRtms.Client {
 
 
     return ret;
+  }
+
+  /**
+   * Sets audio parameters for the client
+   */
+  setAudioParameters(params: AudioParameters): boolean {
+    return setParameters<AudioParameters>(
+      'client',
+      'audio',
+      params,
+      (p) => super.setAudioParameters(p)
+    );
+  }
+
+  /**
+   * Sets video parameters for the client
+   */
+  setVideoParameters(params: VideoParameters): boolean {
+    return setParameters<VideoParameters>(
+      'client',
+      'video',
+      params,
+      (p) => super.setVideoParameters(p)
+    );
   }
   
   /**
@@ -706,6 +791,24 @@ function join(options: JoinParams): boolean {
   return ret;
 }
 
+function setAudioParameters(params: AudioParameters): boolean {
+  return setParameters<AudioParameters>(
+    'global',
+    'audio',
+    params,
+    (p) => nativeRtms.setAudioParameters(p)
+  );
+}
+
+function setVideoParameters(params: VideoParameters): boolean {
+  return setParameters<VideoParameters>(
+    'global',
+    'video',
+    params,
+    (p) => nativeRtms.setVideoParameters(p)
+  );
+}
+
 /**
  * Leave the current session and clean up global client resources
  * 
@@ -764,6 +867,8 @@ function configureLogger(options: Partial<LoggerConfig>): void {
   Logger.configure(options);
 }
 
+const nativeConstants = exposeNativeConstants(nativeRtms);
+
 /**
  * Default export object for the RTMS module
  */
@@ -775,6 +880,8 @@ export default {
   // Global singleton API
   join,
   leave,
+  setAudioParameters,
+  setVideoParameters,
   poll: nativeRtms.poll,
   uuid: nativeRtms.uuid,
   streamId: nativeRtms.streamId,
@@ -785,6 +892,8 @@ export default {
   onVideoData: nativeRtms.onVideoData,
   onTranscriptData: nativeRtms.onTranscriptData,
   onLeave: nativeRtms.onLeave,
+
+  ...nativeConstants,
   
   // Utility functions
   generateSignature,
