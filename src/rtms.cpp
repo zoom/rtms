@@ -238,7 +238,10 @@ media_parameters MediaParameters::toNative() const {
     return params;
 }
 
-Client::Client() : sdk_(nullptr) {
+Client::Client() 
+    : sdk_(nullptr), 
+      enabled_media_types_(0), 
+      media_params_updated_(false) {
     sdk_ = rtms_alloc();
     if (!sdk_) {
         throw Exception(RTMS_SDK_FAILURE, "Failed to allocate RTMS SDK instance");
@@ -276,6 +279,11 @@ void Client::uninitialize() {
 }
 
 void Client::configure(const MediaParameters& params, int media_types, bool enable_application_layer_encryption) {
+    // Store the media parameters for future use
+    media_params_ = params;
+    enabled_media_types_ = media_types;
+    media_params_updated_ = true;
+    
     if (!params.hasAudioParameters() && !params.hasVideoParameters()) {
         int result = rtms_config(sdk_, NULL, media_types, enable_application_layer_encryption ? 1 : 0);
         throwIfError(result, "configure with null params");
@@ -296,6 +304,24 @@ void Client::configure(const MediaParameters& params, int media_types, bool enab
     throwIfError(result, "configure");
 }
 
+// Helper method to update configuration when callbacks change
+void Client::updateMediaConfiguration(int mediaType) {
+    // Add the media type to the enabled set
+    enabled_media_types_ |= mediaType;
+    
+    // If we already have a connection, apply the configuration immediately
+    if (sdk_) {
+        try {
+            // Use the existing media parameters but update the media types
+            configure(media_params_, enabled_media_types_, false);
+            cerr << "Auto-configured media type: " << mediaType << ", total: " << enabled_media_types_ << endl;
+        } catch (const Exception& e) {
+            // Log error but don't throw - this is called from callback setters
+            cerr << "Warning: Failed to update media configuration: " << e.what() << endl;
+        }
+    }
+}
+
 void Client::setOnJoinConfirm(JoinConfirmFn callback) {
     lock_guard<mutex> lock(mutex_);
     join_confirm_callback_ = std::move(callback);
@@ -314,16 +340,25 @@ void Client::setOnUserUpdate(UserUpdateFn callback) {
 void Client::setOnAudioData(AudioDataFn callback) {
     lock_guard<mutex> lock(mutex_);
     audio_data_callback_ = std::move(callback);
+    
+    // Auto-configure for audio when callback is set
+    updateMediaConfiguration(MediaType::AUDIO);
 }
 
 void Client::setOnVideoData(VideoDataFn callback) {
     lock_guard<mutex> lock(mutex_);
     video_data_callback_ = std::move(callback);
+    
+    // Auto-configure for video when callback is set
+    updateMediaConfiguration(MediaType::VIDEO);
 }
 
 void Client::setOnTranscriptData(TranscriptDataFn callback) {
     lock_guard<mutex> lock(mutex_);
     transcript_data_callback_ = std::move(callback);
+    
+    // Auto-configure for transcript when callback is set
+    updateMediaConfiguration(MediaType::TRANSCRIPT);
 }
 
 void Client::setOnLeave(LeaveFn callback) {
@@ -345,6 +380,16 @@ void Client::join(const string& meeting_uuid, const string& rtms_stream_id,
     
     int result = rtms_set_callbacks(sdk_, &ops);
     throwIfError(result, "set_callbacks");
+    
+    // If we have callbacks but haven't explicitly configured yet, do it now
+    if (enabled_media_types_ > 0 && !media_params_updated_) {
+        try {
+            configure(media_params_, enabled_media_types_, false);
+        } catch (const Exception& e) {
+            // Log warning but continue with join
+            cerr << "Warning: Failed to configure media types before join: " << e.what() << endl;
+        }
+    }
     
     result = rtms_join(sdk_, meeting_uuid.c_str(), rtms_stream_id.c_str(), 
                       signature.c_str(), server_url.c_str(), timeout);

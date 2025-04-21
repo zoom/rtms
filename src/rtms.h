@@ -168,6 +168,16 @@ public:
     using TranscriptDataFn = function<void(const vector<uint8_t>&, uint32_t, const Metadata&)>;
     using LeaveFn = function<void(int)>;
 
+    // Media type constants
+    enum MediaType {
+        AUDIO = 1,
+        VIDEO = 2,
+        DESKSHARE = 4,
+        TRANSCRIPT = 8,
+        CHAT = 16,
+        ALL = 31  // Sum of all types (1+2+4+8+16)
+    };
+
     Client();
     ~Client();
 
@@ -196,19 +206,17 @@ public:
     bool isInit() const;
     bool isRunning() const;
 
-    void enableTranscript(bool useTranscript);
-    void enableAudio(bool useAudio);
-    void enableVideo(bool useVideo);
-
 private:
     mutable mutex mutex_;
     rtms_csdk* sdk_;
 
     string meeting_uuid_;
     string rtms_stream_id_;
-    bool enable_video_;
-    bool enable_audio_;
-    bool enable_transcript;
+    
+    // Tracking variables for media configuration
+    int enabled_media_types_;
+    MediaParameters media_params_;
+    bool media_params_updated_;
 
     JoinConfirmFn join_confirm_callback_;
     SessionUpdateFn session_update_callback_;
@@ -231,6 +239,9 @@ private:
 
     void throwIfError(int result, const std::string& operation) const;
     static Client* getClient(struct rtms_csdk* sdk);
+    
+    // Helper method to update configuration when callbacks change
+    void updateMediaConfiguration(int mediaType);
 };
 }
 

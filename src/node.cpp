@@ -59,8 +59,6 @@ private:
     Napi::Value setOnTranscriptData(const Napi::CallbackInfo& info);
     Napi::Value setOnLeave(const Napi::CallbackInfo& info);
 
-    void reconfigureMediaTypes();
-
     unique_ptr<rtms::Client> client_;
     Napi::ThreadSafeFunction tsfn_join_confirm_;
     Napi::ThreadSafeFunction tsfn_session_update_;
@@ -170,10 +168,6 @@ Napi::Value NodeClient::setAudioParameters(const Napi::CallbackInfo& info) {
     media_params_.setAudioParameters(audio_params);
     configured_media_types_ |= SDK_AUDIO;
     
-    if (is_configured_) {
-        reconfigureMediaTypes();
-    }
-
     return Napi::Boolean::New(env, true);
 }
 
@@ -212,10 +206,6 @@ Napi::Value NodeClient::setVideoParameters(const Napi::CallbackInfo& info) {
     media_params_.setVideoParameters(video_params);
     configured_media_types_ |= SDK_VIDEO;
     
-    if (is_configured_) {
-        reconfigureMediaTypes();
-    }
-
     return Napi::Boolean::New(env, true);
 }
 
@@ -318,6 +308,7 @@ Napi::Value NodeClient::setOnUserUpdate(const Napi::CallbackInfo& info) {
 
     return Napi::Boolean::New(env, true);
 }
+// Inside NodeClient class implementation in node.cpp
 
 Napi::Value NodeClient::setOnAudioData(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
@@ -351,12 +342,6 @@ Napi::Value NodeClient::setOnAudioData(const Napi::CallbackInfo& info) {
         };
         tsfn_audio_data_.BlockingCall(callback);
     });
-
-    // Auto-configure for audio
-    configured_media_types_ |= SDK_AUDIO;
-    if (is_configured_) {
-        reconfigureMediaTypes();
-    }
 
     return Napi::Boolean::New(env, true);
 }
@@ -394,12 +379,6 @@ Napi::Value NodeClient::setOnVideoData(const Napi::CallbackInfo& info) {
         tsfn_video_data_.BlockingCall(callback);
     });
 
-    // Auto-configure for video
-    configured_media_types_ |= SDK_VIDEO;
-    if (is_configured_) {
-        reconfigureMediaTypes();
-    }
-
     return Napi::Boolean::New(env, true);
 }
 
@@ -435,12 +414,6 @@ Napi::Value NodeClient::setOnTranscriptData(const Napi::CallbackInfo& info) {
         };
         tsfn_transcript_data_.BlockingCall(callback);
     });
-
-    // Auto-configure for transcript
-    configured_media_types_ |= SDK_TRANSCRIPT;
-    if (is_configured_) {
-        reconfigureMediaTypes();
-    }
 
     return Napi::Boolean::New(env, true);
 }
@@ -524,17 +497,6 @@ Napi::Value NodeClient::uninitialize(const Napi::CallbackInfo& info) {
     return Napi::Boolean::New(env, true);
 }
 
-void NodeClient::reconfigureMediaTypes() {
-    if (!client_ || !is_configured_) return;
-    
-    try {
-        client_->configure(media_params_, configured_media_types_, false);
-    } catch (const rtms::Exception& e) {
-        // Log error but don't throw - this is called from callback setters
-        cerr << "Failed to reconfigure media types: " << e.what() << endl;
-    }
-}
-
 Napi::Value NodeClient::configure(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
@@ -600,18 +562,6 @@ Napi::Value NodeClient::join(const Napi::CallbackInfo& info) {
         return env.Null();
     }
     
-}
-
-// Global client API implementations
-void reconfigureGlobalMediaTypes() {
-    if (!global_client || !global_is_configured) return;
-    
-    try {
-        global_client->configure(global_media_params, global_configured_media_types, false);
-    } catch (const rtms::Exception& e) {
-        // Log error but don't throw - this is called from callback setters
-        cerr << "Failed to reconfigure global media types: " << e.what() << endl;
-    }
 }
 
 Napi::Value globalJoin(const Napi::CallbackInfo& info) {
@@ -908,11 +858,7 @@ Napi::Value globalSetOnAudioData(const Napi::CallbackInfo& info) {
         global_tsfn_audio_data.BlockingCall(callback);
     });
 
-    // Auto-configure for audio
-    global_configured_media_types |= SDK_AUDIO;
-    if (global_is_configured) {
-        reconfigureGlobalMediaTypes();
-    }
+    // REMOVED: Auto-configure for audio - now handled in the rtms::Client class
 
     return Napi::Boolean::New(env, true);
 }
@@ -951,11 +897,7 @@ Napi::Value globalSetOnVideoData(const Napi::CallbackInfo& info) {
         global_tsfn_video_data.BlockingCall(callback);
     });
 
-    // Auto-configure for video
-    global_configured_media_types |= SDK_VIDEO;
-    if (global_is_configured) {
-        reconfigureGlobalMediaTypes();
-    }
+    // REMOVED: Auto-configure for video - now handled in the rtms::Client class
 
     return Napi::Boolean::New(env, true);
 }
@@ -994,11 +936,7 @@ Napi::Value globalSetOnTranscriptData(const Napi::CallbackInfo& info) {
         global_tsfn_transcript_data.BlockingCall(callback);
     });
 
-    // Auto-configure for transcript
-    global_configured_media_types |= SDK_TRANSCRIPT;
-    if (global_is_configured) {
-        reconfigureGlobalMediaTypes();
-    }
+    // REMOVED: Auto-configure for transcript - now handled in the rtms::Client class
 
     return Napi::Boolean::New(env, true);
 }
