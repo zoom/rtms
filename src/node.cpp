@@ -20,7 +20,6 @@ Napi::ThreadSafeFunction global_tsfn_audio_data;
 Napi::ThreadSafeFunction global_tsfn_video_data;
 Napi::ThreadSafeFunction global_tsfn_transcript_data;
 Napi::ThreadSafeFunction global_tsfn_leave;
-rtms::MediaParameters global_media_params;
 
 // Function to ensure global client is initialized
 void ensure_global_client() {
@@ -45,6 +44,10 @@ private:
     Napi::Value uuid(const Napi::CallbackInfo& info);
     Napi::Value streamId(const Napi::CallbackInfo& info);
 
+    Napi::Value enableVideo(const Napi::CallbackInfo& info);
+    Napi::Value enableAudio(const Napi::CallbackInfo& info);
+    Napi::Value enableTranscript(const Napi::CallbackInfo& info);
+
     Napi::Value setAudioParameters(const Napi::CallbackInfo& info);
     Napi::Value setVideoParameters(const Napi::CallbackInfo& info);
 
@@ -63,9 +66,7 @@ private:
     Napi::ThreadSafeFunction tsfn_audio_data_;
     Napi::ThreadSafeFunction tsfn_video_data_;
     Napi::ThreadSafeFunction tsfn_transcript_data_;
-    Napi::ThreadSafeFunction tsfn_leave_;
-    
-    rtms::MediaParameters media_params_;
+    Napi::ThreadSafeFunction tsfn_leave_;    
 };
 
 Napi::Value NodeClient::poll(const Napi::CallbackInfo& info) {
@@ -201,6 +202,7 @@ Napi::Value NodeClient::setVideoParameters(const Napi::CallbackInfo& info) {
     
     return Napi::Boolean::New(env, true);
 }
+
 
 Napi::Value NodeClient::setOnJoinConfirm(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
@@ -437,6 +439,51 @@ Napi::Value NodeClient::setOnLeave(const Napi::CallbackInfo& info) {
         tsfn_leave_.BlockingCall(callback);
     });
 
+    return Napi::Boolean::New(env, true);
+}
+
+Napi::Value NodeClient::enableVideo(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::HandleScope scope(env);
+
+    if (info.Length() < 1 || !info[0].IsBoolean()) {
+        Napi::TypeError::New(env, "Boolean argument expected").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    bool enable = info[0].As<Napi::Boolean>().Value();
+    client_->enableVideo(enable);
+    
+    return Napi::Boolean::New(env, true);
+}
+
+Napi::Value NodeClient::enableAudio(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::HandleScope scope(env);
+
+    if (info.Length() < 1 || !info[0].IsBoolean()) {
+        Napi::TypeError::New(env, "Boolean argument expected").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    bool enable = info[0].As<Napi::Boolean>().Value();
+    client_->enableAudio(enable);
+    
+    return Napi::Boolean::New(env, true);
+}
+
+Napi::Value NodeClient::enableTranscript(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::HandleScope scope(env);
+
+    if (info.Length() < 1 || !info[0].IsBoolean()) {
+        Napi::TypeError::New(env, "Boolean argument expected").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    bool enable = info[0].As<Napi::Boolean>().Value();
+    client_->enableTranscript(enable);
+    
     return Napi::Boolean::New(env, true);
 }
 
@@ -911,6 +958,53 @@ Napi::Value globalSetOnLeave(const Napi::CallbackInfo& info) {
     return Napi::Boolean::New(env, true);
 }
 
+Napi::Value globalEnableAudio(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::HandleScope scope(env);
+
+    if (info.Length() < 1 || !info[0].IsBoolean()) {
+        Napi::TypeError::New(env, "Boolean argument expected").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    ensure_global_client();
+    bool enable = info[0].As<Napi::Boolean>().Value();
+    global_client->enableAudio(enable);
+    
+    return Napi::Boolean::New(env, true);
+}
+Napi::Value globalEnableVideo(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::HandleScope scope(env);
+
+    if (info.Length() < 1 || !info[0].IsBoolean()) {
+        Napi::TypeError::New(env, "Boolean argument expected").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    ensure_global_client();
+    bool enable = info[0].As<Napi::Boolean>().Value();
+    global_client->enableVideo(enable);
+    
+    return Napi::Boolean::New(env, true);
+}
+
+Napi::Value globalEnableTranscript(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::HandleScope scope(env);
+
+    if (info.Length() < 1 || !info[0].IsBoolean()) {
+        Napi::TypeError::New(env, "Boolean argument expected").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    ensure_global_client();
+    bool enable = info[0].As<Napi::Boolean>().Value();
+    global_client->enableTranscript(enable);
+    
+    return Napi::Boolean::New(env, true);
+}
+
 Napi::Object NodeClient::init(Napi::Env env, Napi::Object exports) {
     Napi::HandleScope scope(env);
 
@@ -922,6 +1016,9 @@ Napi::Object NodeClient::init(Napi::Env env, Napi::Object exports) {
         InstanceMethod("release", &NodeClient::release),
         InstanceMethod("uuid", &NodeClient::uuid),
         InstanceMethod("streamId", &NodeClient::streamId),
+        InstanceMethod("enableAudio", &NodeClient::enableAudio),
+        InstanceMethod("enableVideo", &NodeClient::enableVideo),
+        InstanceMethod("enableTranscript", &NodeClient::enableTranscript),
         InstanceMethod("setAudioParameters", &NodeClient::setAudioParameters),
         InstanceMethod("setVideoParameters", &NodeClient::setVideoParameters),
         InstanceMethod("onJoinConfirm", &NodeClient::setOnJoinConfirm),
@@ -945,6 +1042,9 @@ Napi::Object NodeClient::init(Napi::Env env, Napi::Object exports) {
     exports.Set("release", Napi::Function::New(env, globalRelease));
     exports.Set("uuid", Napi::Function::New(env, globalUuid));
     exports.Set("streamId", Napi::Function::New(env, globalStreamId));
+    exports.Set("enableAudio", Napi::Function::New(env, globalEnableAudio));
+    exports.Set("enableVideo", Napi::Function::New(env, globalEnableVideo));
+    exports.Set("enableTranscript", Napi::Function::New(env, globalEnableTranscript));
     exports.Set("onJoinConfirm", Napi::Function::New(env, globalSetOnJoinConfirm));
     exports.Set("onSessionUpdate", Napi::Function::New(env, globalSetOnSessionUpdate));
     exports.Set("onUserUpdate", Napi::Function::New(env, globalSetOnUserUpdate));

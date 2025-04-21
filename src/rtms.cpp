@@ -304,13 +304,29 @@ void Client::configure(const MediaParameters& params, int media_types, bool enab
     throwIfError(result, "configure");
 }
 
-void Client::updateMediaConfiguration(int mediaType) {
-    enabled_media_types_ |= mediaType;
+void Client::enableVideo(bool enable) {
+    updateMediaConfiguration(MediaType::VIDEO, enable);
+}
+
+void Client::enableAudio(bool enable) {
+    updateMediaConfiguration(MediaType::AUDIO, enable);
+}
+
+void Client::enableTranscript(bool enable) {
+    updateMediaConfiguration(MediaType::TRANSCRIPT, enable);
+}
+
+void Client::updateMediaConfiguration(int mediaType, bool enable) {
+
+    if (enable) { 
+        enabled_media_types_ |= mediaType;
+    } else {
+        enabled_media_types_ &= mediaType;
+    }
     
     if (sdk_) {
         try {
             configure(media_params_, enabled_media_types_, false);
-            cerr << "Auto-configured media type: " << mediaType << ", total: " << enabled_media_types_ << endl;
         } catch (const Exception& e) {
             cerr << "Warning: Failed to update media configuration: " << e.what() << endl;
         }
@@ -336,7 +352,6 @@ void Client::setOnAudioData(AudioDataFn callback) {
     lock_guard<mutex> lock(mutex_);
     audio_data_callback_ = std::move(callback);
     
-    // Auto-configure for audio when callback is set
     updateMediaConfiguration(MediaType::AUDIO);
 }
 
@@ -344,7 +359,6 @@ void Client::setOnVideoData(VideoDataFn callback) {
     lock_guard<mutex> lock(mutex_);
     video_data_callback_ = std::move(callback);
     
-    // Auto-configure for video when callback is set
     updateMediaConfiguration(MediaType::VIDEO);
 }
 
@@ -352,7 +366,6 @@ void Client::setOnTranscriptData(TranscriptDataFn callback) {
     lock_guard<mutex> lock(mutex_);
     transcript_data_callback_ = std::move(callback);
     
-    // Auto-configure for transcript when callback is set
     updateMediaConfiguration(MediaType::TRANSCRIPT);
 }
 

@@ -185,6 +185,10 @@ public:
     static void uninitialize();
     void configure(const MediaParameters& params, int media_types, bool enable_application_layer_encryption = false);
 
+    void enableVideo(bool enable);
+    void enableAudio(bool enable);
+    void enableTranscript(bool enable);
+
     void setOnJoinConfirm(JoinConfirmFn callback);
     void setOnSessionUpdate(SessionUpdateFn callback);
     void setOnUserUpdate(UserUpdateFn callback);
@@ -203,12 +207,6 @@ public:
     
     string uuid() const;
     string streamId() const;
-
-    void stop();
-
-    bool isInit() const;
-    bool isRunning() const;
-
 private:
     mutable mutex mutex_;
     rtms_csdk* sdk_;
@@ -243,8 +241,7 @@ private:
     void throwIfError(int result, const std::string& operation) const;
     static Client* getClient(struct rtms_csdk* sdk);
     
-    // Helper method to update configuration when callbacks change
-    void updateMediaConfiguration(int mediaType);
+    void updateMediaConfiguration(int mediaType, bool enable = true);
 };
 }
 
