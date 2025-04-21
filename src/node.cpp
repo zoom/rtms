@@ -20,8 +20,6 @@ Napi::ThreadSafeFunction global_tsfn_audio_data;
 Napi::ThreadSafeFunction global_tsfn_video_data;
 Napi::ThreadSafeFunction global_tsfn_transcript_data;
 Napi::ThreadSafeFunction global_tsfn_leave;
-int global_configured_media_types = 0;
-bool global_is_configured = false;
 rtms::MediaParameters global_media_params;
 
 // Function to ensure global client is initialized
@@ -42,7 +40,6 @@ private:
     static Napi::Value uninitialize(const Napi::CallbackInfo& info);
 
     Napi::Value join(const Napi::CallbackInfo& info);
-    Napi::Value configure(const Napi::CallbackInfo& info);
     Napi::Value poll(const Napi::CallbackInfo& info);
     Napi::Value release(const Napi::CallbackInfo& info);
     Napi::Value uuid(const Napi::CallbackInfo& info);
@@ -68,8 +65,6 @@ private:
     Napi::ThreadSafeFunction tsfn_transcript_data_;
     Napi::ThreadSafeFunction tsfn_leave_;
     
-    int configured_media_types_;
-    bool is_configured_;
     rtms::MediaParameters media_params_;
 };
 
@@ -165,8 +160,7 @@ Napi::Value NodeClient::setAudioParameters(const Napi::CallbackInfo& info) {
         audio_params.setFrameSize(params.Get("frameSize").As<Napi::Number>().Int32Value());
     }
 
-    media_params_.setAudioParameters(audio_params);
-    configured_media_types_ |= SDK_AUDIO;
+    client_->setAudioParameters(audio_params);
     
     return Napi::Boolean::New(env, true);
 }
@@ -203,8 +197,7 @@ Napi::Value NodeClient::setVideoParameters(const Napi::CallbackInfo& info) {
         video_params.setFps(params.Get("fps").As<Napi::Number>().Int32Value());
     }
 
-    media_params_.setVideoParameters(video_params);
-    configured_media_types_ |= SDK_VIDEO;
+    client_->setVideoParameters(video_params);
     
     return Napi::Boolean::New(env, true);
 }
@@ -448,9 +441,7 @@ Napi::Value NodeClient::setOnLeave(const Napi::CallbackInfo& info) {
 }
 
 NodeClient::NodeClient(const Napi::CallbackInfo& info) 
-    : Napi::ObjectWrap<NodeClient>(info), 
-      configured_media_types_(0),
-      is_configured_(false) {
+    : Napi::ObjectWrap<NodeClient>(info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
@@ -497,33 +488,6 @@ Napi::Value NodeClient::uninitialize(const Napi::CallbackInfo& info) {
     return Napi::Boolean::New(env, true);
 }
 
-Napi::Value NodeClient::configure(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    Napi::HandleScope scope(env);
-
-    if (info.Length() < 1 || !info[0].IsNumber()) {
-        Napi::TypeError::New(env, "Wrong arguments").ThrowAsJavaScriptException();
-        return env.Null();
-    }
-
-    int media_types = info[0].As<Napi::Number>().Int32Value();
-    bool enable_ale = false;
-    
-    if (info.Length() > 1 && info[1].IsBoolean()) {
-        enable_ale = info[1].As<Napi::Boolean>().Value();
-    }
-    
-    try {
-        configured_media_types_ = media_types;
-        client_->configure(media_params_, media_types, enable_ale);
-        is_configured_ = true;
-        return Napi::Boolean::New(env, true);
-    } catch (const rtms::Exception& e) {
-        Napi::Error::New(env, e.what()).ThrowAsJavaScriptException();
-        return env.Null();
-    }
-}
-
 Napi::Value NodeClient::join(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
@@ -549,12 +513,6 @@ Napi::Value NodeClient::join(const Napi::CallbackInfo& info) {
     }
 
     try {
-        if (!is_configured_) {
-            media_params_ = rtms::MediaParameters();
-            client_->configure(media_params_, configured_media_types_ > 0 ? configured_media_types_ : SDK_ALL, false);
-            is_configured_ = true;
-        }
-
         client_->join(meeting_uuid, rtms_stream_id, signature, server_url, timeout);
         return Napi::Boolean::New(env, true);
     } catch (const rtms::Exception& e) {
@@ -597,12 +555,6 @@ Napi::Value globalJoin(const Napi::CallbackInfo& info) {
         ensure_global_client();
         
         try {
-            if (!global_is_configured) {
-                global_media_params = rtms::MediaParameters();
-                global_client->configure(global_media_params, global_configured_media_types > 0 ? global_configured_media_types : SDK_ALL, false);
-                global_is_configured = true;
-            }
-
             global_client->join(meeting_uuid, rtms_stream_id, signature, server_url, timeout);
             return Napi::Boolean::New(env, true);
         } catch (const rtms::Exception& e) {
@@ -630,12 +582,6 @@ Napi::Value globalJoin(const Napi::CallbackInfo& info) {
         ensure_global_client();
         
         try {
-            if (!global_is_configured) {
-                global_media_params = rtms::MediaParameters();
-                global_client->configure(global_media_params, global_configured_media_types > 0 ? global_configured_media_types : SDK_ALL, false);
-                global_is_configured = true;
-            }
-
             global_client->join(meeting_uuid, rtms_stream_id, signature, server_url, timeout);
             return Napi::Boolean::New(env, true);
         } catch (const rtms::Exception& e) {
@@ -858,8 +804,6 @@ Napi::Value globalSetOnAudioData(const Napi::CallbackInfo& info) {
         global_tsfn_audio_data.BlockingCall(callback);
     });
 
-    // REMOVED: Auto-configure for audio - now handled in the rtms::Client class
-
     return Napi::Boolean::New(env, true);
 }
 
@@ -897,8 +841,6 @@ Napi::Value globalSetOnVideoData(const Napi::CallbackInfo& info) {
         global_tsfn_video_data.BlockingCall(callback);
     });
 
-    // REMOVED: Auto-configure for video - now handled in the rtms::Client class
-
     return Napi::Boolean::New(env, true);
 }
 
@@ -935,8 +877,6 @@ Napi::Value globalSetOnTranscriptData(const Napi::CallbackInfo& info) {
         };
         global_tsfn_transcript_data.BlockingCall(callback);
     });
-
-    // REMOVED: Auto-configure for transcript - now handled in the rtms::Client class
 
     return Napi::Boolean::New(env, true);
 }
@@ -978,7 +918,6 @@ Napi::Object NodeClient::init(Napi::Env env, Napi::Object exports) {
         StaticMethod("initialize", &NodeClient::initialize),
         StaticMethod("uninitialize", &NodeClient::uninitialize),
         InstanceMethod("join", &NodeClient::join),
-        InstanceMethod("configure", &NodeClient::configure),
         InstanceMethod("poll", &NodeClient::poll),
         InstanceMethod("release", &NodeClient::release),
         InstanceMethod("uuid", &NodeClient::uuid),

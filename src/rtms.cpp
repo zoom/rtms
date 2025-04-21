@@ -304,19 +304,14 @@ void Client::configure(const MediaParameters& params, int media_types, bool enab
     throwIfError(result, "configure");
 }
 
-// Helper method to update configuration when callbacks change
 void Client::updateMediaConfiguration(int mediaType) {
-    // Add the media type to the enabled set
     enabled_media_types_ |= mediaType;
     
-    // If we already have a connection, apply the configuration immediately
     if (sdk_) {
         try {
-            // Use the existing media parameters but update the media types
             configure(media_params_, enabled_media_types_, false);
             cerr << "Auto-configured media type: " << mediaType << ", total: " << enabled_media_types_ << endl;
         } catch (const Exception& e) {
-            // Log error but don't throw - this is called from callback setters
             cerr << "Warning: Failed to update media configuration: " << e.what() << endl;
         }
     }
@@ -366,6 +361,16 @@ void Client::setOnLeave(LeaveFn callback) {
     leave_callback_ = std::move(callback);
 }
 
+void Client::setVideoParameters(const VideoParameters& video_params)
+{
+    media_params_.setVideoParameters(video_params);
+}
+
+void Client::setAudioParameters(const AudioParameters& audio_params)
+{
+    media_params_.setAudioParameters(audio_params);
+}
+
 void Client::join(const string& meeting_uuid, const string& rtms_stream_id, 
                     const string& signature, const string& server_url, int timeout) {
     struct rtms_csdk_ops ops;
@@ -381,12 +386,10 @@ void Client::join(const string& meeting_uuid, const string& rtms_stream_id,
     int result = rtms_set_callbacks(sdk_, &ops);
     throwIfError(result, "set_callbacks");
     
-    // If we have callbacks but haven't explicitly configured yet, do it now
     if (enabled_media_types_ > 0 && !media_params_updated_) {
         try {
             configure(media_params_, enabled_media_types_, false);
         } catch (const Exception& e) {
-            // Log warning but continue with join
             cerr << "Warning: Failed to configure media types before join: " << e.what() << endl;
         }
     }

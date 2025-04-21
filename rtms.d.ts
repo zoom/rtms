@@ -59,7 +59,6 @@ export interface LoggerConfig {
  * @example
  * // Enable both audio and video, but not transcript
  * const mediaTypes = rtms.MEDIA_TYPE_AUDIO | rtms.MEDIA_TYPE_VIDEO;
- * client.configure(mediaTypes);
  * 
  * @category Constants
  */
@@ -491,24 +490,6 @@ export class Client {
    * ```
    */
   join(meetingUuid: string, rtmsStreamId: string, signature: string, serverUrls: string, timeout?: number): boolean;
-  
-  /**
-   * Configures the client with media type flags and optional encryption
-   * 
-   * This method configures which media types the client will process
-   * and whether to use application layer encryption.
-   * 
-   * @param mediaTypes Bitmask of MEDIA_TYPE_* constants
-   * @param enableEncryption Whether to enable application layer encryption
-   * @returns true if configuration succeeds
-   * 
-   * @example
-   * ```typescript
-   * // Enable audio and video, but not transcript
-   * client.configure(rtms.MEDIA_TYPE_AUDIO | rtms.MEDIA_TYPE_VIDEO, false);
-   * ```
-   */
-  configure(mediaTypes: number, enableEncryption?: boolean): boolean;
   
   /**
    * Manually polls for events from the RTMS server

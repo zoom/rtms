@@ -193,6 +193,9 @@ public:
     void setOnTranscriptData(TranscriptDataFn callback);
     void setOnLeave(LeaveFn callback);
 
+    void setVideoParameters(const VideoParameters& video_params);
+    void setAudioParameters(const AudioParameters& audio_params);
+
     void join(const string& meeting_uuid, const string& rtms_stream_id, const string& signature, const string& server_url, int timeout = -1);
 
     void poll();
@@ -213,10 +216,10 @@ private:
     string meeting_uuid_;
     string rtms_stream_id_;
     
-    // Tracking variables for media configuration
     int enabled_media_types_;
-    MediaParameters media_params_;
     bool media_params_updated_;
+    MediaParameters media_params_;
+
 
     JoinConfirmFn join_confirm_callback_;
     SessionUpdateFn session_update_callback_;
