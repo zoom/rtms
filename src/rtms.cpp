@@ -528,16 +528,14 @@ void Client::handleAudioData(struct rtms_csdk* sdk, unsigned char* buf, int size
 }
 
 void Client::handleVideoData(struct rtms_csdk* sdk, unsigned char* buf, int size, 
-                               unsigned int timestamp, const char* rtms_session_id, 
-                               struct rtms_metadata* md) {
+                               unsigned int timestamp, struct rtms_metadata* md) {
     Client* client = getClient(sdk);
-    if (client && buf && size > 0 && rtms_session_id && md) {
+    if (client && buf && size > 0 && md) {
         lock_guard<mutex> lock(client->mutex_);
         if (client->video_data_callback_) {
             vector<uint8_t> data(buf, buf + size);
-            string session_id(rtms_session_id);
             Metadata metadata(*md);
-            client->video_data_callback_(data, timestamp, session_id, metadata);
+            client->video_data_callback_(data, timestamp, metadata);
         }
     }
 }

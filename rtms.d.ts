@@ -335,12 +335,11 @@ export type AudioDataCallback = (buffer: Buffer, size: number, timestamp: number
  * @param buffer The raw video data buffer
  * @param size The size of the video data in bytes
  * @param timestamp The timestamp of the video data
- * @param trackId The track ID of the video stream
  * @param metadata Metadata about the participant who sent the video
  * 
  * @category Callback Types
  */
-export type VideoDataCallback = (buffer: Buffer, size: number, timestamp: number, trackId: string, metadata: Metadata) => void;
+export type VideoDataCallback = (buffer: Buffer, size: number, timestamp: number, metadata: Metadata) => void;
 
 /**
  * Callback function for receiving transcript data

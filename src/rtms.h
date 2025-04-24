@@ -164,7 +164,7 @@ public:
     using SessionUpdateFn = function<void(int, const Session&)>;
     using UserUpdateFn = function<void(int, const Participant&)>;
     using AudioDataFn = function<void(const vector<uint8_t>&, uint32_t, const Metadata&)>;
-    using VideoDataFn = function<void(const vector<uint8_t>&, uint32_t, const string&, const Metadata&)>;
+    using VideoDataFn = function<void(const vector<uint8_t>&, uint32_t,  const Metadata&)>;
     using TranscriptDataFn = function<void(const vector<uint8_t>&, uint32_t, const Metadata&)>;
     using LeaveFn = function<void(int)>;
 
@@ -231,7 +231,7 @@ private:
     static void handleSessionUpdate(struct rtms_csdk* sdk, int op, struct session_info* sess);
     static void handleUserUpdate(struct rtms_csdk* sdk, int op, struct participant_info* pi);
     static void handleAudioData(struct rtms_csdk* sdk, unsigned char* buf, int size, unsigned int timestamp, struct rtms_metadata* md);
-    static void handleVideoData(struct rtms_csdk* sdk, unsigned char* buf, int size, unsigned int timestamp, const char* rtms_session_id, struct rtms_metadata* md);
+    static void handleVideoData(struct rtms_csdk* sdk, unsigned char* buf, int size, unsigned int timestamp, struct rtms_metadata* md);
     static void handleTranscriptData(struct rtms_csdk* sdk, unsigned char* buf, int size, unsigned int timestamp, struct rtms_metadata* md);
     static void handleLeave(struct rtms_csdk* sdk, int reason);
 

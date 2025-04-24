@@ -97,6 +97,7 @@ if(DEFINED CMAKE_JS_VERSION)
   # Enable exceptions
   add_definitions(-DNODE_ADDON_API_CPP_EXCEPTIONS)
   add_definitions(-DNODE_ADDON_API_CPP_EXCEPTIONS_ALL)
+  add_definitions(-DNODE_API_SWALLOW_UNHANDLED_EXCEPTIONS=0)
 
   # Set NAPI version
   set(NAPI_VERSION 9)

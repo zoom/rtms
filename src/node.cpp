@@ -360,8 +360,8 @@ Napi::Value NodeClient::setOnVideoData(const Napi::CallbackInfo& info) {
         env, callback, "VideoDataCallback", 0, 1
     );
 
-    client_->setOnVideoData([this](const vector<uint8_t>& data, uint32_t timestamp, const string& session_id, const rtms::Metadata& metadata) {
-        auto callback = [data, timestamp, session_id, userName = metadata.userName(), userId = metadata.userId()]
+    client_->setOnVideoData([this](const vector<uint8_t>& data, uint32_t timestamp, const rtms::Metadata& metadata) {
+        auto callback = [data, timestamp, userName = metadata.userName(), userId = metadata.userId()]
                        (Napi::Env env, Napi::Function jsCallback) {
             Napi::Buffer<uint8_t> buffer = Napi::Buffer<uint8_t>::Copy(env, data.data(), data.size());
             
@@ -369,7 +369,7 @@ Napi::Value NodeClient::setOnVideoData(const Napi::CallbackInfo& info) {
             metadataObj.Set("userName", Napi::String::New(env, userName));
             metadataObj.Set("userId", Napi::Number::New(env, userId));
 
-            jsCallback.Call({buffer, Napi::Number::New(env, data.size()), Napi::Number::New(env, timestamp), Napi::String::New(env, session_id), metadataObj});
+            jsCallback.Call({buffer, Napi::Number::New(env, data.size()), Napi::Number::New(env, timestamp), metadataObj});
         };
         tsfn_video_data_.BlockingCall(callback);
     });
@@ -874,8 +874,8 @@ Napi::Value globalSetOnVideoData(const Napi::CallbackInfo& info) {
         env, callback, "GlobalVideoDataCallback", 0, 1
     );
 
-    global_client->setOnVideoData([](const vector<uint8_t>& data, uint32_t timestamp, const string& session_id, const rtms::Metadata& metadata) {
-        auto callback = [data, timestamp, session_id, userName = metadata.userName(), userId = metadata.userId()]
+    global_client->setOnVideoData([](const vector<uint8_t>& data, uint32_t timestamp, const rtms::Metadata& metadata) {
+        auto callback = [data, timestamp, userName = metadata.userName(), userId = metadata.userId()]
                        (Napi::Env env, Napi::Function jsCallback) {
             Napi::Buffer<uint8_t> buffer = Napi::Buffer<uint8_t>::Copy(env, data.data(), data.size());
             
@@ -883,7 +883,7 @@ Napi::Value globalSetOnVideoData(const Napi::CallbackInfo& info) {
             metadataObj.Set("userName", Napi::String::New(env, userName));
             metadataObj.Set("userId", Napi::Number::New(env, userId));
 
-            jsCallback.Call({buffer, Napi::Number::New(env, data.size()), Napi::Number::New(env, timestamp), Napi::String::New(env, session_id), metadataObj});
+            jsCallback.Call({buffer, Napi::Number::New(env, data.size()), Napi::Number::New(env, timestamp), metadataObj});
         };
         global_tsfn_video_data.BlockingCall(callback);
     });
