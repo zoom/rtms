@@ -238,7 +238,10 @@ media_parameters MediaParameters::toNative() const {
     return params;
 }
 
-Client::Client() : sdk_(nullptr) {
+Client::Client() 
+    : sdk_(nullptr), 
+      enabled_media_types_(0), 
+      media_params_updated_(false) {
     sdk_ = rtms_alloc();
     if (!sdk_) {
         throw Exception(RTMS_SDK_FAILURE, "Failed to allocate RTMS SDK instance");
@@ -276,6 +279,11 @@ void Client::uninitialize() {
 }
 
 void Client::configure(const MediaParameters& params, int media_types, bool enable_application_layer_encryption) {
+    // Store the media parameters for future use
+    media_params_ = params;
+    enabled_media_types_ = media_types;
+    media_params_updated_ = true;
+    
     if (!params.hasAudioParameters() && !params.hasVideoParameters()) {
         int result = rtms_config(sdk_, NULL, media_types, enable_application_layer_encryption ? 1 : 0);
         throwIfError(result, "configure with null params");
@@ -296,6 +304,35 @@ void Client::configure(const MediaParameters& params, int media_types, bool enab
     throwIfError(result, "configure");
 }
 
+void Client::enableVideo(bool enable) {
+    updateMediaConfiguration(MediaType::VIDEO, enable);
+}
+
+void Client::enableAudio(bool enable) {
+    updateMediaConfiguration(MediaType::AUDIO, enable);
+}
+
+void Client::enableTranscript(bool enable) {
+    updateMediaConfiguration(MediaType::TRANSCRIPT, enable);
+}
+
+void Client::updateMediaConfiguration(int mediaType, bool enable) {
+
+    if (enable) { 
+        enabled_media_types_ |= mediaType;
+    } else {
+        enabled_media_types_ &= mediaType;
+    }
+    
+    if (sdk_) {
+        try {
+            configure(media_params_, enabled_media_types_, false);
+        } catch (const Exception& e) {
+            cerr << "Warning: Failed to update media configuration: " << e.what() << endl;
+        }
+    }
+}
+
 void Client::setOnJoinConfirm(JoinConfirmFn callback) {
     lock_guard<mutex> lock(mutex_);
     join_confirm_callback_ = std::move(callback);
@@ -314,21 +351,37 @@ void Client::setOnUserUpdate(UserUpdateFn callback) {
 void Client::setOnAudioData(AudioDataFn callback) {
     lock_guard<mutex> lock(mutex_);
     audio_data_callback_ = std::move(callback);
+    
+    updateMediaConfiguration(MediaType::AUDIO);
 }
 
 void Client::setOnVideoData(VideoDataFn callback) {
     lock_guard<mutex> lock(mutex_);
     video_data_callback_ = std::move(callback);
+    
+    updateMediaConfiguration(MediaType::VIDEO);
 }
 
 void Client::setOnTranscriptData(TranscriptDataFn callback) {
     lock_guard<mutex> lock(mutex_);
     transcript_data_callback_ = std::move(callback);
+    
+    updateMediaConfiguration(MediaType::TRANSCRIPT);
 }
 
 void Client::setOnLeave(LeaveFn callback) {
     lock_guard<mutex> lock(mutex_);
     leave_callback_ = std::move(callback);
+}
+
+void Client::setVideoParameters(const VideoParameters& video_params)
+{
+    media_params_.setVideoParameters(video_params);
+}
+
+void Client::setAudioParameters(const AudioParameters& audio_params)
+{
+    media_params_.setAudioParameters(audio_params);
 }
 
 void Client::join(const string& meeting_uuid, const string& rtms_stream_id, 
@@ -345,6 +398,14 @@ void Client::join(const string& meeting_uuid, const string& rtms_stream_id,
     
     int result = rtms_set_callbacks(sdk_, &ops);
     throwIfError(result, "set_callbacks");
+    
+    if (enabled_media_types_ > 0 && !media_params_updated_) {
+        try {
+            configure(media_params_, enabled_media_types_, false);
+        } catch (const Exception& e) {
+            cerr << "Warning: Failed to configure media types before join: " << e.what() << endl;
+        }
+    }
     
     result = rtms_join(sdk_, meeting_uuid.c_str(), rtms_stream_id.c_str(), 
                       signature.c_str(), server_url.c_str(), timeout);
@@ -467,16 +528,14 @@ void Client::handleAudioData(struct rtms_csdk* sdk, unsigned char* buf, int size
 }
 
 void Client::handleVideoData(struct rtms_csdk* sdk, unsigned char* buf, int size, 
-                               unsigned int timestamp, const char* rtms_session_id, 
-                               struct rtms_metadata* md) {
+                               unsigned int timestamp, struct rtms_metadata* md) {
     Client* client = getClient(sdk);
-    if (client && buf && size > 0 && rtms_session_id && md) {
+    if (client && buf && size > 0 && md) {
         lock_guard<mutex> lock(client->mutex_);
         if (client->video_data_callback_) {
             vector<uint8_t> data(buf, buf + size);
-            string session_id(rtms_session_id);
             Metadata metadata(*md);
-            client->video_data_callback_(data, timestamp, session_id, metadata);
+            client->video_data_callback_(data, timestamp, metadata);
         }
     }
 }

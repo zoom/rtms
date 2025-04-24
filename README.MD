@@ -55,7 +55,7 @@ import rtms from "@zoom/rtms";
 // const rtms = require('@zoom/rtms').default;
 
 rtms.onWebhookEvent(({event, payload}) => {
-    if (event !== "meeting.rtms.started") return;
+    if (event !== "meeting.rtms_started") return;
 
     const client = new rtms.Client();
     
@@ -114,7 +114,7 @@ import rtms
 
 @rtms.on_webhook_event()
 def handle_webhook(payload):
-    if payload.get('event') != 'meeting.rtms.started':
+    if payload.get('event') != 'meeting.rtms_started':
         return
     
     client = rtms.Client()

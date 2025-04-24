@@ -164,9 +164,19 @@ public:
     using SessionUpdateFn = function<void(int, const Session&)>;
     using UserUpdateFn = function<void(int, const Participant&)>;
     using AudioDataFn = function<void(const vector<uint8_t>&, uint32_t, const Metadata&)>;
-    using VideoDataFn = function<void(const vector<uint8_t>&, uint32_t, const string&, const Metadata&)>;
+    using VideoDataFn = function<void(const vector<uint8_t>&, uint32_t,  const Metadata&)>;
     using TranscriptDataFn = function<void(const vector<uint8_t>&, uint32_t, const Metadata&)>;
     using LeaveFn = function<void(int)>;
+
+    // Media type constants
+    enum MediaType {
+        AUDIO = 1,
+        VIDEO = 2,
+        DESKSHARE = 4,
+        TRANSCRIPT = 8,
+        CHAT = 16,
+        ALL = 31  // Sum of all types (1+2+4+8+16)
+    };
 
     Client();
     ~Client();
@@ -174,6 +184,10 @@ public:
     static void initialize(const string& ca);
     static void uninitialize();
     void configure(const MediaParameters& params, int media_types, bool enable_application_layer_encryption = false);
+
+    void enableVideo(bool enable);
+    void enableAudio(bool enable);
+    void enableTranscript(bool enable);
 
     void setOnJoinConfirm(JoinConfirmFn callback);
     void setOnSessionUpdate(SessionUpdateFn callback);
@@ -183,6 +197,9 @@ public:
     void setOnTranscriptData(TranscriptDataFn callback);
     void setOnLeave(LeaveFn callback);
 
+    void setVideoParameters(const VideoParameters& video_params);
+    void setAudioParameters(const AudioParameters& audio_params);
+
     void join(const string& meeting_uuid, const string& rtms_stream_id, const string& signature, const string& server_url, int timeout = -1);
 
     void poll();
@@ -190,25 +207,17 @@ public:
     
     string uuid() const;
     string streamId() const;
-
-    void stop();
-
-    bool isInit() const;
-    bool isRunning() const;
-
-    void enableTranscript(bool useTranscript);
-    void enableAudio(bool useAudio);
-    void enableVideo(bool useVideo);
-
 private:
     mutable mutex mutex_;
     rtms_csdk* sdk_;
 
     string meeting_uuid_;
     string rtms_stream_id_;
-    bool enable_video_;
-    bool enable_audio_;
-    bool enable_transcript;
+    
+    int enabled_media_types_;
+    bool media_params_updated_;
+    MediaParameters media_params_;
+
 
     JoinConfirmFn join_confirm_callback_;
     SessionUpdateFn session_update_callback_;
@@ -222,7 +231,7 @@ private:
     static void handleSessionUpdate(struct rtms_csdk* sdk, int op, struct session_info* sess);
     static void handleUserUpdate(struct rtms_csdk* sdk, int op, struct participant_info* pi);
     static void handleAudioData(struct rtms_csdk* sdk, unsigned char* buf, int size, unsigned int timestamp, struct rtms_metadata* md);
-    static void handleVideoData(struct rtms_csdk* sdk, unsigned char* buf, int size, unsigned int timestamp, const char* rtms_session_id, struct rtms_metadata* md);
+    static void handleVideoData(struct rtms_csdk* sdk, unsigned char* buf, int size, unsigned int timestamp, struct rtms_metadata* md);
     static void handleTranscriptData(struct rtms_csdk* sdk, unsigned char* buf, int size, unsigned int timestamp, struct rtms_metadata* md);
     static void handleLeave(struct rtms_csdk* sdk, int reason);
 
@@ -231,6 +240,8 @@ private:
 
     void throwIfError(int result, const std::string& operation) const;
     static Client* getClient(struct rtms_csdk* sdk);
+    
+    void updateMediaConfiguration(int mediaType, bool enable = true);
 };
 }
 
