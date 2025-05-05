@@ -20,4 +20,6 @@ Homepage = "https://github.com/zoom/rtms"
 Issues = "https://github.com/zoom/rtms/issues"
 
 [tool.scikit-build]
-sdist.include = ["lib/librtmsdk/**/*"]
+sdist.include = [
+    "lib/**/*",
+]
