@@ -87,6 +87,9 @@ file(GLOB RTMS_CORE_SOURCES
   "${RTMS_SOURCE_DIR}/rtms.cpp"
 )
 
+# Find all .framework directories
+file(GLOB FRAMEWORK_DIRS ${RTMS_PLATFORM_LIB_DIR}/*.framework)
+
 # ===== Node.js binding target =====
 if(DEFINED CMAKE_JS_VERSION)
   message(STATUS "Building Node.js bindings")
@@ -148,9 +151,6 @@ if(DEFINED CMAKE_JS_VERSION)
       COMMENT "Copying libraries to output directory"
     )
 
-  # Find all .framework directories
-  file(GLOB FRAMEWORK_DIRS ${RTMS_PLATFORM_LIB_DIR}/*.framework)
-
   # Create tar archives for each .framework directory
   foreach(FRAMEWORK_PATH ${FRAMEWORK_DIRS})
     get_filename_component(FRAMEWORK_NAME ${FRAMEWORK_PATH} NAME)
@@ -191,8 +191,7 @@ if(DEFINED CMAKE_JS_VERSION)
     COMMENT "Compiling TypeScript files"
   )
 
-
-  # ===== Python binding target =====
+# ===== Python binding target =====
 elseif(DEFINED SKBUILD_PROJECT_NAME)
   message(STATUS "Building Python bindings")
 
@@ -207,23 +206,67 @@ elseif(DEFINED SKBUILD_PROJECT_NAME)
     "${RTMS_SOURCE_DIR}/python.cpp"
   )
 
-  # Link with the RTMS library
-  set_property(TARGET ${PYTHON_MODULE_NAME} APPEND_STRING PROPERTY
-    LINK_FLAGS " -L${RTMS_LIB_DIR}")
+  # Platform-specific linker settings
+  if(${RTMS_PLATFORM} STREQUAL "darwin")
+    # macOS specific settings
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum OS X deployment version")
 
-  # Linux: Set RPATH directly
-  if(UNIX AND NOT APPLE)
+    
+    # Use direct path to library for linking on macOS
+    target_link_libraries(${PYTHON_MODULE_NAME} PRIVATE ${RTMS_LIBRARY})
+    
+    # Set RPATH to @loader_path for macOS
+    set_target_properties(${PYTHON_MODULE_NAME} PROPERTIES
+      BUILD_WITH_INSTALL_RPATH TRUE
+      INSTALL_RPATH "@loader_path"
+      MACOSX_RPATH TRUE)
+    
+    # Copy libraries to output directory
+    add_custom_command(
+      TARGET ${PYTHON_MODULE_NAME} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy
+      ${RTMS_LIBRARY}
+      ${CMAKE_CURRENT_BINARY_DIR}/
+      COMMENT "Copying ${RTMS_LIB_FILENAME} to output directory"
+    )
+
+    file(GLOB DYLIB_FILES ${RTMS_PLATFORM_LIB_DIR}/*.dylib)
+    foreach(DYLIB_FILE ${DYLIB_FILES})
+      get_filename_component(DYLIB_NAME ${DYLIB_FILE} NAME)
+      # Copy to build directory
+      add_custom_command(
+        TARGET ${PYTHON_MODULE_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+        ${DYLIB_FILE}
+        ${CMAKE_CURRENT_BINARY_DIR}/${DYLIB_NAME}
+        COMMENT "Copying ${DYLIB_NAME} to output directory"
+      )
+      # Install to package
+      install(FILES ${DYLIB_FILE} DESTINATION rtms)
+    endforeach()
+
+    foreach(FRAMEWORK_PATH ${FRAMEWORK_DIRS})
+      get_filename_component(FRAMEWORK_NAME ${FRAMEWORK_PATH} NAME)
+      # Install the entire framework directory
+      install(DIRECTORY ${FRAMEWORK_PATH}
+              DESTINATION rtms
+              USE_SOURCE_PERMISSIONS)
+    endforeach()
+  else()
+    # Linux specific settings
+    set_property(TARGET ${PYTHON_MODULE_NAME} APPEND_STRING PROPERTY
+      LINK_FLAGS " -L${RTMS_LIB_DIR}")
+      
     set_property(TARGET ${PYTHON_MODULE_NAME} APPEND_STRING PROPERTY
       LINK_FLAGS " -Wl,-rpath,'$$ORIGIN'")
+      
+    target_link_libraries(${PYTHON_MODULE_NAME} PRIVATE -l:${RTMS_LIB_FILENAME})
   endif()
 
-  target_link_libraries(${PYTHON_MODULE_NAME} PRIVATE -l:${RTMS_LIB_FILENAME})
-
   # Installation
-  install(TARGETS ${PYTHON_MODULE_NAME} DESTINATION .)
-  install(FILES ${RTMS_LIBRARY} DESTINATION .)
-
-  # ===== Go binding target (placeholder) =====
+  install(TARGETS ${PYTHON_MODULE_NAME} DESTINATION rtms)
+  install(FILES ${RTMS_LIBRARY} DESTINATION rtms)
+# ===== Go binding target (placeholder) =====
 elseif(GO)
   message(STATUS "Go bindings not yet implemented")
 endif()
