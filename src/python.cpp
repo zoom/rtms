@@ -425,6 +425,64 @@ public:
         });
     }
 
+    void set_audio_parameters(py::dict params) {
+        try {
+            AudioParameters audio_params;
+            
+            if (params.contains("contentType"))
+                audio_params.setContentType(params["contentType"].cast<int>());
+            if (params.contains("codec"))
+                audio_params.setCodec(params["codec"].cast<int>());
+            if (params.contains("sampleRate"))
+                audio_params.setSampleRate(params["sampleRate"].cast<int>());
+            if (params.contains("channel"))
+                audio_params.setChannel(params["channel"].cast<int>());
+            if (params.contains("dataOpt"))
+                audio_params.setDataOpt(params["dataOpt"].cast<int>());
+            if (params.contains("duration"))
+                audio_params.setDuration(params["duration"].cast<int>());
+            if (params.contains("frameSize"))
+                audio_params.setFrameSize(params["frameSize"].cast<int>());
+            
+            client_->setAudioParameters(audio_params);
+        } catch (const Exception& e) {
+            DEBUG_LOG("Error setting audio parameters: " << e.what() << " (code: " << e.code() << ")");
+            PyErr_SetString(PyExc_RuntimeError, e.what());
+            throw py::error_already_set();
+        } catch (const exception& e) {
+            DEBUG_LOG("Unknown error setting audio parameters: " << e.what());
+            PyErr_SetString(PyExc_RuntimeError, e.what());
+            throw py::error_already_set();
+        }
+    }
+
+    void set_video_parameters(py::dict params) {
+        try {
+            VideoParameters video_params;
+            
+            if (params.contains("contentType"))
+                video_params.setContentType(params["contentType"].cast<int>());
+            if (params.contains("codec"))
+                video_params.setCodec(params["codec"].cast<int>());
+            if (params.contains("resolution"))
+                video_params.setResolution(params["resolution"].cast<int>());
+            if (params.contains("dataOpt"))
+                video_params.setDataOpt(params["dataOpt"].cast<int>());
+            if (params.contains("fps"))
+                video_params.setFps(params["fps"].cast<int>());
+            
+            client_->setVideoParameters(video_params);
+        } catch (const Exception& e) {
+            DEBUG_LOG("Error setting video parameters: " << e.what() << " (code: " << e.code() << ")");
+            PyErr_SetString(PyExc_RuntimeError, e.what());
+            throw py::error_already_set();
+        } catch (const exception& e) {
+            DEBUG_LOG("Unknown error setting video parameters: " << e.what());
+            PyErr_SetString(PyExc_RuntimeError, e.what());
+            throw py::error_already_set();
+        }
+    }
+
 private:
     unique_ptr<Client> client_;
     int configured_media_types_;
@@ -463,194 +521,6 @@ static PyClient global_client;
 PYBIND11_MODULE(_rtms, m) {
     m.doc() = "Zoom RTMS Python Bindings";
 
-    // Expose SDK constants
-    m.attr("SDK_AUDIO") = py::int_(static_cast<int>(SDK_AUDIO));
-    m.attr("SDK_VIDEO") = py::int_(static_cast<int>(SDK_VIDEO));
-    m.attr("SDK_TRANSCRIPT") = py::int_(static_cast<int>(SDK_TRANSCRIPT));
-    m.attr("SDK_ALL") = py::int_(static_cast<int>(SDK_ALL));
-    
-    m.attr("SESSION_ADD") = py::int_(static_cast<int>(SESSION_ADD));
-    m.attr("SESSION_STOP") = py::int_(static_cast<int>(SESSION_STOP));
-    m.attr("SESSION_PAUSE") = py::int_(static_cast<int>(SESSION_PAUSE));
-    m.attr("SESSION_RESUME") = py::int_(static_cast<int>(SESSION_RESUME));
-    
-    m.attr("USER_JOIN") = py::int_(static_cast<int>(USER_JOIN));
-    m.attr("USER_LEAVE") = py::int_(static_cast<int>(USER_LEAVE));
-    
-    m.attr("RTMS_SDK_FAILURE") = py::int_(static_cast<int>(RTMS_SDK_FAILURE));
-    m.attr("RTMS_SDK_OK") = py::int_(static_cast<int>(RTMS_SDK_OK));
-    m.attr("RTMS_SDK_TIMEOUT") = py::int_(static_cast<int>(RTMS_SDK_TIMEOUT));
-    m.attr("RTMS_SDK_NOT_EXIST") = py::int_(static_cast<int>(RTMS_SDK_NOT_EXIST));
-    m.attr("RTMS_SDK_WRONG_TYPE") = py::int_(static_cast<int>(RTMS_SDK_WRONG_TYPE));
-    m.attr("RTMS_SDK_INVALID_STATUS") = py::int_(static_cast<int>(RTMS_SDK_INVALID_STATUS));
-    m.attr("RTMS_SDK_INVALID_ARGS") = py::int_(static_cast<int>(RTMS_SDK_INVALID_ARGS));
-    
-    m.attr("SESS_STATUS_ACTIVE") = py::int_(static_cast<int>(SESS_STATUS_ACTIVE));
-    m.attr("SESS_STATUS_PAUSED") = py::int_(static_cast<int>(SESS_STATUS_PAUSED));
-
-    // ===== Audio Parameter Constants =====
-    
-    // Audio Content Type
-    py::dict audioContentType = py::dict();
-    audioContentType["UNDEFINED"] = py::int_(0);
-    audioContentType["RTP"] = py::int_(1);
-    audioContentType["RAW_AUDIO"] = py::int_(2);
-    audioContentType["FILE_STREAM"] = py::int_(4);
-    audioContentType["TEXT"] = py::int_(5);
-    m.attr("AudioContentType") = audioContentType;
-    
-    // Audio Codec
-    py::dict audioCodec = py::dict();
-    audioCodec["UNDEFINED"] = py::int_(0);
-    audioCodec["L16"] = py::int_(1);
-    audioCodec["G711"] = py::int_(2);
-    audioCodec["G722"] = py::int_(3);
-    audioCodec["OPUS"] = py::int_(4);
-    m.attr("AudioCodec") = audioCodec;
-    
-    // Audio Sample Rate
-    py::dict audioSampleRate = py::dict();
-    audioSampleRate["SR_8K"] = py::int_(0);
-    audioSampleRate["SR_16K"] = py::int_(1);
-    audioSampleRate["SR_32K"] = py::int_(2);
-    audioSampleRate["SR_48K"] = py::int_(3);
-    m.attr("AudioSampleRate") = audioSampleRate;
-    
-    // Audio Channel
-    py::dict audioChannel = py::dict();
-    audioChannel["MONO"] = py::int_(1);
-    audioChannel["STEREO"] = py::int_(2);
-    m.attr("AudioChannel") = audioChannel;
-    
-    // Audio Data Option
-    py::dict audioDataOption = py::dict();
-    audioDataOption["UNDEFINED"] = py::int_(0);
-    audioDataOption["AUDIO_MIXED_STREAM"] = py::int_(1);
-    audioDataOption["AUDIO_MULTI_STREAMS"] = py::int_(2);
-    m.attr("AudioDataOption") = audioDataOption;
-    
-    // ===== Video Parameter Constants =====
-    
-    // Video Content Type
-    py::dict videoContentType = py::dict();
-    videoContentType["UNDEFINED"] = py::int_(0);
-    videoContentType["RTP"] = py::int_(1);
-    videoContentType["RAW_VIDEO"] = py::int_(3);
-    videoContentType["FILE_STREAM"] = py::int_(4);
-    videoContentType["TEXT"] = py::int_(5);
-    m.attr("VideoContentType") = videoContentType;
-    
-    // Video Codec
-    py::dict videoCodec = py::dict();
-    videoCodec["UNDEFINED"] = py::int_(0);
-    videoCodec["JPG"] = py::int_(5);
-    videoCodec["PNG"] = py::int_(6);
-    videoCodec["H264"] = py::int_(7);
-    m.attr("VideoCodec") = videoCodec;
-    
-    // Video Resolution
-    py::dict videoResolution = py::dict();
-    videoResolution["SD"] = py::int_(1);
-    videoResolution["HD"] = py::int_(2);
-    videoResolution["FHD"] = py::int_(3);
-    videoResolution["QHD"] = py::int_(4);
-    m.attr("VideoResolution") = videoResolution;
-    
-    // Video Data Option
-    py::dict videoDataOption = py::dict();
-    videoDataOption["UNDEFINED"] = py::int_(0);
-    videoDataOption["VIDEO_SINGLE_ACTIVE_STREAM"] = py::int_(3);
-    videoDataOption["VIDEO_MIXED_SPEAKER_VIEW"] = py::int_(4);
-    videoDataOption["VIDEO_MIXED_GALLERY_VIEW"] = py::int_(5);
-    m.attr("VideoDataOption") = videoDataOption;
-    
-    // ===== Other Constant Dictionaries =====
-    
-    // Media Data Type
-    py::dict mediaDataType = py::dict();
-    mediaDataType["UNDEFINED"] = py::int_(0);
-    mediaDataType["AUDIO"] = py::int_(1);
-    mediaDataType["VIDEO"] = py::int_(2);
-    mediaDataType["DESKSHARE"] = py::int_(4);
-    mediaDataType["TRANSCRIPT"] = py::int_(8);
-    mediaDataType["CHAT"] = py::int_(16);
-    mediaDataType["ALL"] = py::int_(31);
-    m.attr("MediaDataType") = mediaDataType;
-    
-    // Session State
-    py::dict sessionState = py::dict();
-    sessionState["INACTIVE"] = py::int_(0);
-    sessionState["INITIALIZE"] = py::int_(1);
-    sessionState["STARTED"] = py::int_(2);
-    sessionState["PAUSED"] = py::int_(3);
-    sessionState["RESUMED"] = py::int_(4);
-    sessionState["STOPPED"] = py::int_(5);
-    m.attr("SessionState") = sessionState;
-    
-    // Stream State
-    py::dict streamState = py::dict();
-    streamState["INACTIVE"] = py::int_(0);
-    streamState["ACTIVE"] = py::int_(1);
-    streamState["INTERRUPTED"] = py::int_(2);
-    streamState["TERMINATING"] = py::int_(3);
-    streamState["TERMINATED"] = py::int_(4);
-    m.attr("StreamState") = streamState;
-    
-    // Event Type
-    py::dict eventType = py::dict();
-    eventType["UNDEFINED"] = py::int_(0);
-    eventType["FIRST_PACKET_TIMESTAMP"] = py::int_(1);
-    eventType["ACTIVE_SPEAKER_CHANGE"] = py::int_(2);
-    eventType["PARTICIPANT_JOIN"] = py::int_(3);
-    eventType["PARTICIPANT_LEAVE"] = py::int_(4);
-    m.attr("EventType") = eventType;
-    
-    // Message Type
-    py::dict messageType = py::dict();
-    messageType["UNDEFINED"] = py::int_(0);
-    messageType["SIGNALING_HAND_SHAKE_REQ"] = py::int_(1);
-    messageType["SIGNALING_HAND_SHAKE_RESP"] = py::int_(2);
-    messageType["DATA_HAND_SHAKE_REQ"] = py::int_(3);
-    messageType["DATA_HAND_SHAKE_RESP"] = py::int_(4);
-    messageType["EVENT_SUBSCRIPTION"] = py::int_(5);
-    messageType["EVENT_UPDATE"] = py::int_(6);
-    messageType["CLIENT_READY_ACK"] = py::int_(7);
-    messageType["STREAM_STATE_UPDATE"] = py::int_(8);
-    messageType["SESSION_STATE_UPDATE"] = py::int_(9);
-    messageType["SESSION_STATE_REQ"] = py::int_(10);
-    messageType["SESSION_STATE_RESP"] = py::int_(11);
-    messageType["KEEP_ALIVE_REQ"] = py::int_(12);
-    messageType["KEEP_ALIVE_RESP"] = py::int_(13);
-    messageType["MEDIA_DATA_AUDIO"] = py::int_(14);
-    messageType["MEDIA_DATA_VIDEO"] = py::int_(15);
-    messageType["MEDIA_DATA_SHARE"] = py::int_(16);
-    messageType["MEDIA_DATA_TRANSCRIPT"] = py::int_(17);
-    messageType["MEDIA_DATA_CHAT"] = py::int_(18);
-    m.attr("MessageType") = messageType;
-    
-    // Stop Reason
-    py::dict stopReason = py::dict();
-    stopReason["UNDEFINED"] = py::int_(0);
-    stopReason["STOP_BC_HOST_TRIGGERED"] = py::int_(1);
-    stopReason["STOP_BC_USER_TRIGGERED"] = py::int_(2);
-    stopReason["STOP_BC_USER_LEFT"] = py::int_(3);
-    stopReason["STOP_BC_USER_EJECTED"] = py::int_(4);
-    stopReason["STOP_BC_APP_DISABLED_BY_HOST"] = py::int_(5);
-    stopReason["STOP_BC_MEETING_ENDED"] = py::int_(6);
-    stopReason["STOP_BC_STREAM_CANCELED"] = py::int_(7);
-    stopReason["STOP_BC_STREAM_REVOKED"] = py::int_(8);
-    stopReason["STOP_BC_ALL_APPS_DISABLED"] = py::int_(9);
-    stopReason["STOP_BC_INTERNAL_EXCEPTION"] = py::int_(10);
-    stopReason["STOP_BC_CONNECTION_TIMEOUT"] = py::int_(11);
-    stopReason["STOP_BC_MEETING_CONNECTION_INTERRUPTED"] = py::int_(12);
-    stopReason["STOP_BC_SIGNAL_CONNECTION_INTERRUPTED"] = py::int_(13);
-    stopReason["STOP_BC_DATA_CONNECTION_INTERRUPTED"] = py::int_(14);
-    stopReason["STOP_BC_SIGNAL_CONNECTION_CLOSED_ABNORMALLY"] = py::int_(15);
-    stopReason["STOP_BC_DATA_CONNECTION_CLOSED_ABNORMALLY"] = py::int_(16);
-    stopReason["STOP_BC_EXIT_SIGNAL"] = py::int_(17);
-    stopReason["STOP_BC_AUTHENTICATION_FAILURE"] = py::int_(18);
-    m.attr("StopReason") = stopReason;
-
     // Expose classes
     py::class_<Session>(m, "Session")
         .def_property_readonly("session_id", &Session::sessionId)
@@ -658,15 +528,15 @@ PYBIND11_MODULE(_rtms, m) {
         .def_property_readonly("status", &Session::status)
         .def_property_readonly("is_active", &Session::isActive)
         .def_property_readonly("is_paused", &Session::isPaused);
-    
+
     py::class_<Participant>(m, "Participant")
         .def_property_readonly("id", &Participant::id)
         .def_property_readonly("name", &Participant::name);
-    
+
     py::class_<Metadata>(m, "Metadata")
         .def_property_readonly("user_name", &Metadata::userName)
         .def_property_readonly("user_id", &Metadata::userId);
-    
+
     // Expose PyClient as the Client class
     py::class_<PyClient>(m, "Client")
         .def(py::init<>())
@@ -680,6 +550,9 @@ PYBIND11_MODULE(_rtms, m) {
         .def("release", &PyClient::release, "Release resources")
         .def("uuid", &PyClient::uuid, "Get the UUID of the current meeting")
         .def("stream_id", &PyClient::stream_id, "Get the stream ID of the current meeting")
+        .def("set_audio_parameters", &PyClient::set_audio_parameters, "Set audio parameters")
+        .def("set_video_parameters", &PyClient::set_video_parameters, "Set video parameters")
+
         // Decorator methods
         .def("on_join_confirm", &PyClient::on_join_confirm, "Get a decorator for join confirm events")
         .def("on_session_update", &PyClient::on_session_update, "Get a decorator for session update events")
@@ -696,7 +569,7 @@ PYBIND11_MODULE(_rtms, m) {
         .def("set_video_data_callback", &PyClient::set_video_data_callback)
         .def("set_transcript_data_callback", &PyClient::set_transcript_data_callback)
         .def("set_leave_callback", &PyClient::set_leave_callback);
-    
+
     // Define module functions that operate on the global client for backward compatibility
     m.def("_initialize", [](const string& ca_path) {
         try {
@@ -794,4 +667,211 @@ PYBIND11_MODULE(_rtms, m) {
         global_client.set_leave_callback(callback);
         return callback;
     }, "Set callback for leave events");
+
+    m.def("set_audio_parameters", [](py::dict params) {
+        try {
+            global_client.set_audio_parameters(params);
+        } catch (const py::error_already_set& e) {
+            DEBUG_LOG("Error in global set_audio_parameters: " << e.what());
+            throw;
+        }
+    }, "Set global audio parameters");
+
+    m.def("set_video_parameters", [](py::dict params) {
+        try {
+            global_client.set_video_parameters(params);
+        } catch (const py::error_already_set& e) {
+            DEBUG_LOG("Error in global set_video_parameters: " << e.what());
+            throw;
+        }
+    }, "Set global video parameters");
+
+        // Expose SDK constants
+        m.attr("SDK_AUDIO") = py::int_(static_cast<int>(SDK_AUDIO));
+        m.attr("SDK_VIDEO") = py::int_(static_cast<int>(SDK_VIDEO));
+        m.attr("SDK_TRANSCRIPT") = py::int_(static_cast<int>(SDK_TRANSCRIPT));
+        m.attr("SDK_ALL") = py::int_(static_cast<int>(SDK_ALL));
+        
+        m.attr("SESSION_ADD") = py::int_(static_cast<int>(SESSION_ADD));
+        m.attr("SESSION_STOP") = py::int_(static_cast<int>(SESSION_STOP));
+        m.attr("SESSION_PAUSE") = py::int_(static_cast<int>(SESSION_PAUSE));
+        m.attr("SESSION_RESUME") = py::int_(static_cast<int>(SESSION_RESUME));
+        
+        m.attr("USER_JOIN") = py::int_(static_cast<int>(USER_JOIN));
+        m.attr("USER_LEAVE") = py::int_(static_cast<int>(USER_LEAVE));
+        
+        m.attr("RTMS_SDK_FAILURE") = py::int_(static_cast<int>(RTMS_SDK_FAILURE));
+        m.attr("RTMS_SDK_OK") = py::int_(static_cast<int>(RTMS_SDK_OK));
+        m.attr("RTMS_SDK_TIMEOUT") = py::int_(static_cast<int>(RTMS_SDK_TIMEOUT));
+        m.attr("RTMS_SDK_NOT_EXIST") = py::int_(static_cast<int>(RTMS_SDK_NOT_EXIST));
+        m.attr("RTMS_SDK_WRONG_TYPE") = py::int_(static_cast<int>(RTMS_SDK_WRONG_TYPE));
+        m.attr("RTMS_SDK_INVALID_STATUS") = py::int_(static_cast<int>(RTMS_SDK_INVALID_STATUS));
+        m.attr("RTMS_SDK_INVALID_ARGS") = py::int_(static_cast<int>(RTMS_SDK_INVALID_ARGS));
+        
+        m.attr("SESS_STATUS_ACTIVE") = py::int_(static_cast<int>(SESS_STATUS_ACTIVE));
+        m.attr("SESS_STATUS_PAUSED") = py::int_(static_cast<int>(SESS_STATUS_PAUSED));
+    
+        // ===== Audio Parameter Constants =====
+        
+        // Audio Content Type
+        py::dict audioContentType = py::dict();
+        audioContentType["UNDEFINED"] = py::int_(0);
+        audioContentType["RTP"] = py::int_(1);
+        audioContentType["RAW_AUDIO"] = py::int_(2);
+        audioContentType["FILE_STREAM"] = py::int_(4);
+        audioContentType["TEXT"] = py::int_(5);
+        m.attr("AudioContentType") = audioContentType;
+        
+        // Audio Codec
+        py::dict audioCodec = py::dict();
+        audioCodec["UNDEFINED"] = py::int_(0);
+        audioCodec["L16"] = py::int_(1);
+        audioCodec["G711"] = py::int_(2);
+        audioCodec["G722"] = py::int_(3);
+        audioCodec["OPUS"] = py::int_(4);
+        m.attr("AudioCodec") = audioCodec;
+        
+        // Audio Sample Rate
+        py::dict audioSampleRate = py::dict();
+        audioSampleRate["SR_8K"] = py::int_(0);
+        audioSampleRate["SR_16K"] = py::int_(1);
+        audioSampleRate["SR_32K"] = py::int_(2);
+        audioSampleRate["SR_48K"] = py::int_(3);
+        m.attr("AudioSampleRate") = audioSampleRate;
+        
+        // Audio Channel
+        py::dict audioChannel = py::dict();
+        audioChannel["MONO"] = py::int_(1);
+        audioChannel["STEREO"] = py::int_(2);
+        m.attr("AudioChannel") = audioChannel;
+        
+        // Audio Data Option
+        py::dict audioDataOption = py::dict();
+        audioDataOption["UNDEFINED"] = py::int_(0);
+        audioDataOption["AUDIO_MIXED_STREAM"] = py::int_(1);
+        audioDataOption["AUDIO_MULTI_STREAMS"] = py::int_(2);
+        m.attr("AudioDataOption") = audioDataOption;
+        
+        // ===== Video Parameter Constants =====
+        
+        // Video Content Type
+        py::dict videoContentType = py::dict();
+        videoContentType["UNDEFINED"] = py::int_(0);
+        videoContentType["RTP"] = py::int_(1);
+        videoContentType["RAW_VIDEO"] = py::int_(3);
+        videoContentType["FILE_STREAM"] = py::int_(4);
+        videoContentType["TEXT"] = py::int_(5);
+        m.attr("VideoContentType") = videoContentType;
+        
+        // Video Codec
+        py::dict videoCodec = py::dict();
+        videoCodec["UNDEFINED"] = py::int_(0);
+        videoCodec["JPG"] = py::int_(5);
+        videoCodec["PNG"] = py::int_(6);
+        videoCodec["H264"] = py::int_(7);
+        m.attr("VideoCodec") = videoCodec;
+        
+        // Video Resolution
+        py::dict videoResolution = py::dict();
+        videoResolution["SD"] = py::int_(1);
+        videoResolution["HD"] = py::int_(2);
+        videoResolution["FHD"] = py::int_(3);
+        videoResolution["QHD"] = py::int_(4);
+        m.attr("VideoResolution") = videoResolution;
+        
+        // Video Data Option
+        py::dict videoDataOption = py::dict();
+        videoDataOption["UNDEFINED"] = py::int_(0);
+        videoDataOption["VIDEO_SINGLE_ACTIVE_STREAM"] = py::int_(3);
+        videoDataOption["VIDEO_MIXED_SPEAKER_VIEW"] = py::int_(4);
+        videoDataOption["VIDEO_MIXED_GALLERY_VIEW"] = py::int_(5);
+        m.attr("VideoDataOption") = videoDataOption;
+        
+        // ===== Other Constant Dictionaries =====
+        
+        // Media Data Type
+        py::dict mediaDataType = py::dict();
+        mediaDataType["UNDEFINED"] = py::int_(0);
+        mediaDataType["AUDIO"] = py::int_(1);
+        mediaDataType["VIDEO"] = py::int_(2);
+        mediaDataType["DESKSHARE"] = py::int_(4);
+        mediaDataType["TRANSCRIPT"] = py::int_(8);
+        mediaDataType["CHAT"] = py::int_(16);
+        mediaDataType["ALL"] = py::int_(31);
+        m.attr("MediaDataType") = mediaDataType;
+        
+        // Session State
+        py::dict sessionState = py::dict();
+        sessionState["INACTIVE"] = py::int_(0);
+        sessionState["INITIALIZE"] = py::int_(1);
+        sessionState["STARTED"] = py::int_(2);
+        sessionState["PAUSED"] = py::int_(3);
+        sessionState["RESUMED"] = py::int_(4);
+        sessionState["STOPPED"] = py::int_(5);
+        m.attr("SessionState") = sessionState;
+        
+        // Stream State
+        py::dict streamState = py::dict();
+        streamState["INACTIVE"] = py::int_(0);
+        streamState["ACTIVE"] = py::int_(1);
+        streamState["INTERRUPTED"] = py::int_(2);
+        streamState["TERMINATING"] = py::int_(3);
+        streamState["TERMINATED"] = py::int_(4);
+        m.attr("StreamState") = streamState;
+        
+        // Event Type
+        py::dict eventType = py::dict();
+        eventType["UNDEFINED"] = py::int_(0);
+        eventType["FIRST_PACKET_TIMESTAMP"] = py::int_(1);
+        eventType["ACTIVE_SPEAKER_CHANGE"] = py::int_(2);
+        eventType["PARTICIPANT_JOIN"] = py::int_(3);
+        eventType["PARTICIPANT_LEAVE"] = py::int_(4);
+        m.attr("EventType") = eventType;
+        
+        // Message Type
+        py::dict messageType = py::dict();
+        messageType["UNDEFINED"] = py::int_(0);
+        messageType["SIGNALING_HAND_SHAKE_REQ"] = py::int_(1);
+        messageType["SIGNALING_HAND_SHAKE_RESP"] = py::int_(2);
+        messageType["DATA_HAND_SHAKE_REQ"] = py::int_(3);
+        messageType["DATA_HAND_SHAKE_RESP"] = py::int_(4);
+        messageType["EVENT_SUBSCRIPTION"] = py::int_(5);
+        messageType["EVENT_UPDATE"] = py::int_(6);
+        messageType["CLIENT_READY_ACK"] = py::int_(7);
+        messageType["STREAM_STATE_UPDATE"] = py::int_(8);
+        messageType["SESSION_STATE_UPDATE"] = py::int_(9);
+        messageType["SESSION_STATE_REQ"] = py::int_(10);
+        messageType["SESSION_STATE_RESP"] = py::int_(11);
+        messageType["KEEP_ALIVE_REQ"] = py::int_(12);
+        messageType["KEEP_ALIVE_RESP"] = py::int_(13);
+        messageType["MEDIA_DATA_AUDIO"] = py::int_(14);
+        messageType["MEDIA_DATA_VIDEO"] = py::int_(15);
+        messageType["MEDIA_DATA_SHARE"] = py::int_(16);
+        messageType["MEDIA_DATA_TRANSCRIPT"] = py::int_(17);
+        messageType["MEDIA_DATA_CHAT"] = py::int_(18);
+        m.attr("MessageType") = messageType;
+        
+        // Stop Reason
+        py::dict stopReason = py::dict();
+        stopReason["UNDEFINED"] = py::int_(0);
+        stopReason["STOP_BC_HOST_TRIGGERED"] = py::int_(1);
+        stopReason["STOP_BC_USER_TRIGGERED"] = py::int_(2);
+        stopReason["STOP_BC_USER_LEFT"] = py::int_(3);
+        stopReason["STOP_BC_USER_EJECTED"] = py::int_(4);
+        stopReason["STOP_BC_APP_DISABLED_BY_HOST"] = py::int_(5);
+        stopReason["STOP_BC_MEETING_ENDED"] = py::int_(6);
+        stopReason["STOP_BC_STREAM_CANCELED"] = py::int_(7);
+        stopReason["STOP_BC_STREAM_REVOKED"] = py::int_(8);
+        stopReason["STOP_BC_ALL_APPS_DISABLED"] = py::int_(9);
+        stopReason["STOP_BC_INTERNAL_EXCEPTION"] = py::int_(10);
+        stopReason["STOP_BC_CONNECTION_TIMEOUT"] = py::int_(11);
+        stopReason["STOP_BC_MEETING_CONNECTION_INTERRUPTED"] = py::int_(12);
+        stopReason["STOP_BC_SIGNAL_CONNECTION_INTERRUPTED"] = py::int_(13);
+        stopReason["STOP_BC_DATA_CONNECTION_INTERRUPTED"] = py::int_(14);
+        stopReason["STOP_BC_SIGNAL_CONNECTION_CLOSED_ABNORMALLY"] = py::int_(15);
+        stopReason["STOP_BC_DATA_CONNECTION_CLOSED_ABNORMALLY"] = py::int_(16);
+        stopReason["STOP_BC_EXIT_SIGNAL"] = py::int_(17);
+        stopReason["STOP_BC_AUTHENTICATION_FAILURE"] = py::int_(18);
+        m.attr("StopReason") = stopReason;
+        
 }
