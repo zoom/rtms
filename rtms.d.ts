@@ -199,7 +199,7 @@ export interface AudioParameters {
   contentType?: number;
   /** The audio codec to use */
   codec?: number;
-  /** The sample rate in Hz (e.g., 8000, 16000, 44100) */
+  /** The sample rate SR_8K = 0, SR_16K = 1, SR_32K = 2, SR_48K = 3 */
   sampleRate?: number;
   /** The number of audio channels (1=mono, 2=stereo) */
   channel?: number;
