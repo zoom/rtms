@@ -13,32 +13,23 @@ permissions:
 
 jobs:
   # Build and test the JavaScript/Node.js components
-  # test-js:
-  #   name: Build and Test JavaScript
-  #   runs-on: ubuntu-latest
+  test-js:
+    name: Build and Test JavaScript
+    runs-on: ubuntu-latest
     
-  #   steps:
-  #   - name: Checkout code
-  #     uses: actions/checkout@v4
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
       
-  #   - name: Docker Setup Compose
-  #     uses: docker/setup-compose-action@v1.1.0
+    - name: Docker Setup Compose
+      uses: docker/setup-compose-action@v1.1.0
       
-  #   - name: Build JavaScript components
-  #     run: docker compose up js
+    - name: Build JavaScript components
+      run: docker compose up js
       
-  #   - name: Run JavaScript tests
-  #     run: docker compose up test-js
+    - name: Run JavaScript tests
+      run: docker compose up test-js
       
-  #   - name: Upload test results
-  #     uses: actions/upload-artifact@v3
-  #     if: always()
-  #     with:
-  #       name: js-test-results
-  #       path: |
-  #         logs/
-  #         test-results/
-  #       retention-days: 7
 
   # Build and test Python components
   # test-py:
