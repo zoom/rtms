@@ -30,21 +30,6 @@ jobs:
     - name: Run JavaScript tests
       run: docker compose up test-js
 
-    - name: Ensure test result directories exist
-      run: |
-        mkdir -p logs
-        mkdir -p test-results
-      
-    - name: Upload test results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: js-test-results
-        path: |
-          logs/
-          test-results/
-        retention-days: 7
-
   # Build and test Python components
   # test-py:
   #   name: Build and Test Python
@@ -156,41 +141,7 @@ jobs:
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v2
-
-  # Integration tests (run after individual component tests pass)
-  integration-tests:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    needs: [test-js]
-    if: success()
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Docker Setup Compose
-      uses: docker/setup-compose-action@v1.1.0
-      
-    - name: Run integration tests
-      run: |
-        # Run comprehensive integration tests
-        docker compose up test-js
         
-    - name: Test CLI functionality
-      run: |
-        # Test the unified CLI
-        docker compose run --rm js npm run help
-        docker compose run --rm js npm run test
-        
-    - name: Upload integration test results
-      uses: actions/upload-artifact@v3
-      if: always()
-      with:
-        name: integration-test-results
-        path: |
-          logs/
-          test-results/
-        retention-days: 7
 
   # Summary job for status checks
   ci-success:
