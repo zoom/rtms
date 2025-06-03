@@ -5,7 +5,10 @@ import { createHmac } from 'crypto';
 import { createRequire } from 'module';
 import { IncomingMessage, Server, ServerResponse } from 'http';
 
-import type { JoinParams, SignatureParams, WebhookCallback, VideoParameters, AudioParameters } from "./rtms.d.ts";
+import type { 
+  JoinParams, SignatureParams, WebhookCallback, 
+  VideoParams, AudioParams, DeskshareParams
+} from "./rtms.d.ts";
 
 const require = createRequire(import.meta.url);
 const nativeRtms = require('bindings')('rtms');
@@ -488,7 +491,7 @@ export function onWebhookEvent(callback: WebhookCallback): void {
  * 
  * @param context Context identifier for logging (client/global)
  * @param operation Function name for parameter setting 
- * @param type Parameter type (audio/video)
+ * @param type Parameter type (audio/video/deskshare)
  * @param params Parameter object to pass to the operation
  * @param operation Function to call with the parameters
  * @returns Result of the operation
@@ -599,26 +602,38 @@ class Client extends nativeRtms.Client {
   /**
    * Sets audio parameters for the client
    */
-  setAudioParameters(params: AudioParameters): boolean {
-    return setParameters<AudioParameters>(
+  setAudioParams(params: AudioParams): boolean {
+    return setParameters<AudioParams>(
       'client',
       'audio',
       params,
-      (p) => super.setAudioParameters(p)
+      (p) => super.setAudioParams(p)
     );
   }
 
   /**
    * Sets video parameters for the client
    */
-  setVideoParameters(params: VideoParameters): boolean {
-    return setParameters<VideoParameters>(
+  setVideoParams(params: VideoParams): boolean {
+    return setParameters<VideoParams>(
       'client',
       'video',
       params,
-      (p) => super.setVideoParameters(p)
+      (p) => super.setVideoParams(p)
     );
   }
+
+  /** 
+  * Sets deskshare parameters for the client
+  */
+ setDeskshareParams(params: DeskshareParams): boolean {
+   return setParameters<DeskshareParams>(
+     'client',
+     'deskshare',
+     params,
+     (p) => super.setDeskshareParams(p)
+   );
+ }
   
   /**
    * Start background polling for events
@@ -791,23 +806,33 @@ function join(options: JoinParams): boolean {
   return ret;
 }
 
-function setAudioParameters(params: AudioParameters): boolean {
-  return setParameters<AudioParameters>(
+function setAudioParams(params: AudioParams): boolean {
+  return setParameters<AudioParams>(
     'global',
     'audio',
     params,
-    (p) => nativeRtms.setAudioParameters(p)
+    (p) => nativeRtms.setAudioParams(p)
   );
 }
 
-function setVideoParameters(params: VideoParameters): boolean {
-  return setParameters<VideoParameters>(
+function setVideoParams(params: VideoParams): boolean {
+  return setParameters<VideoParams>(
     'global',
     'video',
     params,
-    (p) => nativeRtms.setVideoParameters(p)
-  );
+    (p) => nativeRtms.setVideoParams(p)
+  )
 }
+  
+  function setDeskshareParams(params: DeskshareParams): boolean {
+    return setParameters<DeskshareParams>(
+      'global',
+      'deskshare',
+      params,
+      (p) => nativeRtms.setDeskshareParams(p)
+    );
+  }
+
 
 /**
  * Leave the current session and clean up global client resources
@@ -880,14 +905,16 @@ export default {
   // Global singleton API
   join,
   leave,
-  setAudioParameters,
-  setVideoParameters,
+  setDeskshareParams: setDeskshareParams,
+  setAudioParams: setAudioParams,
+  setVideoParams: setVideoParams,
   poll: nativeRtms.poll,
   uuid: nativeRtms.uuid,
   streamId: nativeRtms.streamId,
   onJoinConfirm: nativeRtms.onJoinConfirm,
   onSessionUpdate: nativeRtms.onSessionUpdate,
   onUserUpdate: nativeRtms.onUserUpdate,
+  onDeskshareData: nativeRtms.onDeskshareData,
   onAudioData: nativeRtms.onAudioData,
   onVideoData: nativeRtms.onVideoData,
   onTranscriptData: nativeRtms.onTranscriptData,

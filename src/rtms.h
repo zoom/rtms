@@ -62,10 +62,10 @@ private:
     int user_id_;
 };
 
-class BaseMediaParameters {
+class BaseMediaParams {
 public:
-    BaseMediaParameters();
-    virtual ~BaseMediaParameters() = default;
+    BaseMediaParams();
+    virtual ~BaseMediaParams() = default;
 
     void setContentType(int content_type);
     void setCodec(int codec);
@@ -80,10 +80,27 @@ protected:
     int data_opt_;
 };
 
-class AudioParameters : public BaseMediaParameters {
+class DeskshareParams : public BaseMediaParams {
 public:
-    AudioParameters();
-    AudioParameters(int content_type, int codec, int sample_rate, int channel, int data_opt, int duration, int frame_size);
+        DeskshareParams();
+        DeskshareParams(int content_type, int codec, int resolution, int fps);
+        void setResolution(int resolution);
+        void setFps(int fps);
+        int resolution() const;
+        int fps() const;
+
+        ds_parameters toNative() const;
+
+private:
+        int resolution_;
+        int fps_;
+};
+
+
+class AudioParams : public BaseMediaParams {
+public:
+    AudioParams();
+    AudioParams(int content_type, int codec, int sample_rate, int channel, int data_opt, int duration, int frame_size);
 
     void setSampleRate(int sample_rate);
     void setChannel(int channel);
@@ -103,10 +120,10 @@ private:
     int frame_size_;
 };
 
-class VideoParameters : public BaseMediaParameters {
+class VideoParams : public BaseMediaParams {
 public:
-    VideoParameters();
-    VideoParameters(int content_type, int codec, int resolution, int data_opt, int fps);
+    VideoParams();
+    VideoParams(int content_type, int codec, int resolution, int data_opt, int fps);
     void setResolution(int resolution);
     void setFps(int fps);
     int resolution() const;
@@ -119,42 +136,52 @@ private:
     int fps_;
 };
 
-class MediaParameters {
+class MediaParams {
     public:
-        MediaParameters();
-        ~MediaParameters();
+        MediaParams();
+        ~MediaParams();
 
-        MediaParameters& operator=(const MediaParameters& other) {
+        MediaParams& operator=(const MediaParams& other) {
             if (this != &other) {
-                if (other.hasAudioParameters()) {
-                    audio_params_ = std::make_unique<AudioParameters>(other.audioParameters());
+                if (other.hasAudioParams()) {
+                    audio_params_ = std::make_unique<AudioParams>(other.audioParams());
                 } else {
                     audio_params_.reset();
                 }
                 
-                if (other.hasVideoParameters()) {
-                    video_params_ = std::make_unique<VideoParameters>(other.videoParameters());
+                if (other.hasVideoParams()) {
+                    video_params_ = std::make_unique<VideoParams>(other.videoParams());
                 } else {
                     video_params_.reset();
+                }
+
+                if (other.hasDeskshareParams()) {
+                    ds_params_ = std::make_unique<DeskshareParams>(other.deskshareParams());
+                } else {
+                    ds_params_.reset();
                 }
             }
             return *this;
         }
         
-        void setAudioParameters(const AudioParameters& audio_params);
-        void setVideoParameters(const VideoParameters& video_params);
+        void setDeskshareParams(const DeskshareParams& ds_params);
+        void setAudioParams(const AudioParams& audio_params);
+        void setVideoParams(const VideoParams& video_params);
         
-        const AudioParameters& audioParameters() const;
-        const VideoParameters& videoParameters() const;
+        const DeskshareParams& deskshareParams() const;
+        const AudioParams& audioParams() const;
+        const VideoParams& videoParams() const;
         
-        bool hasAudioParameters() const;
-        bool hasVideoParameters() const;
+        bool hasDeskshareParams() const;
+        bool hasAudioParams() const;
+        bool hasVideoParams() const;
         
-        media_parameters toNative() const;
+        media_params toNative() const;
     
     private:
-        std::unique_ptr<AudioParameters> audio_params_;
-        std::unique_ptr<VideoParameters> video_params_;
+        std::unique_ptr<DeskshareParams> ds_params_;
+        std::unique_ptr<AudioParams> audio_params_;
+        std::unique_ptr<VideoParams> video_params_;
     };
 
 class Client {
@@ -163,9 +190,10 @@ public:
     using JoinConfirmFn = function<void(int)>;
     using SessionUpdateFn = function<void(int, const Session&)>;
     using UserUpdateFn = function<void(int, const Participant&)>;
-    using AudioDataFn = function<void(const vector<uint8_t>&, uint32_t, const Metadata&)>;
-    using VideoDataFn = function<void(const vector<uint8_t>&, uint32_t,  const Metadata&)>;
-    using TranscriptDataFn = function<void(const vector<uint8_t>&, uint32_t, const Metadata&)>;
+    using DsDataFn = function<void(const vector<uint8_t>&, uint64_t,  const Metadata&)>;
+    using AudioDataFn = function<void(const vector<uint8_t>&, uint64_t, const Metadata&)>;
+    using VideoDataFn = function<void(const vector<uint8_t>&, uint64_t,  const Metadata&)>;
+    using TranscriptDataFn = function<void(const vector<uint8_t>&, uint64_t, const Metadata&)>;
     using LeaveFn = function<void(int)>;
 
     // Media type constants
@@ -183,22 +211,25 @@ public:
 
     static void initialize(const string& ca);
     static void uninitialize();
-    void configure(const MediaParameters& params, int media_types, bool enable_application_layer_encryption = false);
+    void configure(const MediaParams& params, int media_types, bool enable_application_layer_encryption = false);
 
     void enableVideo(bool enable);
     void enableAudio(bool enable);
     void enableTranscript(bool enable);
+    void enableDeskshare(bool enable);
 
     void setOnJoinConfirm(JoinConfirmFn callback);
     void setOnSessionUpdate(SessionUpdateFn callback);
+    void setOnDeskshareData(DsDataFn callback);
     void setOnUserUpdate(UserUpdateFn callback);
     void setOnAudioData(AudioDataFn callback);
     void setOnVideoData(VideoDataFn callback);
     void setOnTranscriptData(TranscriptDataFn callback);
     void setOnLeave(LeaveFn callback);
 
-    void setVideoParameters(const VideoParameters& video_params);
-    void setAudioParameters(const AudioParameters& audio_params);
+    void setDeskshareParams(const DeskshareParams& ds_params);
+    void setVideoParams(const VideoParams& video_params);
+    void setAudioParams(const AudioParams& audio_params);
 
     void join(const string& meeting_uuid, const string& rtms_stream_id, const string& signature, const string& server_url, int timeout = -1);
 
@@ -216,12 +247,13 @@ private:
     
     int enabled_media_types_;
     bool media_params_updated_;
-    MediaParameters media_params_;
+    MediaParams media_params_;
 
 
     JoinConfirmFn join_confirm_callback_;
     SessionUpdateFn session_update_callback_;
     UserUpdateFn user_update_callback_;
+    DsDataFn ds_data_callback_;
     AudioDataFn audio_data_callback_;
     VideoDataFn video_data_callback_;
     TranscriptDataFn transcript_data_callback_;
@@ -230,9 +262,10 @@ private:
     static void handleJoinConfirm(struct rtms_csdk* sdk, int reason);
     static void handleSessionUpdate(struct rtms_csdk* sdk, int op, struct session_info* sess);
     static void handleUserUpdate(struct rtms_csdk* sdk, int op, struct participant_info* pi);
-    static void handleAudioData(struct rtms_csdk* sdk, unsigned char* buf, int size, unsigned int timestamp, struct rtms_metadata* md);
-    static void handleVideoData(struct rtms_csdk* sdk, unsigned char* buf, int size, unsigned int timestamp, struct rtms_metadata* md);
-    static void handleTranscriptData(struct rtms_csdk* sdk, unsigned char* buf, int size, unsigned int timestamp, struct rtms_metadata* md);
+    static void handleDsData(struct rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, struct rtms_metadata* md);
+    static void handleAudioData(struct rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, struct rtms_metadata* md);
+    static void handleVideoData(struct rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, struct rtms_metadata* md);
+    static void handleTranscriptData(struct rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, struct rtms_metadata* md);
     static void handleLeave(struct rtms_csdk* sdk, int reason);
 
     static unordered_map<struct rtms_csdk*, Client*> sdk_registry_;

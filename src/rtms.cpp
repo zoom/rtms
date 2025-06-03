@@ -63,79 +63,79 @@ string Participant::name() const {
     return name_;
 }
 
-BaseMediaParameters::BaseMediaParameters()
+BaseMediaParams::BaseMediaParams()
     : content_type_(0), codec_(0), data_opt_(0) {}
 
-void BaseMediaParameters::setContentType(int content_type) {
+void BaseMediaParams::setContentType(int content_type) {
     content_type_ = content_type;
 }
 
-void BaseMediaParameters::setCodec(int codec) {
+void BaseMediaParams::setCodec(int codec) {
     codec_ = codec;
 }
 
-void BaseMediaParameters::setDataOpt(int data_opt) {
+void BaseMediaParams::setDataOpt(int data_opt) {
     data_opt_ = data_opt;
 }
 
-int BaseMediaParameters::contentType() const {
+int BaseMediaParams::contentType() const {
     return content_type_;
 }
 
-int BaseMediaParameters::codec() const {
+int BaseMediaParams::codec() const {
     return codec_;
 }
 
-int BaseMediaParameters::dataOpt() const {
+int BaseMediaParams::dataOpt() const {
     return data_opt_;
 }
 
-AudioParameters::AudioParameters()
-    : BaseMediaParameters(), sample_rate_(0), channel_(0),
+AudioParams::AudioParams()
+    : BaseMediaParams(), sample_rate_(0), channel_(0),
       duration_(0), frame_size_(0) {}
 
-AudioParameters::AudioParameters(int content_type, int codec, int sample_rate, 
+AudioParams::AudioParams(int content_type, int codec, int sample_rate, 
                                int channel, int data_opt, int duration, int frame_size)
-    : BaseMediaParameters(), sample_rate_(sample_rate), channel_(channel),
+    : BaseMediaParams(), sample_rate_(sample_rate), channel_(channel),
       duration_(duration), frame_size_(frame_size) {
     setContentType(content_type);
     setCodec(codec);
     setDataOpt(data_opt);
 }
 
-void AudioParameters::setSampleRate(int sample_rate) {
+void AudioParams::setSampleRate(int sample_rate) {
     sample_rate_ = sample_rate;
 }
 
-void AudioParameters::setChannel(int channel) {
+void AudioParams::setChannel(int channel) {
     channel_ = channel;
 }
 
-void AudioParameters::setDuration(int duration) {
+void AudioParams::setDuration(int duration) {
     duration_ = duration;
 }
 
-void AudioParameters::setFrameSize(int frame_size) {
+void AudioParams::setFrameSize(int frame_size) {
     frame_size_ = frame_size;
 }
 
-int AudioParameters::sampleRate() const {
+int AudioParams::sampleRate() const {
     return sample_rate_;
 }
 
-int AudioParameters::channel() const {
+int AudioParams::channel() const {
     return channel_;
 }
 
-int AudioParameters::duration() const {
+int AudioParams::duration() const {
     return duration_;
 }
 
-int AudioParameters::frameSize() const {
+int AudioParams::frameSize() const {
     return frame_size_;
 }
 
-audio_parameters AudioParameters::toNative() const {
+audio_parameters AudioParams::toNative() const {
     audio_parameters params;
     params.content_type = contentType();
     params.codec = codec();
@@ -147,33 +147,52 @@ audio_parameters AudioParameters::toNative() const {
     return params;
 }
 
-VideoParameters::VideoParameters()
-    : BaseMediaParameters(), resolution_(0), fps_(0) {}
+VideoParams::VideoParams()
+    : BaseMediaParams(), resolution_(0), fps_(0) {}
 
-VideoParameters::VideoParameters(int content_type, int codec, int resolution, int data_opt, int fps)
-    : BaseMediaParameters(), resolution_(resolution), fps_(fps) {
+VideoParams::VideoParams(int content_type, int codec, int resolution, int data_opt, int fps)
+    : BaseMediaParams(), resolution_(resolution), fps_(fps) {
     setContentType(content_type);
     setCodec(codec);
     setDataOpt(data_opt);
 }
 
-void VideoParameters::setResolution(int resolution) {
+void VideoParams::setResolution(int resolution)
+{
     resolution_ = resolution;
 }
 
-void VideoParameters::setFps(int fps) {
+void VideoParams::setFps(int fps) {
     fps_ = fps;
 }
 
-int VideoParameters::resolution() const {
+int VideoParams::resolution() const {
     return resolution_;
 }
 
-int VideoParameters::fps() const {
+int VideoParams::fps() const {
     return fps_;
 }
 
-video_parameters VideoParameters::toNative() const {
+DeskshareParams::DeskshareParams() 
+    : BaseMediaParams(), resolution_(0), fps_(0) {}
+
+DeskshareParams::DeskshareParams(int content_type, int codec, int resolution, int fps)
+    : BaseMediaParams(), resolution_(resolution), fps_(fps) {
+    setContentType(content_type);
+    setCodec(codec);
+}
+
+ds_parameters DeskshareParams::toNative() const {
+    ds_parameters params;
+    params.content_type = contentType();
+    params.codec = codec();
+    params.resolution = resolution_;
+    params.fps = fps_;
+    return params;
+}
+
+video_parameters VideoParams::toNative() const {
     video_parameters params;
     params.content_type = contentType();
     params.codec = codec();
@@ -183,42 +202,80 @@ video_parameters VideoParameters::toNative() const {
     return params;
 }
 
-MediaParameters::MediaParameters(): audio_params_(nullptr), video_params_(nullptr) {}
-
-MediaParameters::~MediaParameters() = default;
-
-void MediaParameters::setAudioParameters(const AudioParameters& audio_params) {
-    audio_params_ = make_unique<AudioParameters>(audio_params);
+void DeskshareParams::setResolution(int resolution)
+{
+    resolution_ = resolution;
 }
 
-void MediaParameters::setVideoParameters(const VideoParameters& video_params) {
-    video_params_ = make_unique<VideoParameters>(video_params);
+void DeskshareParams::setFps(int fps) {
+    fps_ = fps;
 }
 
-const AudioParameters& MediaParameters::audioParameters() const {
+int DeskshareParams::resolution() const {
+    return resolution_;
+}
+
+int DeskshareParams::fps() const {
+    return fps_;
+}
+
+MediaParams::MediaParams(): audio_params_(nullptr), video_params_(nullptr), ds_params_(nullptr) {}
+
+MediaParams::~MediaParams() = default;
+
+void MediaParams::setDeskshareParams(const DeskshareParams& ds_params)
+{
+    ds_params_ = make_unique<DeskshareParams>(ds_params);
+}
+
+void MediaParams::setAudioParams(const AudioParams& audio_params)
+{
+    audio_params_ = make_unique<AudioParams>(audio_params);
+}
+
+void MediaParams::setVideoParams(const VideoParams& video_params) {
+    video_params_ = make_unique<VideoParams>(video_params);
+}
+
+const DeskshareParams& MediaParams::deskshareParams() const
+{
+    if (!ds_params_) {
+        throw Exception(RTMS_SDK_NOT_EXIST, "DS parameters not set");
+    }
+    return *ds_params_;
+}
+
+const AudioParams& MediaParams::audioParams() const
+{
     if (!audio_params_) {
         throw Exception(RTMS_SDK_NOT_EXIST, "Audio parameters not set");
     }
     return *audio_params_;
 }
 
-const VideoParameters& MediaParameters::videoParameters() const {
+const VideoParams& MediaParams::videoParams() const {
     if (!video_params_) {
         throw Exception(RTMS_SDK_NOT_EXIST, "Video parameters not set");
     }
     return *video_params_;
 }
 
-bool MediaParameters::hasAudioParameters() const {
+bool MediaParams::hasDeskshareParams() const
+{
+    return ds_params_ != nullptr;
+}
+
+bool MediaParams::hasAudioParams() const
+{
     return audio_params_ != nullptr;
 }
 
-bool MediaParameters::hasVideoParameters() const {
+bool MediaParams::hasVideoParams() const {
     return video_params_ != nullptr;
 }
 
-media_parameters MediaParameters::toNative() const {
-    media_parameters params;
+media_params MediaParams::toNative() const {
+    media_params params;
     memset(&params, 0, sizeof(params));
     params.audio_param = nullptr;
     params.video_param = nullptr;
@@ -233,6 +290,12 @@ media_parameters MediaParameters::toNative() const {
         video_parameters* video_params = new video_parameters();
         *video_params = video_params_->toNative();
         params.video_param = video_params;
+    }
+
+    if (ds_params_) {
+        ds_parameters* ds_params = new ds_parameters();
+        *ds_params = ds_params_->toNative();
+        params.ds_param = ds_params;
     }
     
     return params;
@@ -278,19 +341,19 @@ void Client::uninitialize() {
     rtms_uninit();
 }
 
-void Client::configure(const MediaParameters& params, int media_types, bool enable_application_layer_encryption) {
+void Client::configure(const MediaParams& params, int media_types, bool enable_application_layer_encryption) {
     // Store the media parameters for future use
     media_params_ = params;
     enabled_media_types_ = media_types;
     media_params_updated_ = true;
     
-    if (!params.hasAudioParameters() && !params.hasVideoParameters()) {
+    if (!params.hasAudioParams() && !params.hasVideoParams() && !params.hasDeskshareParams()) {
         int result = rtms_config(sdk_, NULL, media_types, enable_application_layer_encryption ? 1 : 0);
         throwIfError(result, "configure with null params");
         return;
     }
     
-    media_parameters native_params = params.toNative();
+    media_params native_params = params.toNative();
     
     int result = rtms_config(sdk_, &native_params, media_types, enable_application_layer_encryption ? 1 : 0);
     
@@ -314,6 +377,10 @@ void Client::enableAudio(bool enable) {
 
 void Client::enableTranscript(bool enable) {
     updateMediaConfiguration(MediaType::TRANSCRIPT, enable);
+}
+
+void Client::enableDeskshare(bool enable) {
+    updateMediaConfiguration(MediaType::DESKSHARE, enable);
 }
 
 void Client::updateMediaConfiguration(int mediaType, bool enable) {
@@ -341,6 +408,13 @@ void Client::setOnJoinConfirm(JoinConfirmFn callback) {
 void Client::setOnSessionUpdate(SessionUpdateFn callback) {
     lock_guard<mutex> lock(mutex_);
     session_update_callback_ = std::move(callback);
+}
+
+void Client::setOnDeskshareData(DsDataFn callback){
+    lock_guard<mutex> lock(mutex_);
+    ds_data_callback_ = std::move(callback);
+
+    updateMediaConfiguration(MediaType::DESKSHARE);
 }
 
 void Client::setOnUserUpdate(UserUpdateFn callback) {
@@ -374,14 +448,19 @@ void Client::setOnLeave(LeaveFn callback) {
     leave_callback_ = std::move(callback);
 }
 
-void Client::setVideoParameters(const VideoParameters& video_params)
+void Client::setDeskshareParams(const DeskshareParams& ds_params)
 {
-    media_params_.setVideoParameters(video_params);
+    media_params_.setDeskshareParams(ds_params);
 }
 
-void Client::setAudioParameters(const AudioParameters& audio_params)
+void Client::setVideoParams(const VideoParams& video_params)
 {
-    media_params_.setAudioParameters(audio_params);
+    media_params_.setVideoParams(video_params);
+}
+
+void Client::setAudioParams(const AudioParams& audio_params)
+{
+    media_params_.setAudioParams(audio_params);
 }
 
 void Client::join(const string& meeting_uuid, const string& rtms_stream_id, 
@@ -391,6 +470,7 @@ void Client::join(const string& meeting_uuid, const string& rtms_stream_id,
     ops.on_join_confirm = &Client::handleJoinConfirm;
     ops.on_session_update = &Client::handleSessionUpdate;
     ops.on_user_update = &Client::handleUserUpdate;
+    ops.on_ds_data = &Client::handleDsData;
     ops.on_audio_data = &Client::handleAudioData;
     ops.on_video_data = &Client::handleVideoData;
     ops.on_transcript_data = &Client::handleTranscriptData;
@@ -514,8 +594,19 @@ void Client::handleUserUpdate(struct rtms_csdk* sdk, int op, struct participant_
     }
 }
 
-void Client::handleAudioData(struct rtms_csdk* sdk, unsigned char* buf, int size, 
-                               unsigned int timestamp, struct rtms_metadata* md) {
+void Client::handleDsData(rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, rtms_metadata* md) {
+    Client* client = getClient(sdk);
+    if (client && buf && size > 0 && md) {
+        lock_guard<mutex> lock(client->mutex_);
+        if (client->ds_data_callback_) {
+            vector<uint8_t> data(buf, buf + size);
+            Metadata metadata(*md);
+            client->ds_data_callback_(data, timestamp, metadata);
+        }
+    }
+}
+
+void Client::handleAudioData(struct rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, struct rtms_metadata* md) {
     Client* client = getClient(sdk);
     if (client && buf && size > 0 && md) {
         lock_guard<mutex> lock(client->mutex_);
@@ -527,8 +618,7 @@ void Client::handleAudioData(struct rtms_csdk* sdk, unsigned char* buf, int size
     }
 }
 
-void Client::handleVideoData(struct rtms_csdk* sdk, unsigned char* buf, int size, 
-                               unsigned int timestamp, struct rtms_metadata* md) {
+void Client::handleVideoData(struct rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, struct rtms_metadata* md) {
     Client* client = getClient(sdk);
     if (client && buf && size > 0 && md) {
         lock_guard<mutex> lock(client->mutex_);
@@ -540,8 +630,7 @@ void Client::handleVideoData(struct rtms_csdk* sdk, unsigned char* buf, int size
     }
 }
 
-void Client::handleTranscriptData(struct rtms_csdk* sdk, unsigned char* buf, int size, 
-                                    unsigned int timestamp, struct rtms_metadata* md) {
+void Client::handleTranscriptData(struct rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, struct rtms_metadata* md) {
     Client* client = getClient(sdk);
     if (client && buf && size > 0 && md) {
         lock_guard<mutex> lock(client->mutex_);

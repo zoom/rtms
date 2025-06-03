@@ -6,7 +6,9 @@ const PREFIX = "Docs";
 
 function generateNodeJSDocs() {
   log(PREFIX, 'Generating Node.js documentation...');
-  run('npx typedoc rtms.d.ts --plugin typedoc-plugin-missing-exports --out docs/js', PREFIX);
+
+  // a bug forces me to use multiple highlightLanguages options
+  run('npx typedoc rtms.d.ts  --highlightLanguages py --highlightLanguages js --highlightLanguages sh --highlightLanguages ts --plugin typedoc-plugin-missing-exports --out docs/js', PREFIX);
 }
 
 function generatePythonDocs() {

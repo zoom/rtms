@@ -13,6 +13,7 @@ x-base: &base
   volumes:
     - .:/tmp/rtms
     - ./logs:/tmp/rtms/logs
+    - ./test-results:/tmp/rtms/test-results
   develop:
     watch:
       - action: rebuild
@@ -21,6 +22,7 @@ x-base: &base
           - dist
           - logs
           - node_modules
+          - test-results
         target: /tmp/rtms
 
 services:
@@ -30,6 +32,14 @@ services:
       args:
         TARGET: js
     command: npm run prebuild
+    
+  py: &py
+    <<: *base
+    build:
+      args:
+        TARGET: py
+    command: npm run build:py
+    
   test-js:
     <<: *base
     build:
@@ -38,15 +48,13 @@ services:
     depends_on:
       js:
         condition: service_completed_successfully
-    command: npm run test:js-manual
-    ports:
-      - 8080:8080
-  py: &py
-    <<: *base
-    build:
-      args:
-        TARGET: py
-    command: npm run build:py
+    command: >
+      sh -c "
+        echo 'Running JavaScript tests...' &&
+        npm run test:js &&
+        echo 'JavaScript tests completed successfully!'
+      "
+      
   test-py:
     <<: *base
     build:
@@ -55,22 +63,61 @@ services:
     depends_on:
       py:
         condition: service_completed_successfully
-    command: npm run test:py-manual
-    ports:
-      - 8080:8081
-  go: &go
+    command: >
+      sh -c "
+        echo 'Running Python tests...' &&
+        npm run test:py &&
+        echo 'Python tests completed successfully!'
+      "
+      
+  # Test both languages together
+  test-all:
     <<: *base
     build:
       args:
-        TARGET: go
-  test-go:
-    <<: *base
-    build:
-      args:
-        TARGET: go
+        TARGET: all
     depends_on:
-      go:
+      - js
+      - py
+    command: >
+      sh -c "
+        echo 'Running all tests...' &&
+        npm run test &&
+        echo 'All tests completed successfully!'
+      "
+
+  docs-js:
+    <<: *base
+    build:
+      args:
+        TARGET: js
+    command: npm run docs:js
+    volumes:
+      - .:/tmp/rtms
+      - ./docs:/tmp/rtms/docs
+
+  docs-py:
+    <<: *base
+    build:
+      args:
+        TARGET: py
+    command: npm run docs:py
+    volumes:
+      - .:/tmp/rtms
+      - ./docs:/tmp/rtms/docs
+
+  docs-all:
+    <<: *base
+    build:
+      args:
+        TARGET: all
+    # Only build docs if tests pass
+    depends_on:
+      test-js:
         condition: service_completed_successfully
-    command: npm run test:go-manual
-    ports:
-      - 8080:8082
+      test-py:
+        condition: service_completed_successfully
+    command: npm run docs
+    volumes:
+      - .:/tmp/rtms
+      - ./docs:/tmp/rtms/docs
