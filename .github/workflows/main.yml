@@ -29,9 +29,14 @@ jobs:
       
     - name: Run JavaScript tests
       run: docker compose up test-js
+
+    - name: Ensure test result directories exist
+      run: |
+        mkdir -p logs
+        mkdir -p test-results
       
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: js-test-results
