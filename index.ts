@@ -7,7 +7,7 @@ import { IncomingMessage, Server, ServerResponse } from 'http';
 
 import type { 
   JoinParams, SignatureParams, WebhookCallback, 
-  VideoParameters, AudioParameters, DsParameters 
+  VideoParams as VideoParams, AudioParams as AudioParams, DsParams as DsParams 
 } from "./rtms.d.ts";
 
 const require = createRequire(import.meta.url);
@@ -602,36 +602,36 @@ class Client extends nativeRtms.Client {
   /**
    * Sets audio parameters for the client
    */
-  setAudioParameters(params: AudioParameters): boolean {
-    return setParameters<AudioParameters>(
+  setAudioParams(params: AudioParams): boolean {
+    return setParameters<AudioParams>(
       'client',
       'audio',
       params,
-      (p) => super.setAudioParameters(p)
+      (p) => super.setAudioParams(p)
     );
   }
 
   /**
    * Sets video parameters for the client
    */
-  setVideoParameters(params: VideoParameters): boolean {
-    return setParameters<VideoParameters>(
+  setVideoParams(params: VideoParams): boolean {
+    return setParameters<VideoParams>(
       'client',
       'video',
       params,
-      (p) => super.setVideoParameters(p)
+      (p) => super.setVideoParams(p)
     );
   }
 
   /** 
   * Sets deskshare parameters for the client
   */
- setDsParameters(params: DsParameters): boolean {
-   return setParameters<DsParameters>(
+ setDeskshareParams(params: DsParams): boolean {
+   return setParameters<DsParams>(
      'client',
      'deskshare',
      params,
-     (p) => super.setDsParameters(p)
+     (p) => super.setDeskshareParams(p)
    );
  }
   
@@ -806,30 +806,30 @@ function join(options: JoinParams): boolean {
   return ret;
 }
 
-function setAudioParameters(params: AudioParameters): boolean {
-  return setParameters<AudioParameters>(
+function setAudioParams(params: AudioParams): boolean {
+  return setParameters<AudioParams>(
     'global',
     'audio',
     params,
-    (p) => nativeRtms.setAudioParameters(p)
+    (p) => nativeRtms.setAudioParams(p)
   );
 }
 
-function setVideoParameters(params: VideoParameters): boolean {
-  return setParameters<VideoParameters>(
+function setVideoParams(params: VideoParams): boolean {
+  return setParameters<VideoParams>(
     'global',
     'video',
     params,
-    (p) => nativeRtms.setVideoParameters(p)
+    (p) => nativeRtms.setVideoParams(p)
   )
 }
   
-  function setDsParameters(params: DsParameters): boolean {
-    return setParameters<DsParameters>(
+  function setDeskshareParams(params: DsParams): boolean {
+    return setParameters<DsParams>(
       'global',
       'deskshare',
       params,
-      (p) => nativeRtms.setDsParameters(p)
+      (p) => nativeRtms.setDeskshareParams(p)
     );
   }
 
@@ -905,16 +905,16 @@ export default {
   // Global singleton API
   join,
   leave,
-  setDsParameters,
-  setAudioParameters,
-  setVideoParameters,
+  setDeskshareParams: setDeskshareParams,
+  setAudioParams: setAudioParams,
+  setVideoParams: setVideoParams,
   poll: nativeRtms.poll,
   uuid: nativeRtms.uuid,
   streamId: nativeRtms.streamId,
   onJoinConfirm: nativeRtms.onJoinConfirm,
   onSessionUpdate: nativeRtms.onSessionUpdate,
   onUserUpdate: nativeRtms.onUserUpdate,
-  onDsData: nativeRtms.onDsData,
+  onDeskshareData: nativeRtms.onDeskshareData,
   onAudioData: nativeRtms.onAudioData,
   onVideoData: nativeRtms.onVideoData,
   onTranscriptData: nativeRtms.onTranscriptData,

@@ -194,7 +194,7 @@ export interface SessionInfo {
  * 
  * @category Media Configuration
  */
-export interface AudioParameters {
+export interface AudioParams {
   /** The type of audio content */
   contentType?: number;
   /** The audio codec to use */
@@ -216,7 +216,7 @@ export interface AudioParameters {
  * 
  * @category Media Configuration
  */
-export interface VideoParameters {
+export interface VideoParams {
   /** The type of video content */
   contentType?: number;
   /** The video codec to use */
@@ -234,7 +234,7 @@ export interface VideoParameters {
  * 
  * @category Media Configuration
  */
-export interface DsParameters {
+export interface DsParams {
   /** The type of deskshare content */
   contentType?: number;
   /** The deskshare codec to use */
@@ -578,7 +578,7 @@ export class Client {
    * @param params Audio parameters configuration
    * @returns true if the operation succeeds
    */
-  setAudioParameters(params: AudioParameters): boolean;
+  setAudioParams(params: AudioParams): boolean;
   
   /**
    * Sets video parameters for the client
@@ -588,7 +588,7 @@ export class Client {
    * @param params Video parameters configuration
    * @returns true if the operation succeeds
    */
-  setVideoParameters(params: VideoParameters): boolean;
+  setVideoParams(params: VideoParams): boolean;
 
 
     /**
@@ -599,7 +599,7 @@ export class Client {
    * @param params Deskshare parameter configuration
    * @returns true if the operation succeeds
    */
-    setDsParameters(params: DsParameters): boolean;
+    setDeskshareParams(params: DsParams): boolean;
   
   /**
    * Sets a callback for join confirmation events

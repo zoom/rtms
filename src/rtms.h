@@ -62,10 +62,10 @@ private:
     int user_id_;
 };
 
-class BaseMediaParameters {
+class BaseMediaParams {
 public:
-    BaseMediaParameters();
-    virtual ~BaseMediaParameters() = default;
+    BaseMediaParams();
+    virtual ~BaseMediaParams() = default;
 
     void setContentType(int content_type);
     void setCodec(int codec);
@@ -80,10 +80,10 @@ protected:
     int data_opt_;
 };
 
-class DsParameters : public BaseMediaParameters {
+class DeskshareParams : public BaseMediaParams {
 public:
-        DsParameters();
-        DsParameters(int content_type, int codec, int resolution, int fps);
+        DeskshareParams();
+        DeskshareParams(int content_type, int codec, int resolution, int fps);
         void setResolution(int resolution);
         void setFps(int fps);
         int resolution() const;
@@ -97,10 +97,10 @@ private:
 };
 
 
-class AudioParameters : public BaseMediaParameters {
+class AudioParams : public BaseMediaParams {
 public:
-    AudioParameters();
-    AudioParameters(int content_type, int codec, int sample_rate, int channel, int data_opt, int duration, int frame_size);
+    AudioParams();
+    AudioParams(int content_type, int codec, int sample_rate, int channel, int data_opt, int duration, int frame_size);
 
     void setSampleRate(int sample_rate);
     void setChannel(int channel);
@@ -120,10 +120,10 @@ private:
     int frame_size_;
 };
 
-class VideoParameters : public BaseMediaParameters {
+class VideoParams : public BaseMediaParams {
 public:
-    VideoParameters();
-    VideoParameters(int content_type, int codec, int resolution, int data_opt, int fps);
+    VideoParams();
+    VideoParams(int content_type, int codec, int resolution, int data_opt, int fps);
     void setResolution(int resolution);
     void setFps(int fps);
     int resolution() const;
@@ -136,27 +136,27 @@ private:
     int fps_;
 };
 
-class MediaParameters {
+class MediaParams {
     public:
-        MediaParameters();
-        ~MediaParameters();
+        MediaParams();
+        ~MediaParams();
 
-        MediaParameters& operator=(const MediaParameters& other) {
+        MediaParams& operator=(const MediaParams& other) {
             if (this != &other) {
-                if (other.hasAudioParameters()) {
-                    audio_params_ = std::make_unique<AudioParameters>(other.audioParameters());
+                if (other.hasAudioParams()) {
+                    audio_params_ = std::make_unique<AudioParams>(other.audioParams());
                 } else {
                     audio_params_.reset();
                 }
                 
-                if (other.hasVideoParameters()) {
-                    video_params_ = std::make_unique<VideoParameters>(other.videoParameters());
+                if (other.hasVideoParams()) {
+                    video_params_ = std::make_unique<VideoParams>(other.videoParams());
                 } else {
                     video_params_.reset();
                 }
 
-                if (other.hasDsParameters()) {
-                    ds_params_ = std::make_unique<DsParameters>(other.dsParameters());
+                if (other.hasDeskshareParams()) {
+                    ds_params_ = std::make_unique<DeskshareParams>(other.deskshareParams());
                 } else {
                     ds_params_.reset();
                 }
@@ -164,24 +164,24 @@ class MediaParameters {
             return *this;
         }
         
-        void setDsParameters(const DsParameters& ds_params);
-        void setAudioParameters(const AudioParameters& audio_params);
-        void setVideoParameters(const VideoParameters& video_params);
+        void setDeskshareParams(const DeskshareParams& ds_params);
+        void setAudioParams(const AudioParams& audio_params);
+        void setVideoParams(const VideoParams& video_params);
         
-        const DsParameters& dsParameters() const;
-        const AudioParameters& audioParameters() const;
-        const VideoParameters& videoParameters() const;
+        const DeskshareParams& deskshareParams() const;
+        const AudioParams& audioParams() const;
+        const VideoParams& videoParams() const;
         
-        bool hasDsParameters() const;
-        bool hasAudioParameters() const;
-        bool hasVideoParameters() const;
+        bool hasDeskshareParams() const;
+        bool hasAudioParams() const;
+        bool hasVideoParams() const;
         
-        media_parameters toNative() const;
+        media_params toNative() const;
     
     private:
-        std::unique_ptr<DsParameters> ds_params_;
-        std::unique_ptr<AudioParameters> audio_params_;
-        std::unique_ptr<VideoParameters> video_params_;
+        std::unique_ptr<DeskshareParams> ds_params_;
+        std::unique_ptr<AudioParams> audio_params_;
+        std::unique_ptr<VideoParams> video_params_;
     };
 
 class Client {
@@ -211,24 +211,25 @@ public:
 
     static void initialize(const string& ca);
     static void uninitialize();
-    void configure(const MediaParameters& params, int media_types, bool enable_application_layer_encryption = false);
+    void configure(const MediaParams& params, int media_types, bool enable_application_layer_encryption = false);
 
     void enableVideo(bool enable);
     void enableAudio(bool enable);
     void enableTranscript(bool enable);
+    void enableDeskshare(bool enable);
 
     void setOnJoinConfirm(JoinConfirmFn callback);
     void setOnSessionUpdate(SessionUpdateFn callback);
-    void setOnDsData(DsDataFn callback);
+    void setOnDeskshareData(DsDataFn callback);
     void setOnUserUpdate(UserUpdateFn callback);
     void setOnAudioData(AudioDataFn callback);
     void setOnVideoData(VideoDataFn callback);
     void setOnTranscriptData(TranscriptDataFn callback);
     void setOnLeave(LeaveFn callback);
 
-    void setDsParameters(const DsParameters& ds_params);
-    void setVideoParameters(const VideoParameters& video_params);
-    void setAudioParameters(const AudioParameters& audio_params);
+    void setDeskshareParams(const DeskshareParams& ds_params);
+    void setVideoParams(const VideoParams& video_params);
+    void setAudioParams(const AudioParams& audio_params);
 
     void join(const string& meeting_uuid, const string& rtms_stream_id, const string& signature, const string& server_url, int timeout = -1);
 
@@ -246,7 +247,7 @@ private:
     
     int enabled_media_types_;
     bool media_params_updated_;
-    MediaParameters media_params_;
+    MediaParams media_params_;
 
 
     JoinConfirmFn join_confirm_callback_;

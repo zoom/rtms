@@ -104,11 +104,11 @@ public:
             if (!is_configured_) {
                 DEBUG_LOG("Configuring client with media types: " << configured_media_types_);
                 
-                MediaParameters params;
+                MediaParams params;
                 
                 if (configured_media_types_ & static_cast<int>(SDK_AUDIO)) {
                     DEBUG_LOG("Setting up full audio parameters");
-                    AudioParameters audio;
+                    AudioParams audio;
 
                     audio.setContentType(0);    // Default content type
                     audio.setCodec(0);          // Default codec
@@ -117,19 +117,19 @@ public:
                     audio.setDataOpt(0);        // Default data option
                     audio.setDuration(20);      // 20ms frame duration
                     audio.setFrameSize(320);    // 16000Hz * 20ms = 320 samples
-                    params.setAudioParameters(audio);
+                    params.setAudioParams(audio);
                 }
                 
                 if (configured_media_types_ & static_cast<int>(SDK_VIDEO)) {
                     DEBUG_LOG("Setting up full video parameters");
-                    VideoParameters video;
+                    VideoParams video;
 
                     video.setContentType(0);    // Default content type
                     video.setCodec(0);          // Default codec
                     video.setResolution(0);     // Default resolution
                     video.setDataOpt(0);        // Default data option
                     video.setFps(30);           // 30 frames per second
-                    params.setVideoParameters(video);
+                    params.setVideoParams(video);
                 }
                 
                 int media_types = configured_media_types_ > 0 ? configured_media_types_ : static_cast<int>(SDK_ALL);

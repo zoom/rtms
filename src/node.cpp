@@ -49,14 +49,14 @@ private:
     Napi::Value enableAudio(const Napi::CallbackInfo& info);
     Napi::Value enableTranscript(const Napi::CallbackInfo& info);
 
-    Napi::Value setDsParameters(const Napi::CallbackInfo& info);
-    Napi::Value setAudioParameters(const Napi::CallbackInfo& info);
-    Napi::Value setVideoParameters(const Napi::CallbackInfo& info);
+    Napi::Value setDeskshareParams(const Napi::CallbackInfo& info);
+    Napi::Value setAudioParams(const Napi::CallbackInfo& info);
+    Napi::Value setVideoParams(const Napi::CallbackInfo& info);
 
     Napi::Value setOnJoinConfirm(const Napi::CallbackInfo& info);
     Napi::Value setOnSessionUpdate(const Napi::CallbackInfo& info);
     Napi::Value setOnUserUpdate(const Napi::CallbackInfo& info);
-    Napi::Value setOnDsData(const Napi::CallbackInfo& info);
+    Napi::Value setOnDeskshareData(const Napi::CallbackInfo& info);
     Napi::Value setOnAudioData(const Napi::CallbackInfo& info);
     Napi::Value setOnVideoData(const Napi::CallbackInfo& info);
     Napi::Value setOnTranscriptData(const Napi::CallbackInfo& info);
@@ -125,8 +125,8 @@ Napi::Value NodeClient::streamId(const Napi::CallbackInfo& info) {
     }
 }
 
-rtms::DsParameters readDsParams(const Napi::Object& params) {
-    rtms::DsParameters ds_params;
+rtms::DeskshareParams readDsParams(const Napi::Object& params) {
+    rtms::DeskshareParams ds_params;
 
     if (params.Has("contentType") && params.Get("contentType").IsNumber()) {
         ds_params.setContentType(params.Get("contentType").As<Napi::Number>().Int32Value());
@@ -147,7 +147,7 @@ rtms::DsParameters readDsParams(const Napi::Object& params) {
     return ds_params;
 }
 
-Napi::Value NodeClient::setDsParameters(const Napi::CallbackInfo& info)
+Napi::Value NodeClient::setDeskshareParams(const Napi::CallbackInfo& info)
 {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
@@ -156,15 +156,15 @@ Napi::Value NodeClient::setDsParameters(const Napi::CallbackInfo& info)
         return env.Null();
     }
     Napi::Object params = info[0].As<Napi::Object>();
-
     auto ds_params = readDsParams(params);
     
-    client_->setDsParameters(ds_params);
+    client_->setDeskshareParams(ds_params);
+
     return Napi::Boolean::New(env, true);
 }
 
-rtms::AudioParameters readAudioParams(const Napi::Object& params) {
-    rtms::AudioParameters audio_params;
+rtms::AudioParams readAudioParams(const Napi::Object& params) {
+    rtms::AudioParams audio_params;
 
     if (params.Has("contentType") && params.Get("contentType").IsNumber()) {
         audio_params.setContentType(params.Get("contentType").As<Napi::Number>().Int32Value());
@@ -197,7 +197,7 @@ rtms::AudioParameters readAudioParams(const Napi::Object& params) {
     return audio_params;
 }
 
-Napi::Value NodeClient::setAudioParameters(const Napi::CallbackInfo& info)
+Napi::Value NodeClient::setAudioParams(const Napi::CallbackInfo& info)
 {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
@@ -209,14 +209,14 @@ Napi::Value NodeClient::setAudioParameters(const Napi::CallbackInfo& info)
 
     Napi::Object params = info[0].As<Napi::Object>();
     auto audio_params = readAudioParams(params);
-    client_->setAudioParameters(audio_params);
+    client_->setAudioParams(audio_params);
     
     return Napi::Boolean::New(env, true);
 }
 
-rtms::VideoParameters readVideoParams(const Napi::Object& params) {
+rtms::VideoParams readVideoParams(const Napi::Object& params) {
 
-    rtms::VideoParameters video_params;
+    rtms::VideoParams video_params;
 
     if (params.Has("contentType") && params.Get("contentType").IsNumber()) {
         video_params.setContentType(params.Get("contentType").As<Napi::Number>().Int32Value());
@@ -241,7 +241,7 @@ rtms::VideoParameters readVideoParams(const Napi::Object& params) {
     return video_params;
 
 }
-Napi::Value NodeClient::setVideoParameters(const Napi::CallbackInfo& info) {
+Napi::Value NodeClient::setVideoParams(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
@@ -252,7 +252,7 @@ Napi::Value NodeClient::setVideoParameters(const Napi::CallbackInfo& info) {
 
     Napi::Object params = info[0].As<Napi::Object>();
     auto video_params = readVideoParams(params);
-    client_->setVideoParameters(video_params);
+    client_->setVideoParams(video_params);
     
     return Napi::Boolean::New(env, true);
 }
@@ -358,7 +358,7 @@ Napi::Value NodeClient::setOnUserUpdate(const Napi::CallbackInfo& info) {
     return Napi::Boolean::New(env, true);
 }
 
-Napi::Value NodeClient::setOnDsData(const Napi::CallbackInfo& info) {
+Napi::Value NodeClient::setOnDeskshareData(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
@@ -374,10 +374,10 @@ Napi::Value NodeClient::setOnDsData(const Napi::CallbackInfo& info) {
     }
 
     tsfn_ds_data_ = Napi::ThreadSafeFunction::New(
-        env, callback, "DSDataCallback", 0, 1
+        env, callback, "DeskshareDataCallback", 0, 1
     );
 
-    client_->setOnDsData([this](const vector<uint8_t>& data, uint64_t timestamp, const rtms::Metadata& metadata) {
+    client_->setOnDeskshareData([this](const vector<uint8_t>& data, uint64_t timestamp, const rtms::Metadata& metadata) {
         auto callback = [data, timestamp, userName = metadata.userName(), userId = metadata.userId()]
                        (Napi::Env env, Napi::Function jsCallback) {
             Napi::Buffer<uint8_t> buffer = Napi::Buffer<uint8_t>::Copy(env, data.data(), data.size());
@@ -926,7 +926,7 @@ Napi::Value globalSetOnDsData(const Napi::CallbackInfo& info) {
         env, callback, "GlobalDSDataCallback", 0, 1
     );
 
-    global_client->setOnDsData([](const vector<uint8_t>& data, uint64_t timestamp, const rtms::Metadata& metadata) {
+    global_client->setOnDeskshareData([](const vector<uint8_t>& data, uint64_t timestamp, const rtms::Metadata& metadata) {
         auto callback = [data, timestamp, userName = metadata.userName(), userId = metadata.userId()]
                        (Napi::Env env, Napi::Function jsCallback) {
             Napi::Buffer<uint8_t> buffer = Napi::Buffer<uint8_t>::Copy(env, data.data(), data.size());
@@ -980,7 +980,7 @@ Napi::Value globalSetOnAudioData(const Napi::CallbackInfo& info) {
     return Napi::Boolean::New(env, true);
 }
 
-Napi::Value globalSetDsParameters(const Napi::CallbackInfo& info) {
+Napi::Value globalSetDeskshareParams(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
@@ -993,12 +993,12 @@ Napi::Value globalSetDsParameters(const Napi::CallbackInfo& info) {
     Napi::Object params = info[0].As<Napi::Object>();
 
     auto ds_params = readDsParams(params);
-    global_client->setDsParameters(ds_params);
+    global_client->setDeskshareParams(ds_params);
     
     return Napi::Boolean::New(env, true);
 }
 
-Napi::Value globalSetAudioParameters(const Napi::CallbackInfo& info) {
+Napi::Value globalSetAudioParams(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
@@ -1011,12 +1011,12 @@ Napi::Value globalSetAudioParameters(const Napi::CallbackInfo& info) {
     Napi::Object params = info[0].As<Napi::Object>();
 
     auto audio_params = readAudioParams(params);
-    global_client->setAudioParameters(audio_params);
+    global_client->setAudioParams(audio_params);
     
     return Napi::Boolean::New(env, true);
 }
 
-Napi::Value globalSetVideoParameters(const Napi::CallbackInfo& info) {
+Napi::Value globalSetVideoParams(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
@@ -1029,7 +1029,7 @@ Napi::Value globalSetVideoParameters(const Napi::CallbackInfo& info) {
     Napi::Object params = info[0].As<Napi::Object>();
 
     auto video_params = readVideoParams(params);
-    global_client->setVideoParameters(video_params);
+    global_client->setVideoParams(video_params);
     
     return Napi::Boolean::New(env, true);
 
@@ -1200,13 +1200,13 @@ Napi::Object NodeClient::init(Napi::Env env, Napi::Object exports) {
         InstanceMethod("enableAudio", &NodeClient::enableAudio),
         InstanceMethod("enableVideo", &NodeClient::enableVideo),
         InstanceMethod("enableTranscript", &NodeClient::enableTranscript),
-        InstanceMethod("setDsParameters", &NodeClient::setDsParameters),
-        InstanceMethod("setAudioParameters", &NodeClient::setAudioParameters),
-        InstanceMethod("setVideoParameters", &NodeClient::setVideoParameters),
+        InstanceMethod("setDeskshareParams", &NodeClient::setDeskshareParams),
+        InstanceMethod("setAudioParams", &NodeClient::setAudioParams),
+        InstanceMethod("setVideoParams", &NodeClient::setVideoParams),
         InstanceMethod("onJoinConfirm", &NodeClient::setOnJoinConfirm),
         InstanceMethod("onSessionUpdate", &NodeClient::setOnSessionUpdate),
         InstanceMethod("onUserUpdate", &NodeClient::setOnUserUpdate),
-        InstanceMethod("onDsData", &NodeClient::setOnDsData),
+        InstanceMethod("onDeskshareData", &NodeClient::setOnDeskshareData),
         InstanceMethod("onAudioData", &NodeClient::setOnAudioData),
         InstanceMethod("onVideoData", &NodeClient::setOnVideoData),
         InstanceMethod("onTranscriptData", &NodeClient::setOnTranscriptData),
@@ -1231,9 +1231,9 @@ Napi::Object NodeClient::init(Napi::Env env, Napi::Object exports) {
     exports.Set("onJoinConfirm", Napi::Function::New(env, globalSetOnJoinConfirm));
     exports.Set("onSessionUpdate", Napi::Function::New(env, globalSetOnSessionUpdate));
     exports.Set("onUserUpdate", Napi::Function::New(env, globalSetOnUserUpdate));
-    exports.Set("setDsParameters", Napi::Function::New(env, globalSetDsParameters));
-    exports.Set("setAudioParameters", Napi::Function::New(env, globalSetAudioParameters));
-    exports.Set("setVideoParameters", Napi::Function::New(env, globalSetVideoParameters));
+    exports.Set("setDeskshareParams", Napi::Function::New(env, globalSetDeskshareParams));
+    exports.Set("setAudioParams", Napi::Function::New(env, globalSetAudioParams));
+    exports.Set("setVideoParams", Napi::Function::New(env, globalSetVideoParams));
     exports.Set("onDsData", Napi::Function::New(env, globalSetOnDsData));
     exports.Set("onAudioData", Napi::Function::New(env, globalSetOnAudioData));
     exports.Set("onVideoData", Napi::Function::New(env, globalSetOnVideoData));
