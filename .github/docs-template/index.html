@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTMS API Reference</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📹</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --zoom-blue: #2D8CFF;
+            --zoom-blue-dark: #1a75e8;
+            --zoom-blue-light: #4da3ff;
+            --zoom-gray: #747487;
+            --zoom-gray-light: #f5f5f7;
+            --zoom-white: #ffffff;
+            --zoom-black: #1c1c1e;
+            --border-radius: 8px;
+            --shadow: 0 4px 12px rgba(45, 140, 255, 0.15);
+            --shadow-hover: 0 8px 24px rgba(45, 140, 255, 0.25);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            line-height: 1.6;
+            color: var(--zoom-black);
+            background-color: var(--zoom-white);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--zoom-blue) 0%, var(--zoom-blue-dark) 100%);
+            color: var(--zoom-white);
+            padding: 80px 0;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            pointer-events: none;
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 32px;
+            font-size: 18px;
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: var(--border-radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .header h1 {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 900;
+            margin-bottom: 24px;
+            letter-spacing: -0.02em;
+        }
+
+        .header p {
+            font-size: clamp(1.1rem, 2.5vw, 1.3rem);
+            font-weight: 300;
+            opacity: 0.95;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .main-content {
+            padding: 80px 0;
+        }
+
+        .docs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 32px;
+            margin-bottom: 80px;
+        }
+
+        .docs-card {
+            background: var(--zoom-white);
+            border: 1px solid rgba(45, 140, 255, 0.1);
+            border-radius: 12px;
+            padding: 40px 32px;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        .docs-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--zoom-blue), var(--zoom-blue-light));
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s ease;
+        }
+
+        .docs-card:hover {
+            transform: translateY(-8px);
+            box-shadow: var(--shadow-hover);
+            border-color: var(--zoom-blue);
+        }
+
+        .docs-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .card-icon {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, var(--zoom-blue-light), var(--zoom-blue));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(45, 140, 255, 0.3);
+        }
+
+        .docs-card h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: var(--zoom-black);
+        }
+
+        .docs-card p {
+            color: var(--zoom-gray);
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+
+        .samples-section {
+            margin-bottom: 60px;
+        }
+
+        .samples-section h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 32px;
+            color: var(--zoom-black);
+            text-align: center;
+        }
+
+        .samples-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .sample-card {
+            background: var(--zoom-white);
+            border: 1px solid rgba(45, 140, 255, 0.1);
+            border-radius: var(--border-radius);
+            padding: 24px;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .sample-card:hover {
+            border-color: var(--zoom-blue);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .sample-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--zoom-blue-light), var(--zoom-blue));
+            border-radius: var(--border-radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .sample-content h4 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+            color: var(--zoom-black);
+        }
+
+        .sample-content p {
+            color: var(--zoom-gray);
+            font-size: 0.9rem;
+            margin: 0;
+        }
+
+        .resources-section h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 32px;
+            color: var(--zoom-black);
+            text-align: center;
+        }
+
+        .resources-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            margin-bottom: 60px;
+        }
+
+        .resource-link {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 20px 24px;
+            background: var(--zoom-white);
+            border: 1px solid rgba(45, 140, 255, 0.1);
+            border-radius: var(--border-radius);
+            text-decoration: none;
+            color: var(--zoom-black);
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .resource-link:hover {
+            background: var(--zoom-blue);
+            color: var(--zoom-white);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .resource-icon {
+            font-size: 20px;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 40px 0;
+            color: var(--zoom-gray);
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(45, 140, 255, 0.1);
+        }
+
+        .build-info {
+            background: var(--zoom-gray-light);
+            padding: 16px;
+            border-radius: var(--border-radius);
+            margin-top: 20px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 16px;
+            }
+
+            .header {
+                padding: 60px 0;
+            }
+
+            .main-content {
+                padding: 60px 0;
+            }
+
+            .docs-grid {
+                grid-template-columns: 1fr;
+                gap: 24px;
+            }
+
+            .docs-card {
+                padding: 32px 24px;
+            }
+
+            .samples-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+        }
+
+        /* Loading animation */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .docs-card {
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        .docs-card:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        /* Accessibility improvements */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* High contrast mode support */
+        @media (prefers-contrast: high) {
+            :root {
+                --zoom-blue: #0066cc;
+                --zoom-gray: #333333;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <div class="logo-icon">📹</div>
+                    <span>Zoom Developer Platform</span>
+                </div>
+                <h1>RTMS API Reference</h1>
+                <p>Real-time Media Streams SDK for accessing live audio, video, and transcript data from Zoom meetings</p>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            <section class="docs-grid">
+                <a href="./js/" class="docs-card" role="button" aria-label="JavaScript and TypeScript Documentation">
+                    <div class="card-icon">📘</div>
+                    <h3>JavaScript & TypeScript</h3>
+                    <p>Complete API reference for Node.js and TypeScript developers with comprehensive examples, type definitions, and integration guides for real-time media processing.</p>
+                </a>
+
+                <a href="./python/" class="docs-card" role="button" aria-label="Python Documentation">
+                    <div class="card-icon">🐍</div>
+                    <h3>Python</h3>
+                    <p>Python bindings documentation featuring usage examples, API reference, and detailed implementation guides for seamless integration with your Python applications.</p>
+                </a>
+            </section>
+
+<!--             <section class="samples-section">
+                <h2>Sample Applications</h2>
+                <div class="samples-grid">
+                    <a href="https://github.com/zoom/rtms-audio-example" class="sample-card" target="_blank" rel="noopener">
+                        <div class="sample-icon">🎵</div>
+                        <div class="sample-content">
+                            <h4>Real-time Audio Processor</h4>
+                            <p>Process live audio streams with custom filters and effects</p>
+                        </div>
+                    </a>
+                    
+                    <a href="https://github.com/zoom/rtms-video-analytics" class="sample-card" target="_blank" rel="noopener">
+                        <div class="sample-icon">📊</div>
+                        <div class="sample-content">
+                            <h4>Video Analytics Dashboard</h4>
+                            <p>Analyze video streams and generate meeting insights</p>
+                        </div>
+                    </a>
+                    
+                    <a href="https://github.com/zoom/rtms-transcription" class="sample-card" target="_blank" rel="noopener">
+                        <div class="sample-icon">📝</div>
+                        <div class="sample-content">
+                            <h4>Live Transcription Service</h4>
+                            <p>Real-time speech-to-text with custom vocabulary</p>
+                        </div>
+                    </a>
+                    
+                    <a href="https://github.com/zoom/rtms-meeting-bot" class="sample-card" target="_blank" rel="noopener">
+                        <div class="sample-icon">🤖</div>
+                        <div class="sample-content">
+                            <h4>Meeting Bot Framework</h4>
+                            <p>Build intelligent bots that can join and interact in meetings</p>
+                        </div>
+                    </a>
+                </div>
+            </section> -->
+
+            <section class="resources-section">
+                <h2>Developer Resources</h2>
+                <div class="resources-grid">
+                    <a href="https://github.com/zoom/rtms" class="resource-link" target="_blank" rel="noopener">
+                        <span class="resource-icon">📦</span>
+                        <span>GitHub Repository</span>
+                    </a>
+                    <a href="https://github.com/zoom/rtms/issues" class="resource-link" target="_blank" rel="noopener">
+                        <span class="resource-icon">🐛</span>
+                        <span>Issue Tracker</span>
+                    </a>
+                    <a href="https://developers.zoom.us/" class="resource-link" target="_blank" rel="noopener">
+                        <span class="resource-icon">🌐</span>
+                        <span>Zoom Developer Platform</span>
+                    </a>
+                    <a href="https://marketplace.zoom.us/" class="resource-link" target="_blank" rel="noopener">
+                        <span class="resource-icon">🏪</span>
+                        <span>Zoom App Marketplace</span>
+                    </a>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>© 2025 Zoom Video Communications, Inc. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Add loading states and error handling for documentation links
+        document.querySelectorAll('.docs-card').forEach(card => {
+            card.addEventListener('click', function(e) {
+                if (!document.querySelector(this.getAttribute('href') + '/index.html')) {
+                    console.warn('Documentation not found:', this.getAttribute('href'));
+                }
+            });
+        });
+    </script>
+</body>
+</html>

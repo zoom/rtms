@@ -234,7 +234,7 @@ export interface VideoParams {
  * 
  * @category Media Configuration
  */
-export interface DsParams {
+export interface DeskshareParams {
   /** The type of deskshare content */
   contentType?: number;
   /** The deskshare codec to use */
@@ -345,7 +345,7 @@ export type UserUpdateCallback = (op: number, participantInfo: ParticipantInfo) 
  * 
  * @category Callback Types
  */
-export type DsDataCallback = (buffer: Buffer, size: number, timestamp: number, metadata: Metadata) => void;
+export type DeskDataCallback = (buffer: Buffer, size: number, timestamp: number, metadata: Metadata) => void;
 
 /**
  * Callback function for receiving audio data
@@ -599,7 +599,7 @@ export class Client {
    * @param params Deskshare parameter configuration
    * @returns true if the operation succeeds
    */
-    setDeskshareParams(params: DsParams): boolean;
+    setDeskshareParams(params: DeskshareParams): boolean;
   
   /**
    * Sets a callback for join confirmation events
@@ -685,7 +685,7 @@ export class Client {
    * });
    * ```
    */
-  onDsData(callback: DsDataCallback): boolean;
+  onDeskshareData(callback: DeskshareDataCallback): boolean;
   
 
   /**

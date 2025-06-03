@@ -30,7 +30,13 @@ services:
       args:
         TARGET: js
     command: npm run prebuild
-  test-js:
+  py: &py
+    <<: *base
+    build:
+      args:
+        TARGET: py
+    command: npm run build:py
+      test-js:
     <<: *base
     build:
       args:
@@ -41,12 +47,6 @@ services:
     command: npm run test:js-manual
     ports:
       - 8080:8080
-  py: &py
-    <<: *base
-    build:
-      args:
-        TARGET: py
-    command: npm run build:py
   test-py:
     <<: *base
     build:
@@ -58,19 +58,32 @@ services:
     command: npm run test:py-manual
     ports:
       - 8080:8081
-  go: &go
+  docs-js:
+      <<: *base
+      build:
+        args:
+          TARGET: js
+      command: npm run docs:js
+      volumes:
+        - .:/tmp/rtms
+        - ./docs:/tmp/rtms/docs
+
+  docs-py:
     <<: *base
     build:
       args:
-        TARGET: go
-  test-go:
+        TARGET: py
+    command: npm run docs:py
+    volumes:
+      - .:/tmp/rtms
+      - ./docs:/tmp/rtms/docs
+
+  docs-all:
     <<: *base
     build:
       args:
-        TARGET: go
-    depends_on:
-      go:
-        condition: service_completed_successfully
-    command: npm run test:go-manual
-    ports:
-      - 8080:8082
+        TARGET: all
+    command: npm run docs
+    volumes:
+      - .:/tmp/rtms
+      - ./docs:/tmp/rtms/docs

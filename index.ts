@@ -7,7 +7,7 @@ import { IncomingMessage, Server, ServerResponse } from 'http';
 
 import type { 
   JoinParams, SignatureParams, WebhookCallback, 
-  VideoParams as VideoParams, AudioParams as AudioParams, DsParams as DsParams 
+  VideoParams, AudioParams, DeskshareParams
 } from "./rtms.d.ts";
 
 const require = createRequire(import.meta.url);
@@ -626,8 +626,8 @@ class Client extends nativeRtms.Client {
   /** 
   * Sets deskshare parameters for the client
   */
- setDeskshareParams(params: DsParams): boolean {
-   return setParameters<DsParams>(
+ setDeskshareParams(params: DeskshareParams): boolean {
+   return setParameters<DeskshareParams>(
      'client',
      'deskshare',
      params,
@@ -824,8 +824,8 @@ function setVideoParams(params: VideoParams): boolean {
   )
 }
   
-  function setDeskshareParams(params: DsParams): boolean {
-    return setParameters<DsParams>(
+  function setDeskshareParams(params: DeskshareParams): boolean {
+    return setParameters<DeskshareParams>(
       'global',
       'deskshare',
       params,

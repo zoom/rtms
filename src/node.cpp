@@ -923,7 +923,7 @@ Napi::Value globalSetOnDsData(const Napi::CallbackInfo& info) {
     }
 
     global_tsfn_ds_data = Napi::ThreadSafeFunction::New(
-        env, callback, "GlobalDSDataCallback", 0, 1
+        env, callback, "GlobalDeskshareDataCallback", 0, 1
     );
 
     global_client->setOnDeskshareData([](const vector<uint8_t>& data, uint64_t timestamp, const rtms::Metadata& metadata) {
