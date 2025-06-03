@@ -16,6 +16,7 @@ unique_ptr<rtms::Client> global_client = nullptr;
 Napi::ThreadSafeFunction global_tsfn_join_confirm;
 Napi::ThreadSafeFunction global_tsfn_session_update;
 Napi::ThreadSafeFunction global_tsfn_user_update;
+Napi::ThreadSafeFunction global_tsfn_ds_data;
 Napi::ThreadSafeFunction global_tsfn_audio_data;
 Napi::ThreadSafeFunction global_tsfn_video_data;
 Napi::ThreadSafeFunction global_tsfn_transcript_data;
@@ -48,12 +49,14 @@ private:
     Napi::Value enableAudio(const Napi::CallbackInfo& info);
     Napi::Value enableTranscript(const Napi::CallbackInfo& info);
 
+    Napi::Value setDsParameters(const Napi::CallbackInfo& info);
     Napi::Value setAudioParameters(const Napi::CallbackInfo& info);
     Napi::Value setVideoParameters(const Napi::CallbackInfo& info);
 
     Napi::Value setOnJoinConfirm(const Napi::CallbackInfo& info);
     Napi::Value setOnSessionUpdate(const Napi::CallbackInfo& info);
     Napi::Value setOnUserUpdate(const Napi::CallbackInfo& info);
+    Napi::Value setOnDsData(const Napi::CallbackInfo& info);
     Napi::Value setOnAudioData(const Napi::CallbackInfo& info);
     Napi::Value setOnVideoData(const Napi::CallbackInfo& info);
     Napi::Value setOnTranscriptData(const Napi::CallbackInfo& info);
@@ -63,6 +66,7 @@ private:
     Napi::ThreadSafeFunction tsfn_join_confirm_;
     Napi::ThreadSafeFunction tsfn_session_update_;
     Napi::ThreadSafeFunction tsfn_user_update_;
+    Napi::ThreadSafeFunction tsfn_ds_data_;
     Napi::ThreadSafeFunction tsfn_audio_data_;
     Napi::ThreadSafeFunction tsfn_video_data_;
     Napi::ThreadSafeFunction tsfn_transcript_data_;
@@ -121,16 +125,45 @@ Napi::Value NodeClient::streamId(const Napi::CallbackInfo& info) {
     }
 }
 
-Napi::Value NodeClient::setAudioParameters(const Napi::CallbackInfo& info) {
+rtms::DsParameters readDsParams(const Napi::Object& params) {
+    rtms::DsParameters ds_params;
+
+    if (params.Has("contentType") && params.Get("contentType").IsNumber()) {
+        ds_params.setContentType(params.Get("contentType").As<Napi::Number>().Int32Value());
+    }
+    
+    if (params.Has("codec") && params.Get("codec").IsNumber()) {
+        ds_params.setCodec(params.Get("codec").As<Napi::Number>().Int32Value());
+    }
+    
+    if (params.Has("resolution") && params.Get("resolution").IsNumber()) {
+        ds_params.setResolution(params.Get("resolution").As<Napi::Number>().Int32Value());
+    }
+
+    if (params.Has("fps") && params.Get("fps").IsNumber()) {
+        ds_params.setFps(params.Get("fps").As<Napi::Number>().Int32Value());
+    }
+    
+    return ds_params;
+}
+
+Napi::Value NodeClient::setDsParameters(const Napi::CallbackInfo& info)
+{
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
-
     if (info.Length() < 1 || !info[0].IsObject()) {
         Napi::TypeError::New(env, "Object argument expected").ThrowAsJavaScriptException();
         return env.Null();
     }
-
     Napi::Object params = info[0].As<Napi::Object>();
+
+    auto ds_params = readDsParams(params);
+    
+    client_->setDsParameters(ds_params);
+    return Napi::Boolean::New(env, true);
+}
+
+rtms::AudioParameters readAudioParams(const Napi::Object& params) {
     rtms::AudioParameters audio_params;
 
     if (params.Has("contentType") && params.Get("contentType").IsNumber()) {
@@ -161,12 +194,11 @@ Napi::Value NodeClient::setAudioParameters(const Napi::CallbackInfo& info) {
         audio_params.setFrameSize(params.Get("frameSize").As<Napi::Number>().Int32Value());
     }
 
-    client_->setAudioParameters(audio_params);
-    
-    return Napi::Boolean::New(env, true);
+    return audio_params;
 }
 
-Napi::Value NodeClient::setVideoParameters(const Napi::CallbackInfo& info) {
+Napi::Value NodeClient::setAudioParameters(const Napi::CallbackInfo& info)
+{
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
@@ -176,6 +208,14 @@ Napi::Value NodeClient::setVideoParameters(const Napi::CallbackInfo& info) {
     }
 
     Napi::Object params = info[0].As<Napi::Object>();
+    auto audio_params = readAudioParams(params);
+    client_->setAudioParameters(audio_params);
+    
+    return Napi::Boolean::New(env, true);
+}
+
+rtms::VideoParameters readVideoParams(const Napi::Object& params) {
+
     rtms::VideoParameters video_params;
 
     if (params.Has("contentType") && params.Get("contentType").IsNumber()) {
@@ -198,6 +238,20 @@ Napi::Value NodeClient::setVideoParameters(const Napi::CallbackInfo& info) {
         video_params.setFps(params.Get("fps").As<Napi::Number>().Int32Value());
     }
 
+    return video_params;
+
+}
+Napi::Value NodeClient::setVideoParameters(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::HandleScope scope(env);
+
+    if (info.Length() < 1 || !info[0].IsObject()) {
+        Napi::TypeError::New(env, "Object argument expected").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    Napi::Object params = info[0].As<Napi::Object>();
+    auto video_params = readVideoParams(params);
     client_->setVideoParameters(video_params);
     
     return Napi::Boolean::New(env, true);
@@ -303,7 +357,42 @@ Napi::Value NodeClient::setOnUserUpdate(const Napi::CallbackInfo& info) {
 
     return Napi::Boolean::New(env, true);
 }
-// Inside NodeClient class implementation in node.cpp
+
+Napi::Value NodeClient::setOnDsData(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::HandleScope scope(env);
+
+    if (info.Length() < 1 || !info[0].IsFunction()) {
+        Napi::TypeError::New(env, "Function argument expected").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    Napi::Function callback = info[0].As<Napi::Function>();
+    
+    if (tsfn_ds_data_) {
+        tsfn_ds_data_.Release();
+    }
+
+    tsfn_ds_data_ = Napi::ThreadSafeFunction::New(
+        env, callback, "DSDataCallback", 0, 1
+    );
+
+    client_->setOnDsData([this](const vector<uint8_t>& data, uint64_t timestamp, const rtms::Metadata& metadata) {
+        auto callback = [data, timestamp, userName = metadata.userName(), userId = metadata.userId()]
+                       (Napi::Env env, Napi::Function jsCallback) {
+            Napi::Buffer<uint8_t> buffer = Napi::Buffer<uint8_t>::Copy(env, data.data(), data.size());
+            
+            Napi::Object metadataObj = Napi::Object::New(env);
+            metadataObj.Set("userName", Napi::String::New(env, userName));
+            metadataObj.Set("userId", Napi::Number::New(env, userId));
+
+            jsCallback.Call({buffer, Napi::Number::New(env, data.size()), Napi::Number::New(env, timestamp), metadataObj});
+        };
+        tsfn_ds_data_.BlockingCall(callback);
+    });
+
+    return Napi::Boolean::New(env, true);
+}
 
 Napi::Value NodeClient::setOnAudioData(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
@@ -324,7 +413,7 @@ Napi::Value NodeClient::setOnAudioData(const Napi::CallbackInfo& info) {
         env, callback, "AudioDataCallback", 0, 1
     );
 
-    client_->setOnAudioData([this](const vector<uint8_t>& data, uint32_t timestamp, const rtms::Metadata& metadata) {
+    client_->setOnAudioData([this](const vector<uint8_t>& data, uint64_t timestamp, const rtms::Metadata& metadata) {
         auto callback = [data, timestamp, userName = metadata.userName(), userId = metadata.userId()]
                        (Napi::Env env, Napi::Function jsCallback) {
             Napi::Buffer<uint8_t> buffer = Napi::Buffer<uint8_t>::Copy(env, data.data(), data.size());
@@ -360,7 +449,7 @@ Napi::Value NodeClient::setOnVideoData(const Napi::CallbackInfo& info) {
         env, callback, "VideoDataCallback", 0, 1
     );
 
-    client_->setOnVideoData([this](const vector<uint8_t>& data, uint32_t timestamp, const rtms::Metadata& metadata) {
+    client_->setOnVideoData([this](const vector<uint8_t>& data, uint64_t timestamp, const rtms::Metadata& metadata) {
         auto callback = [data, timestamp, userName = metadata.userName(), userId = metadata.userId()]
                        (Napi::Env env, Napi::Function jsCallback) {
             Napi::Buffer<uint8_t> buffer = Napi::Buffer<uint8_t>::Copy(env, data.data(), data.size());
@@ -396,7 +485,7 @@ Napi::Value NodeClient::setOnTranscriptData(const Napi::CallbackInfo& info) {
         env, callback, "TranscriptDataCallback", 0, 1
     );
 
-    client_->setOnTranscriptData([this](const vector<uint8_t>& data, uint32_t timestamp, const rtms::Metadata& metadata) {
+    client_->setOnTranscriptData([this](const vector<uint8_t>& data, uint64_t timestamp, const rtms::Metadata& metadata) {
         auto callback = [data, timestamp, userName = metadata.userName(), userId = metadata.userId()]
                        (Napi::Env env, Napi::Function jsCallback) {
             Napi::Buffer<uint8_t> buffer = Napi::Buffer<uint8_t>::Copy(env, data.data(), data.size());
@@ -817,6 +906,43 @@ Napi::Value globalSetOnUserUpdate(const Napi::CallbackInfo& info) {
     return Napi::Boolean::New(env, true);
 }
 
+Napi::Value globalSetOnDsData(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::HandleScope scope(env);
+
+    if (info.Length() < 1 || !info[0].IsFunction()) {
+        Napi::TypeError::New(env, "Function argument expected").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    ensure_global_client();
+    Napi::Function callback = info[0].As<Napi::Function>();
+    
+    if (global_tsfn_ds_data) {
+        global_tsfn_ds_data.Release();
+    }
+
+    global_tsfn_ds_data = Napi::ThreadSafeFunction::New(
+        env, callback, "GlobalDSDataCallback", 0, 1
+    );
+
+    global_client->setOnDsData([](const vector<uint8_t>& data, uint64_t timestamp, const rtms::Metadata& metadata) {
+        auto callback = [data, timestamp, userName = metadata.userName(), userId = metadata.userId()]
+                       (Napi::Env env, Napi::Function jsCallback) {
+            Napi::Buffer<uint8_t> buffer = Napi::Buffer<uint8_t>::Copy(env, data.data(), data.size());
+            
+            Napi::Object metadataObj = Napi::Object::New(env);
+            metadataObj.Set("userName", Napi::String::New(env, userName));
+            metadataObj.Set("userId", Napi::Number::New(env, userId));
+
+            jsCallback.Call({buffer, Napi::Number::New(env, data.size()), Napi::Number::New(env, timestamp), metadataObj});
+        };
+        global_tsfn_ds_data.BlockingCall(callback);
+    });
+
+    return Napi::Boolean::New(env, true);
+}
+
 Napi::Value globalSetOnAudioData(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
@@ -837,7 +963,7 @@ Napi::Value globalSetOnAudioData(const Napi::CallbackInfo& info) {
         env, callback, "GlobalAudioDataCallback", 0, 1
     );
 
-    global_client->setOnAudioData([](const vector<uint8_t>& data, uint32_t timestamp, const rtms::Metadata& metadata) {
+    global_client->setOnAudioData([](const vector<uint8_t>& data, uint64_t timestamp, const rtms::Metadata& metadata) {
         auto callback = [data, timestamp, userName = metadata.userName(), userId = metadata.userId()]
                        (Napi::Env env, Napi::Function jsCallback) {
             Napi::Buffer<uint8_t> buffer = Napi::Buffer<uint8_t>::Copy(env, data.data(), data.size());
@@ -852,6 +978,61 @@ Napi::Value globalSetOnAudioData(const Napi::CallbackInfo& info) {
     });
 
     return Napi::Boolean::New(env, true);
+}
+
+Napi::Value globalSetDsParameters(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::HandleScope scope(env);
+
+    if (info.Length() < 1 || !info[0].IsObject()) {
+        Napi::TypeError::New(env, "Object argument expected").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    ensure_global_client();
+    Napi::Object params = info[0].As<Napi::Object>();
+
+    auto ds_params = readDsParams(params);
+    global_client->setDsParameters(ds_params);
+    
+    return Napi::Boolean::New(env, true);
+}
+
+Napi::Value globalSetAudioParameters(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::HandleScope scope(env);
+
+    if (info.Length() < 1 || !info[0].IsObject()) {
+        Napi::TypeError::New(env, "Object argument expected").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    ensure_global_client();
+    Napi::Object params = info[0].As<Napi::Object>();
+
+    auto audio_params = readAudioParams(params);
+    global_client->setAudioParameters(audio_params);
+    
+    return Napi::Boolean::New(env, true);
+}
+
+Napi::Value globalSetVideoParameters(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::HandleScope scope(env);
+
+    if (info.Length() < 1 || !info[0].IsObject()) {
+        Napi::TypeError::New(env, "Object argument expected").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    ensure_global_client();
+    Napi::Object params = info[0].As<Napi::Object>();
+
+    auto video_params = readVideoParams(params);
+    global_client->setVideoParameters(video_params);
+    
+    return Napi::Boolean::New(env, true);
+
 }
 
 Napi::Value globalSetOnVideoData(const Napi::CallbackInfo& info) {
@@ -874,7 +1055,7 @@ Napi::Value globalSetOnVideoData(const Napi::CallbackInfo& info) {
         env, callback, "GlobalVideoDataCallback", 0, 1
     );
 
-    global_client->setOnVideoData([](const vector<uint8_t>& data, uint32_t timestamp, const rtms::Metadata& metadata) {
+    global_client->setOnVideoData([](const vector<uint8_t>& data, uint64_t timestamp, const rtms::Metadata& metadata) {
         auto callback = [data, timestamp, userName = metadata.userName(), userId = metadata.userId()]
                        (Napi::Env env, Napi::Function jsCallback) {
             Napi::Buffer<uint8_t> buffer = Napi::Buffer<uint8_t>::Copy(env, data.data(), data.size());
@@ -911,7 +1092,7 @@ Napi::Value globalSetOnTranscriptData(const Napi::CallbackInfo& info) {
         env, callback, "GlobalTranscriptDataCallback", 0, 1
     );
 
-    global_client->setOnTranscriptData([](const vector<uint8_t>& data, uint32_t timestamp, const rtms::Metadata& metadata) {
+    global_client->setOnTranscriptData([](const vector<uint8_t>& data, uint64_t timestamp, const rtms::Metadata& metadata) {
         auto callback = [data, timestamp, userName = metadata.userName(), userId = metadata.userId()]
                        (Napi::Env env, Napi::Function jsCallback) {
             Napi::Buffer<uint8_t> buffer = Napi::Buffer<uint8_t>::Copy(env, data.data(), data.size());
@@ -1019,11 +1200,13 @@ Napi::Object NodeClient::init(Napi::Env env, Napi::Object exports) {
         InstanceMethod("enableAudio", &NodeClient::enableAudio),
         InstanceMethod("enableVideo", &NodeClient::enableVideo),
         InstanceMethod("enableTranscript", &NodeClient::enableTranscript),
+        InstanceMethod("setDsParameters", &NodeClient::setDsParameters),
         InstanceMethod("setAudioParameters", &NodeClient::setAudioParameters),
         InstanceMethod("setVideoParameters", &NodeClient::setVideoParameters),
         InstanceMethod("onJoinConfirm", &NodeClient::setOnJoinConfirm),
         InstanceMethod("onSessionUpdate", &NodeClient::setOnSessionUpdate),
         InstanceMethod("onUserUpdate", &NodeClient::setOnUserUpdate),
+        InstanceMethod("onDsData", &NodeClient::setOnDsData),
         InstanceMethod("onAudioData", &NodeClient::setOnAudioData),
         InstanceMethod("onVideoData", &NodeClient::setOnVideoData),
         InstanceMethod("onTranscriptData", &NodeClient::setOnTranscriptData),
@@ -1048,6 +1231,10 @@ Napi::Object NodeClient::init(Napi::Env env, Napi::Object exports) {
     exports.Set("onJoinConfirm", Napi::Function::New(env, globalSetOnJoinConfirm));
     exports.Set("onSessionUpdate", Napi::Function::New(env, globalSetOnSessionUpdate));
     exports.Set("onUserUpdate", Napi::Function::New(env, globalSetOnUserUpdate));
+    exports.Set("setDsParameters", Napi::Function::New(env, globalSetDsParameters));
+    exports.Set("setAudioParameters", Napi::Function::New(env, globalSetAudioParameters));
+    exports.Set("setVideoParameters", Napi::Function::New(env, globalSetVideoParameters));
+    exports.Set("onDsData", Napi::Function::New(env, globalSetOnDsData));
     exports.Set("onAudioData", Napi::Function::New(env, globalSetOnAudioData));
     exports.Set("onVideoData", Napi::Function::New(env, globalSetOnVideoData));
     exports.Set("onTranscriptData", Napi::Function::New(env, globalSetOnTranscriptData));

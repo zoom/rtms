@@ -229,6 +229,23 @@ export interface VideoParameters {
   fps?: number;
 }
 
+/**
+ * Configuration parameters for video streams
+ * 
+ * @category Media Configuration
+ */
+export interface DsParameters {
+  /** The type of deskshare content */
+  contentType?: number;
+  /** The deskshare codec to use */
+  codec?: number;
+  /** The deskshare resolution */
+  resolution?: number;
+  /** The video frame rate (frames per second) */
+  fps?: number;
+}
+
+
 //-----------------------------------------------------------------------------------
 // Parameter interfaces
 //-----------------------------------------------------------------------------------
@@ -316,6 +333,19 @@ export type SessionUpdateCallback = (op: number, sessionInfo: SessionInfo) => vo
  * @category Callback Types
  */
 export type UserUpdateCallback = (op: number, participantInfo: ParticipantInfo) => void;
+
+
+/**
+ * Callback function for receiving deskshare data
+ * 
+ * @param buffer The raw deskshare data buffer
+ * @param size The size of the deskshare data in bytes
+ * @param timestamp The timestamp of the deskshare data
+ * @param metadata Metadata about the participant who sent the audio
+ * 
+ * @category Callback Types
+ */
+export type DsDataCallback = (buffer: Buffer, size: number, timestamp: number, metadata: Metadata) => void;
 
 /**
  * Callback function for receiving audio data
@@ -559,6 +589,17 @@ export class Client {
    * @returns true if the operation succeeds
    */
   setVideoParameters(params: VideoParameters): boolean;
+
+
+    /**
+   * Sets deskshare parameters for the client
+   * 
+   * This method configures deskshare video processing parameters.
+   * 
+   * @param params Deskshare parameter configuration
+   * @returns true if the operation succeeds
+   */
+    setDsParameters(params: DsParameters): boolean;
   
   /**
    * Sets a callback for join confirmation events
@@ -621,6 +662,32 @@ export class Client {
    */
   onUserUpdate(callback: UserUpdateCallback): boolean;
   
+
+  /**
+   * Sets a callback for receiving deskshare data
+   * 
+   * This callback is triggered when data is received from the meeting.
+   * It provides the raw audio data buffer and metadata about the sender.
+   * 
+   * @param callback The callback function to invoke
+   * @returns true if the callback was set successfully
+   * 
+   * @example
+   * ```typescript
+   * client.onDsData((buffer, size, timestamp, metadata) => {
+   *   console.log(`Received ${size} bytes of deskshare data from ${metadata.userName}`);
+   *   
+   *   // Process the data
+   *   // buffer - Raw deskshare data (Buffer)
+   *   // size - Size of the deskshare data in bytes
+   *   // timestamp - Timestamp of the deskshare data
+   *   // metadata - Information about the sender
+   * });
+   * ```
+   */
+  onDsData(callback: DsDataCallback): boolean;
+  
+
   /**
    * Sets a callback for receiving audio data
    * 

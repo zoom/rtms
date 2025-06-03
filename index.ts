@@ -5,7 +5,10 @@ import { createHmac } from 'crypto';
 import { createRequire } from 'module';
 import { IncomingMessage, Server, ServerResponse } from 'http';
 
-import type { JoinParams, SignatureParams, WebhookCallback, VideoParameters, AudioParameters } from "./rtms.d.ts";
+import type { 
+  JoinParams, SignatureParams, WebhookCallback, 
+  VideoParameters, AudioParameters, DsParameters 
+} from "./rtms.d.ts";
 
 const require = createRequire(import.meta.url);
 const nativeRtms = require('bindings')('rtms');
@@ -488,7 +491,7 @@ export function onWebhookEvent(callback: WebhookCallback): void {
  * 
  * @param context Context identifier for logging (client/global)
  * @param operation Function name for parameter setting 
- * @param type Parameter type (audio/video)
+ * @param type Parameter type (audio/video/deskshare)
  * @param params Parameter object to pass to the operation
  * @param operation Function to call with the parameters
  * @returns Result of the operation
@@ -619,6 +622,18 @@ class Client extends nativeRtms.Client {
       (p) => super.setVideoParameters(p)
     );
   }
+
+  /** 
+  * Sets deskshare parameters for the client
+  */
+ setDsParameters(params: DsParameters): boolean {
+   return setParameters<DsParameters>(
+     'client',
+     'deskshare',
+     params,
+     (p) => super.setDsParameters(p)
+   );
+ }
   
   /**
    * Start background polling for events
@@ -806,8 +821,18 @@ function setVideoParameters(params: VideoParameters): boolean {
     'video',
     params,
     (p) => nativeRtms.setVideoParameters(p)
-  );
+  )
 }
+  
+  function setDsParameters(params: DsParameters): boolean {
+    return setParameters<DsParameters>(
+      'global',
+      'deskshare',
+      params,
+      (p) => nativeRtms.setDsParameters(p)
+    );
+  }
+
 
 /**
  * Leave the current session and clean up global client resources
@@ -880,6 +905,7 @@ export default {
   // Global singleton API
   join,
   leave,
+  setDsParameters,
   setAudioParameters,
   setVideoParameters,
   poll: nativeRtms.poll,
@@ -888,6 +914,7 @@ export default {
   onJoinConfirm: nativeRtms.onJoinConfirm,
   onSessionUpdate: nativeRtms.onSessionUpdate,
   onUserUpdate: nativeRtms.onUserUpdate,
+  onDsData: nativeRtms.onDsData,
   onAudioData: nativeRtms.onAudioData,
   onVideoData: nativeRtms.onVideoData,
   onTranscriptData: nativeRtms.onTranscriptData,

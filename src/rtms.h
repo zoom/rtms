@@ -80,6 +80,23 @@ protected:
     int data_opt_;
 };
 
+class DsParameters : public BaseMediaParameters {
+public:
+        DsParameters();
+        DsParameters(int content_type, int codec, int resolution, int fps);
+        void setResolution(int resolution);
+        void setFps(int fps);
+        int resolution() const;
+        int fps() const;
+
+        ds_parameters toNative() const;
+
+private:
+        int resolution_;
+        int fps_;
+};
+
+
 class AudioParameters : public BaseMediaParameters {
 public:
     AudioParameters();
@@ -137,22 +154,32 @@ class MediaParameters {
                 } else {
                     video_params_.reset();
                 }
+
+                if (other.hasDsParameters()) {
+                    ds_params_ = std::make_unique<DsParameters>(other.dsParameters());
+                } else {
+                    ds_params_.reset();
+                }
             }
             return *this;
         }
         
+        void setDsParameters(const DsParameters& ds_params);
         void setAudioParameters(const AudioParameters& audio_params);
         void setVideoParameters(const VideoParameters& video_params);
         
+        const DsParameters& dsParameters() const;
         const AudioParameters& audioParameters() const;
         const VideoParameters& videoParameters() const;
         
+        bool hasDsParameters() const;
         bool hasAudioParameters() const;
         bool hasVideoParameters() const;
         
         media_parameters toNative() const;
     
     private:
+        std::unique_ptr<DsParameters> ds_params_;
         std::unique_ptr<AudioParameters> audio_params_;
         std::unique_ptr<VideoParameters> video_params_;
     };
@@ -163,9 +190,10 @@ public:
     using JoinConfirmFn = function<void(int)>;
     using SessionUpdateFn = function<void(int, const Session&)>;
     using UserUpdateFn = function<void(int, const Participant&)>;
-    using AudioDataFn = function<void(const vector<uint8_t>&, uint32_t, const Metadata&)>;
-    using VideoDataFn = function<void(const vector<uint8_t>&, uint32_t,  const Metadata&)>;
-    using TranscriptDataFn = function<void(const vector<uint8_t>&, uint32_t, const Metadata&)>;
+    using DsDataFn = function<void(const vector<uint8_t>&, uint64_t,  const Metadata&)>;
+    using AudioDataFn = function<void(const vector<uint8_t>&, uint64_t, const Metadata&)>;
+    using VideoDataFn = function<void(const vector<uint8_t>&, uint64_t,  const Metadata&)>;
+    using TranscriptDataFn = function<void(const vector<uint8_t>&, uint64_t, const Metadata&)>;
     using LeaveFn = function<void(int)>;
 
     // Media type constants
@@ -191,12 +219,14 @@ public:
 
     void setOnJoinConfirm(JoinConfirmFn callback);
     void setOnSessionUpdate(SessionUpdateFn callback);
+    void setOnDsData(DsDataFn callback);
     void setOnUserUpdate(UserUpdateFn callback);
     void setOnAudioData(AudioDataFn callback);
     void setOnVideoData(VideoDataFn callback);
     void setOnTranscriptData(TranscriptDataFn callback);
     void setOnLeave(LeaveFn callback);
 
+    void setDsParameters(const DsParameters& ds_params);
     void setVideoParameters(const VideoParameters& video_params);
     void setAudioParameters(const AudioParameters& audio_params);
 
@@ -222,6 +252,7 @@ private:
     JoinConfirmFn join_confirm_callback_;
     SessionUpdateFn session_update_callback_;
     UserUpdateFn user_update_callback_;
+    DsDataFn ds_data_callback_;
     AudioDataFn audio_data_callback_;
     VideoDataFn video_data_callback_;
     TranscriptDataFn transcript_data_callback_;
@@ -230,9 +261,10 @@ private:
     static void handleJoinConfirm(struct rtms_csdk* sdk, int reason);
     static void handleSessionUpdate(struct rtms_csdk* sdk, int op, struct session_info* sess);
     static void handleUserUpdate(struct rtms_csdk* sdk, int op, struct participant_info* pi);
-    static void handleAudioData(struct rtms_csdk* sdk, unsigned char* buf, int size, unsigned int timestamp, struct rtms_metadata* md);
-    static void handleVideoData(struct rtms_csdk* sdk, unsigned char* buf, int size, unsigned int timestamp, struct rtms_metadata* md);
-    static void handleTranscriptData(struct rtms_csdk* sdk, unsigned char* buf, int size, unsigned int timestamp, struct rtms_metadata* md);
+    static void handleDsData(struct rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, struct rtms_metadata* md);
+    static void handleAudioData(struct rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, struct rtms_metadata* md);
+    static void handleVideoData(struct rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, struct rtms_metadata* md);
+    static void handleTranscriptData(struct rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, struct rtms_metadata* md);
     static void handleLeave(struct rtms_csdk* sdk, int reason);
 
     static unordered_map<struct rtms_csdk*, Client*> sdk_registry_;
