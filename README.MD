@@ -2,11 +2,6 @@
 
 Bindings for real-time audio, video, and transcript streams from Zoom Meetings
 
-> [!IMPORTANT]
-> **Confidential under NDA - Do not distribute during developer preview**<br />
-> This document contains confidential information that requires an NDA. It is intended only for partners in the Zoom RTMS developer preview.
-> Participation in the RTMS Developer Preview, including access to and use of these materials, is subject to [Zoom's Beta Program - Terms of Use](https://www.zoom.com/en/trust/beta-terms-and-conditions/).
-
 ## Platform Support Status
 
 | Language | Status | Supported Platforms |
