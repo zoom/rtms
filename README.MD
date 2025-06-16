@@ -2,6 +2,9 @@
 
 Bindings for real-time audio, video, and transcript streams from Zoom Meetings
 
+[![npm](https://img.shields.io/npm/v/@zoom/rtms)](https://www.npmjs.com/package/@zoom/rtms)
+[![docs](https://img.shields.io/badge/docs-online-blue)](https://zoom.github.io/rtms/js/)
+
 ## Platform Support Status
 
 | Language | Status | Supported Platforms |
