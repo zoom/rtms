@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 
+import { checkNpmDeps } from './check-deps.js';
 import { log, run, executeScript } from './utils.js';
 
 const PREFIX = "Docs";
 
-function generateNodeJSDocs() {
+async function generateNodeJSDocs() {
   log(PREFIX, 'Generating Node.js documentation...');
 
+  await checkNpmDeps();
   // a bug forces me to use multiple highlightLanguages options
-  run('npx typedoc rtms.d.ts  --highlightLanguages py --highlightLanguages js --highlightLanguages sh --highlightLanguages ts --plugin typedoc-plugin-missing-exports --out docs/js', PREFIX);
+  run('npx --yes typedoc rtms.d.ts  --highlightLanguages py --highlightLanguages js --highlightLanguages sh --highlightLanguages ts --plugin typedoc-plugin-missing-exports --out docs/js', PREFIX);
 }
 
 function generatePythonDocs() {

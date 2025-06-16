@@ -1,33 +1,11 @@
 #!/usr/bin/env node
-
-import fs from 'fs';
-import { join } from 'path';
-import { execSync } from 'child_process';
-import { getProjectRoot } from './utils.js';  
+import { checkDeps } from './check-deps.js';
 import { setupFrameworks } from './frameworks.js';
-import { log, error, success, run, executeScript, getBuildMode } from './utils.js';
+import { log, run, executeScript, getBuildMode } from './utils.js';
 
 const PREFIX = "Build";
 
-function checkDeps () {
-    // Check for Node.js dependencies
-    if (!fs.existsSync(join(getProjectRoot(), 'node_modules'))) {
-      log(PREFIX, 'node_modules not found, installing dependencies...');
-      try {
-        execSync('npm install', { 
-          stdio: 'inherit', 
-          cwd: getProjectRoot() 
-        });
-  
-        success(PREFIX, 'Dependencies installed successfully');
-      } catch (err) {
-        error(PREFIX, `Failed to install dependencies: ${err.message}`);
-        return false;
-      }
-    }
-}
-
-checkDeps();
+await checkDeps();
 
 function buildNodeJS() {
   log(PREFIX, 'Building Node.js module...');
