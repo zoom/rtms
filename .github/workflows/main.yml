@@ -29,12 +29,8 @@ jobs:
     - name: Test application build and generate docs
       run: docker compose run --rm docs-js
       
-    - name: Setup documentation site structure
+    - name: Debug documentation structure  
       run: |
-        # Copy index.html template to docs root (after docker build)
-        cp .github/docs-template/index.html docs/ || echo "Warning: No index.html template found"
-        
-        # Debug: show what we built
         echo "📁 Documentation structure:"
         ls -la docs/
         
