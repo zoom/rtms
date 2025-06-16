@@ -176,7 +176,7 @@ class MediaParams {
         bool hasAudioParams() const;
         bool hasVideoParams() const;
         
-        media_params toNative() const;
+        media_parameters toNative() const;
     
     private:
         std::unique_ptr<DeskshareParams> ds_params_;

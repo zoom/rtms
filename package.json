@@ -1,18 +1,16 @@
 {
   "name": "@zoom/rtms",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Node.js Wrapper for the Zoom RTMS C SDK",
   "main": "./build/Release/index.js",
   "types": "rtms.d.ts",
   "type": "module",
   "scripts": {
     "install": "node scripts/rtms.js install || node scripts/rtms.js build js",
-
     "// CLI commands": "Use the unified CLI for most operations",
     "rtms": "node scripts/rtms.js",
     "cli": "node scripts/rtms.js",
     "help": "node scripts/rtms.js help",
-
     "// Build commands": "Build the project for different languages and modes",
     "build": "node scripts/rtms.js build all",
     "build:js": "node scripts/rtms.js build js",
@@ -22,7 +20,6 @@
     "build:release": "node scripts/rtms.js build all -- --release",
     "debug": "node scripts/rtms.js mode debug",
     "release": "node scripts/rtms.js mode release",
-
     "// Test commands": "Run tests for different languages",
     "test": "node scripts/rtms.js test all",
     "test:js": "node scripts/rtms.js test js",
@@ -30,12 +27,10 @@
     "test:go": "node scripts/rtms.js test go",
     "test:js-manual": "node scripts/rtms.js test js:manual",
     "test:py-manual": "node scripts/rtms.js test py:manual",
-
     "// Documentation commands": "Generate documentation",
     "docs": "node scripts/rtms.js docs all",
     "docs:js": "node scripts/rtms.js docs js",
     "docs:py": "node scripts/rtms.js docs python",
-    
     "// Utility commands": "Various helper commands",
     "clean": "node scripts/rtms.js clean",
     "setup": "npm install && node scripts/rtms.js build all",
@@ -45,7 +40,9 @@
   },
   "dependencies": {
     "bindings": "^1.5.0",
-    "node-addon-api": "^8.3.0"
+    "node-addon-api": "^8.3.0",
+    "prebuild-install": "^7.1.3",
+    "tar": "^7.4.3"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",

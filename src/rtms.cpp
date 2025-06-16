@@ -274,8 +274,8 @@ bool MediaParams::hasVideoParams() const {
     return video_params_ != nullptr;
 }
 
-media_params MediaParams::toNative() const {
-    media_params params;
+media_parameters MediaParams::toNative() const {
+    media_parameters params;
     memset(&params, 0, sizeof(params));
     params.audio_param = nullptr;
     params.video_param = nullptr;
@@ -353,7 +353,7 @@ void Client::configure(const MediaParams& params, int media_types, bool enable_a
         return;
     }
     
-    media_params native_params = params.toNative();
+    media_parameters native_params = params.toNative();
     
     int result = rtms_config(sdk_, &native_params, media_types, enable_application_layer_encryption ? 1 : 0);
     

@@ -171,7 +171,7 @@ function setBuildMode(mode) {
         setBuildMode(target);
         break;
       case 'install':
-        run(`npx --yes prebuild-install -r napi`, PREFIX);
+        run(`prebuild-install -r napi`, PREFIX);
         setupFrameworks();
         break;
       default:

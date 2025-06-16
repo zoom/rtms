@@ -12,53 +12,6 @@ permissions:
   id-token: write
 
 jobs:
-  # Build and test the JavaScript/Node.js components
-  test-js:
-    name: Build and Test JavaScript
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Docker Setup Compose
-      uses: docker/setup-compose-action@v1.1.0
-      
-    - name: Build JavaScript components
-      run: docker compose up js
-      
-    - name: Run JavaScript tests
-      run: docker compose up test-js
-      
-
-  # Build and test Python components
-  # test-py:
-  #   name: Build and Test Python
-  #   runs-on: ubuntu-latest
-    
-  #   steps:
-  #   - name: Checkout code
-  #     uses: actions/checkout@v4
-      
-  #   - name: Docker Setup Compose
-  #     uses: docker/setup-compose-action@v1.1.0
-      
-  #   - name: Build Python components
-  #     run: docker compose up py
-      
-  #   - name: Run Python tests
-  #     run: docker compose up test-py
-      
-  #   - name: Upload test results
-  #     uses: actions/upload-artifact@v4
-  #     if: always()
-  #     with:
-  #       name: py-test-results
-  #       path: |
-  #         logs/
-  #         test-results/
-  #       retention-days: 7
-
   # Build documentation (depends on successful tests)
   build-docs:
     name: Build Documentation
