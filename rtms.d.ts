@@ -345,7 +345,7 @@ export type UserUpdateCallback = (op: number, participantInfo: ParticipantInfo) 
  * 
  * @category Callback Types
  */
-export type DeskDataCallback = (buffer: Buffer, size: number, timestamp: number, metadata: Metadata) => void;
+export type DeskshareCallback = (buffer: Buffer, size: number, timestamp: number, metadata: Metadata) => void;
 
 /**
  * Callback function for receiving audio data

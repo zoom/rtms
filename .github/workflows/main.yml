@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: Test, Build & Deploy Documentation
 
 on:
   push:
@@ -12,9 +12,9 @@ permissions:
   id-token: write
 
 jobs:
-  # Build documentation (depends on successful tests)
-  build-docs:
-    name: Build Documentation
+  # Test application build and generate documentation
+  test-and-build-docs:
+    name: Test Application & Build Documentation
     runs-on: ubuntu-latest
     # Only run on main/master branches and if tests pass
     if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
@@ -23,29 +23,33 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Docker Setup Compose
+    - name: Setup Docker Compose
       uses: docker/setup-compose-action@v1.1.0
       
-    - name: Build all documentation
+    - name: Test application build and generate docs
       run: docker compose run --rm docs-js
       
-    - name: Setup docs structure
+    - name: Setup documentation site structure
       run: |
-        mkdir -p docs
-        cp .github/docs-template/index.html docs/ || echo "No template found"
+        # Copy index.html template to docs root (after docker build)
+        cp .github/docs-template/index.html docs/ || echo "Warning: No index.html template found"
+        
+        # Debug: show what we built
+        echo "📁 Documentation structure:"
+        ls -la docs/
         
     - name: Upload documentation artifact
       uses: actions/upload-artifact@v4
       with:
-        name: documentation
+        name: documentation-site
         path: ./docs
         retention-days: 30
 
-  # Deploy documentation to GitHub Pages
-  deploy-docs:
-    name: Deploy Documentation
+  # Deploy documentation site to GitHub Pages
+  deploy-documentation:
+    name: Deploy Documentation Site
     runs-on: ubuntu-latest
-    needs: [build-docs]
+    needs: [test-and-build-docs]
     # Only deploy from main/master branch
     if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     
@@ -54,16 +58,16 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
       
     steps:
-    - name: Download documentation artifact
+    - name: Download documentation site artifact
       uses: actions/download-artifact@v4
       with:
-        name: documentation
+        name: documentation-site
         path: ./docs
         
-    - name: Setup Pages
+    - name: Setup GitHub Pages
       uses: actions/configure-pages@v5
       
-    - name: Upload to GitHub Pages
+    - name: Upload site to GitHub Pages
       uses: actions/upload-pages-artifact@v3
       with:
         path: './docs'
