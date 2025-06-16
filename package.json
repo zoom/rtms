@@ -45,7 +45,7 @@
     "tar": "^7.4.3"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.14",
+    "@types/jest": "^30.0.0",
     "cmake-js": "^7.3.0",
     "typedoc": "^0.28.2",
     "typedoc-plugin-missing-exports": "^4.0.0",
