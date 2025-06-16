@@ -28,11 +28,6 @@ jobs:
       
     - name: Test application build and generate docs
       run: docker compose run --rm docs-js
-      
-    - name: Debug documentation structure  
-      run: |
-        echo "📁 Documentation structure:"
-        ls -la docs/
         
     - name: Upload documentation artifact
       uses: actions/upload-artifact@v4

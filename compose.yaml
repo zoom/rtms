@@ -95,7 +95,6 @@ services:
     volumes:
       - .:/tmp/rtms
       - ./docs:/tmp/rtms/docs
-      - ./.github/docs-template/index.html:/tmp/rtms/docs/index.html
   docs-py:
     <<: *base
     build:
@@ -105,7 +104,6 @@ services:
     volumes:
       - .:/tmp/rtms
       - ./docs:/tmp/rtms/docs
-      - ./.github/docs-template/index.html:/tmp/rtms/docs/index.html
 
   docs-all:
     <<: *base
@@ -122,4 +120,3 @@ services:
     volumes:
       - .:/tmp/rtms
       - ./docs:/tmp/rtms/docs
-      - ./.github/docs-template/index.html:/tmp/rtms/docs/index.html

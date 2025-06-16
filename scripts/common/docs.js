@@ -5,6 +5,8 @@ import { log, run, executeScript } from './utils.js';
 
 const PREFIX = "Docs";
 
+run('cp .github/docs-template/index.html docs/', PREFIX);
+
 async function generateNodeJSDocs() {
   log(PREFIX, 'Generating Node.js documentation...');
 
