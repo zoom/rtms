@@ -1,9 +1,12 @@
+# src/rtms/__init__.py - Enhanced version with background polling
 
 import signal
 import sys
 import hmac
 import hashlib
 import threading
+import time
+import atexit
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
 from typing import Dict, Any, Optional, Callable
@@ -29,43 +32,10 @@ from ._rtms import (
     USER_JOIN, USER_LEAVE
 )
 
-# Parameter constants/enums
-class AudioContentType:
-    RAW_AUDIO = 0
-
-class AudioCodec:
-    OPUS = 0
-    PCM = 1
-
-class AudioSampleRate:
-    SR_8K = 8000
-    SR_16K = 16000
-    SR_32K = 32000
-    SR_44K = 44100
-    SR_48K = 48000
-
-class AudioChannel:
-    MONO = 1
-    STEREO = 2
-
-class AudioDataOption:
-    AUDIO_MIXED_STREAM = 0
-    AUDIO_INDIVIDUAL_STREAM = 1
-
-class VideoContentType:
-    RAW_VIDEO = 0
-
-class VideoCodec:
-    H264 = 0
-    VP8 = 1
-
-class VideoResolution:
-    HD = 0
-    FHD = 1
-
-class VideoDataOption:
-    VIDEO_MIXED_STREAM = 0
-    VIDEO_INDIVIDUAL_STREAM = 1
+# Global polling state
+_global_polling_thread = None
+_global_polling_stop_event = None
+_global_poll_rate = 10  # 10ms default, matching Node.js behavior
 
 # Global webhook server
 _webhook_server = None
@@ -73,6 +43,7 @@ _webhook_callback = None
 
 def signal_handler(sig, frame):
     print("Shutting down cleanly...")
+    stop_global_polling()
     # Stop webhook server
     global _webhook_server
     if _webhook_server:
@@ -80,7 +51,54 @@ def signal_handler(sig, frame):
     uninitialize()
     sys.exit(0)
 
+def cleanup_at_exit():
+    """Cleanup function called at exit"""
+    stop_global_polling()
+    try:
+        uninitialize()
+    except:
+        pass
+
 signal.signal(signal.SIGINT, signal_handler)
+atexit.register(cleanup_at_exit)
+
+def start_global_polling():
+    """Start background polling thread for global client"""
+    global _global_polling_thread, _global_polling_stop_event
+    
+    if _global_polling_thread and _global_polling_thread.is_alive():
+        return  # Already running
+    
+    _global_polling_stop_event = threading.Event()
+    
+    def polling_loop():
+        """Background polling loop"""
+        while not _global_polling_stop_event.is_set():
+            try:
+                _poll()
+                # Sleep for poll_rate milliseconds
+                time.sleep(_global_poll_rate / 1000.0)
+            except Exception as e:
+                print(f"Error during global polling: {e}")
+                break
+    
+    _global_polling_thread = threading.Thread(target=polling_loop, daemon=True)
+    _global_polling_thread.start()
+    print(f"Started global polling with interval: {_global_poll_rate}ms")
+
+def stop_global_polling():
+    """Stop background polling thread"""
+    global _global_polling_thread, _global_polling_stop_event
+    
+    if _global_polling_stop_event:
+        _global_polling_stop_event.set()
+    
+    if _global_polling_thread and _global_polling_thread.is_alive():
+        _global_polling_thread.join(timeout=1.0)  # Wait up to 1 second
+        print("Stopped global polling")
+    
+    _global_polling_thread = None
+    _global_polling_stop_event = None
 
 class WebhookHandler(BaseHTTPRequestHandler):
     """HTTP request handler for webhook events"""
@@ -139,6 +157,13 @@ def on_webhook_event(callback: Optional[Callable] = None, port: int = 8080, path
 class Client(_Client):
     """Enhanced RTMS Client with Python-specific features"""
     
+    def __init__(self):
+        super().__init__()
+        self._polling_thread = None
+        self._polling_stop_event = None
+        self._poll_rate = 10  # 10ms default
+        self._joined = False
+    
     @staticmethod
     def initialize(ca_path: str = "") -> bool:
         """Initialize the RTMS SDK"""
@@ -157,111 +182,84 @@ class Client(_Client):
         except:
             return False
     
+    def join(self, *args, **kwargs) -> bool:
+        """Join a meeting and start background polling"""
+        try:
+            # Call parent join method
+            if isinstance(args[0], dict):
+                # Handle dictionary payload
+                payload = args[0]
+                poll_interval = payload.get('pollInterval', 10)
+                self._poll_rate = poll_interval
+                result = super().join(payload)
+            else:
+                # Handle individual parameters
+                result = super().join(*args, **kwargs)
+                # Check if pollInterval was passed as keyword argument
+                self._poll_rate = kwargs.get('pollInterval', 10)
+            
+            if result:
+                self._joined = True
+                self._start_polling()
+            
+            return result
+        except Exception as e:
+            print(f"Error joining meeting: {e}")
+            return False
+    
+    def _start_polling(self):
+        """Start background polling thread for this client"""
+        if self._polling_thread and self._polling_thread.is_alive():
+            return  # Already running
+        
+        self._polling_stop_event = threading.Event()
+        
+        def polling_loop():
+            """Background polling loop"""
+            while not self._polling_stop_event.is_set():
+                try:
+                    super(Client, self).poll()
+                    # Sleep for poll_rate milliseconds
+                    time.sleep(self._poll_rate / 1000.0)
+                except Exception as e:
+                    print(f"Error during client polling: {e}")
+                    break
+        
+        self._polling_thread = threading.Thread(target=polling_loop, daemon=True)
+        self._polling_thread.start()
+        print(f"Started client polling with interval: {self._poll_rate}ms")
+    
+    def _stop_polling(self):
+        """Stop background polling thread"""
+        if self._polling_stop_event:
+            self._polling_stop_event.set()
+        
+        if self._polling_thread and self._polling_thread.is_alive():
+            self._polling_thread.join(timeout=1.0)  # Wait up to 1 second
+            print("Stopped client polling")
+        
+        self._polling_thread = None
+        self._polling_stop_event = None
+    
     def leave(self) -> bool:
         """Leave the meeting and release resources"""
         try:
-            # In Python, we don't have automatic polling to stop,
-            # so just call release directly  
+            if self._joined:
+                self._stop_polling()
+                self._joined = False
+            
             self.release()
             return True
-        except:
+        except Exception as e:
+            print(f"Error leaving meeting: {e}")
             return False
     
-    def enable_audio(self, enable: bool) -> bool:
-        """Enable or disable audio"""
-        try:
-            super().enable_audio(enable)
-            return True
-        except:
-            return False
-    
-    def enable_video(self, enable: bool) -> bool:
-        """Enable or disable video"""
-        try:
-            super().enable_video(enable)
-            return True
-        except:
-            return False
-    
-    def enable_transcript(self, enable: bool) -> bool:
-        """Enable or disable transcript"""
-        try:
-            super().enable_transcript(enable)
-            return True
-        except:
-            return False
-    
-    def enable_deskshare(self, enable: bool) -> bool:
-        """Enable or disable deskshare"""
-        try:
-            super().enable_deskshare(enable)
-            return True
-        except:
-            return False
-    
-    def set_audio_params(self, params: Dict[str, Any]) -> bool:
-        """Set audio parameters"""
-        try:
-            super().set_audio_params(params)
-            return True
-        except:
-            return False
-    
-    def set_audio_parameters(self, params: Dict[str, Any]) -> bool:
-        """Set audio parameters (alias for set_audio_params)"""
-        return self.set_audio_params(params)
-    
-    def set_video_params(self, params: Dict[str, Any]) -> bool:
-        """Set video parameters"""
-        try:
-            super().set_video_params(params)
-            return True
-        except:
-            return False
-    
-    def set_video_parameters(self, params: Dict[str, Any]) -> bool:
-        """Set video parameters (alias for set_video_params)"""
-        return self.set_video_params(params)
-    
-    def set_deskshare_params(self, params: Dict[str, Any]) -> bool:
-        """Set deskshare parameters"""
-        try:
-            super().set_deskshare_params(params)
-            return True
-        except:
-            return False
-    
-    def set_deskshare_parameters(self, params: Dict[str, Any]) -> bool:
-        """Set deskshare parameters (alias for set_deskshare_params)"""
-        return self.set_deskshare_params(params)
-    
-    def join(self, uuid_or_payload=None, stream_id: Optional[str] = None, 
-             signature: Optional[str] = None, server_urls: Optional[str] = None, 
-             timeout: int = -1, **kwargs) -> bool:
-        """Join a meeting with parameters or options dict"""
-        try:
-            # If first argument is a dict, treat as payload/options
-            if isinstance(uuid_or_payload, dict):
-                payload = uuid_or_payload
-                # Extract parameters from payload
-                uuid = payload.get('meeting_uuid') or payload.get('uuid')
-                stream_id = payload.get('stream_id') 
-                signature = payload.get('signature')
-                server_urls = payload.get('server_urls')
-                timeout = payload.get('timeout', -1)
-                
-                # Generate signature if not provided but we have client/secret
-                if not signature and payload.get('client') and payload.get('secret'):
-                    signature = generate_signature(
-                        payload['client'], payload['secret'], uuid, stream_id
-                    )
-                
-                return super().join(uuid, stream_id, signature, server_urls, timeout)
-            else:
-                # Individual parameters
-                return super().join(uuid_or_payload, stream_id, signature, server_urls, timeout)
-        except:
-            return False
+    def __del__(self):
+        """Cleanup when object is destroyed"""
+        if hasattr(self, '_joined') and self._joined:
+            self._stop_polling()
+
+# Enhanced global functions with automatic polling
 
 def initialize(ca_path: str = "") -> bool:
     """Initialize the RTMS SDK"""
@@ -269,28 +267,34 @@ def initialize(ca_path: str = "") -> bool:
 
 def uninitialize() -> bool:
     """Uninitialize the RTMS SDK"""
+    stop_global_polling()
     return Client.uninitialize()
 
-def join(uuid: str, stream_id: str, signature: str, server_urls: str, timeout: int = -1) -> bool:
-    """Join a meeting using the global client"""
+def join(uuid: str, stream_id: str, signature: str, server_urls: str, timeout: int = -1, poll_interval: int = 10) -> bool:
+    """Join a meeting using the global client and start background polling"""
+    global _global_poll_rate
+    _global_poll_rate = poll_interval
+    
     try:
         _join(uuid, stream_id, signature, server_urls, timeout)
+        start_global_polling()
         return True
-    except:
+    except Exception as e:
+        print(f"Error joining: {e}")
         return False
 
 def leave() -> bool:
     """Leave the meeting using the global client"""
     try:
-        # In Python, we don't have background polling to stop,
-        # so we just call release directly
+        stop_global_polling()
         _release()
         return True
-    except:
+    except Exception as e:
+        print(f"Error leaving: {e}")
         return False
 
 def poll() -> None:
-    """Poll for events using the global client"""
+    """Poll for events using the global client (manual polling)"""
     _poll()
 
 def uuid() -> str:
@@ -304,83 +308,66 @@ def stream_id() -> str:
 def release() -> bool:
     """Release resources using the global client"""
     try:
+        stop_global_polling()
         _release()
         return True
-    except:
+    except Exception as e:
+        print(f"Error releasing: {e}")
         return False
 
+# Re-export all the other functions and classes
 def enable_audio(enable: bool) -> bool:
-    """Enable/disable audio on the global client"""
-    try:
-        _enable_audio(enable)
-        return True
-    except:
-        return False
+    return _enable_audio(enable)
 
 def enable_video(enable: bool) -> bool:
-    """Enable/disable video on the global client"""
-    try:
-        _enable_video(enable)
-        return True
-    except:
-        return False
+    return _enable_video(enable)
 
 def enable_transcript(enable: bool) -> bool:
-    """Enable/disable transcript on the global client"""
-    try:
-        _enable_transcript(enable)
-        return True
-    except:
-        return False
+    return _enable_transcript(enable)
 
 def enable_deskshare(enable: bool) -> bool:
-    """Enable/disable deskshare on the global client"""
-    try:
-        _enable_deskshare(enable)
-        return True
-    except:
-        return False
+    return _enable_deskshare(enable)
 
-def generate_signature(client_id: str, client_secret: str, meeting_uuid: str, rtms_stream_id: str) -> str:
-    """Generate HMAC-SHA256 signature for RTMS authentication"""
-    message = f"{client_id}{meeting_uuid}{rtms_stream_id}"
-    signature = hmac.new(
-        client_secret.encode('utf-8'),
-        message.encode('utf-8'),
-        hashlib.sha256
-    ).hexdigest()
+# Parameter constants/enums (same as before)
+class AudioContentType:
+    RAW_AUDIO = 0
+
+class AudioCodec:
+    OPUS = 0
+    PCM = 1
+
+class AudioSampleRate:
+    SR_8K = 8000
+    SR_16K = 16000
+    SR_32K = 32000
+    SR_44K = 44100
+    SR_48K = 48000
+
+class AudioChannel:
+    MONO = 1
+    STEREO = 2
+
+class AudioDataOption:
+    AUDIO_MIXED_STREAM = 0
+    AUDIO_INDIVIDUAL_STREAM = 1
+
+class VideoContentType:
+    RAW_VIDEO = 0
+
+class VideoCodec:
+    H264 = 0
+    VP8 = 1
+
+class VideoResolution:
+    HD = 0
+    FHD = 1
+
+class VideoDataOption:
+    VIDEO_MIXED_STREAM = 0
+    VIDEO_INDIVIDUAL_STREAM = 1
+
+def generate_signature(client: str, secret: str, meeting_uuid: str, stream_id: str) -> str:
+    """Generate RTMS signature"""
+    message = f"{client}{meeting_uuid}{stream_id}"
+    signature = hmac.new(secret.encode(), message.encode(), hashlib.sha256).hexdigest()
     return signature
-
-# Default export
-__all__ = [
-    # Classes
-    "Client", "Session", "Participant", "Metadata",
-    
-    # Core functions
-    "initialize", "uninitialize", "join", "leave", "release", "poll", "uuid", "stream_id",
-    
-    # Enable functions  
-    "enable_audio", "enable_video", "enable_transcript", "enable_deskshare",
-    
-    # Parameter functions
-    "set_audio_params", "set_video_params", "set_deskshare_params",
-    
-    # Callback decorators
-    "on_join_confirm", "on_session_update", "on_user_update",
-    "on_audio_data", "on_video_data", "on_deskshare_data", "on_transcript_data", "on_leave",
-    
-    # Webhook
-    "on_webhook_event",
-    
-    # Utility
-    "generate_signature",
-    
-    # Parameter constants
-    "AudioContentType", "AudioCodec", "AudioSampleRate", "AudioChannel", "AudioDataOption",
-    "VideoContentType", "VideoCodec", "VideoResolution", "VideoDataOption",
-    
-    # Constants
-    "SDK_AUDIO", "SDK_VIDEO", "SDK_DESKSHARE", "SDK_TRANSCRIPT", "SDK_ALL",
-    "SESSION_ADD", "SESSION_STOP", "SESSION_PAUSE", "SESSION_RESUME", 
-    "USER_JOIN", "USER_LEAVE"
-]

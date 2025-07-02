@@ -21,50 +21,48 @@ namespace py = pybind11;
 #define DEBUG_LOG(msg)
 #endif
 
-// Python-friendly wrapper class for RTMS Client
 class PyClient {
+private:
+    unique_ptr<Client> client_;
+    int configured_media_types_;
+    bool is_configured_;
+    bool is_shutting_down_;  // NEW: Track shutdown state
+    
+    py::function join_confirm_callback;
+    py::function session_update_callback;
+    py::function user_update_callback;
+    py::function audio_data_callback;
+    py::function video_data_callback;
+    py::function deskshare_data_callback;
+    py::function transcript_data_callback;
+    py::function leave_callback;
+
+    void reconfigure_media_types() {
+        if (!is_configured_) return;
+        
+        try {
+            MediaParams params;
+            client_->configure(params, configured_media_types_, false);
+        } catch (const Exception& e) {
+            DEBUG_LOG("Failed to reconfigure media types: " << e.what() << " (code: " << e.code() << ")");
+            // Don't throw here since this is called from callback setters
+        } catch (const exception& e) {
+            DEBUG_LOG("C++ exception reconfiguring media types: " << e.what());
+            // Don't throw here since this is called from callback setters
+        } catch (...) {
+            DEBUG_LOG("Unknown exception in reconfigure_media_types");
+            // Don't throw 
+    }
+    }
+
 public:
-    PyClient() : configured_media_types_(0), is_configured_(false) {
+    PyClient() : configured_media_types_(0), is_configured_(false), is_shutting_down_(false) {
         try {
             client_ = make_unique<Client>();
         } catch (const exception& e) {
             DEBUG_LOG("Error creating client instance: " << e.what());
             throw py::error_already_set();
         }
-    }
-    
-    ~PyClient() {
-        // First clear all callbacks to avoid issues during destruction
-        try {
-            // Reset all callbacks to empty functions to avoid calling Python
-            // during destruction when Python might be shutting down
-            if (client_) {
-                client_->setOnJoinConfirm([](int) {});
-                client_->setOnSessionUpdate([](int, const Session&) {});
-                client_->setOnUserUpdate([](int, const Participant&) {});
-                client_->setOnAudioData([](const vector<uint8_t>&, uint32_t, const Metadata&) {});
-                client_->setOnVideoData([](const vector<uint8_t>&, uint32_t, const Metadata&) {});
-                client_->setOnDeskshareData([](const vector<uint8_t>&, uint32_t, const Metadata&) {});
-                client_->setOnTranscriptData([](const vector<uint8_t>&, uint32_t, const Metadata&) {});
-                client_->setOnLeave([](int) {});
-            }
-        } catch (const Exception& e) {
-            DEBUG_LOG("Error during callback cleanup: " << e.what() << " (error code: " << e.code() << ")");
-        } catch (const exception& e) {
-            DEBUG_LOG("C++ exception during callback cleanup: " << e.what());
-        } catch (...) {
-            DEBUG_LOG("Unknown exception during callback cleanup");
-        }
-        
-        // Release any Python references
-        join_confirm_callback = py::none();
-        session_update_callback = py::none();
-        user_update_callback = py::none();
-        audio_data_callback = py::none();
-        video_data_callback = py::none();
-        deskshare_data_callback = py::none();
-        transcript_data_callback = py::none();
-        leave_callback = py::none();
     }
 
     static void initialize(const string& ca_path) {
@@ -112,10 +110,11 @@ public:
 
     void join_with_options(py::dict options) {
         try {
-            string uuid = options["uuid"].cast<string>();
-            string stream_id = options["stream_id"].cast<string>();
-            string signature = options["signature"].cast<string>();
+            string uuid = options["meeting_uuid"].cast<string>();
+            string stream_id = options["rtms_stream_id"].cast<string>();
             string server_urls = options["server_urls"].cast<string>();
+
+            string signature = options.contains("signature") ? options["signature"].cast<string>() : "";
             string client = options.contains("client") ? options["client"].cast<string>() : "";
             string secret = options.contains("secret") ? options["secret"].cast<string>() : "";
             int timeout = options.contains("timeout") ? options["timeout"].cast<int>() : -1;
@@ -147,8 +146,23 @@ public:
     }
 
     void release() {
+        is_shutting_down_ = true;  // Mark as shutting down
+        
         try {
-            client_->release();
+            if (client_) {
+                // First set all callbacks to no-ops to prevent callback during release
+                client_->setOnJoinConfirm([](int) {});
+                client_->setOnSessionUpdate([](int, const Session&) {});
+                client_->setOnUserUpdate([](int, const Participant&) {});
+                client_->setOnAudioData([](const vector<uint8_t>&, uint64_t, const Metadata&) {});
+                client_->setOnVideoData([](const vector<uint8_t>&, uint64_t, const Metadata&) {});
+                client_->setOnDeskshareData([](const vector<uint8_t>&, uint64_t, const Metadata&) {});
+                client_->setOnTranscriptData([](const vector<uint8_t>&, uint64_t, const Metadata&) {});
+                client_->setOnLeave([](int) {});
+                
+                // Now release the client
+                client_->release();
+            }
         } catch (const Exception& e) {
             DEBUG_LOG("RTMS release error: " << e.what() << " (code: " << e.code() << ")");
             PyErr_SetString(PyExc_RuntimeError, e.what());
@@ -302,20 +316,32 @@ public:
         });
     }
     
-    // Direct callback setting methods
+        // Enhanced callback validation helper
+    bool is_callback_valid(const py::function& callback) {
+        if (is_shutting_down_) {
+            return false;  // Don't call callbacks during shutdown
+        }
+        
+        try {
+            return !callback.is_none() && PyCallable_Check(callback.ptr());
+        } catch (...) {
+            return false;  // If any exception occurs during validation, consider invalid
+        }
+    }
+
+    // Enhanced callback setters with improved error handling
     void set_join_confirm_callback(py::function callback) {
-        // Store Python callback
         join_confirm_callback = callback;
         
         client_->setOnJoinConfirm([this](int reason) {
             py::gil_scoped_acquire acquire;
             try {
-                if (!join_confirm_callback.is_none() && PyCallable_Check(join_confirm_callback.ptr())) {
+                if (is_callback_valid(join_confirm_callback)) {
                     join_confirm_callback(reason);
                 }
             } catch (py::error_already_set& e) {
                 DEBUG_LOG("Python exception in join confirm callback: " << e.what());
-                e.restore();  // This ensures the Python exception is properly restored
+                e.restore();
             } catch (const Exception& e) {
                 DEBUG_LOG("RTMS exception in join confirm callback: " << e.what() << " (code: " << e.code() << ")");
             } catch (std::exception& e) {
@@ -324,8 +350,6 @@ public:
                 DEBUG_LOG("Unknown exception in join confirm callback");
             }
         });
-        
-        reconfigure_media_types();
     }
     
     void set_session_update_callback(py::function callback) {
@@ -334,7 +358,7 @@ public:
         client_->setOnSessionUpdate([this](int op, const Session& session) {
             py::gil_scoped_acquire acquire;
             try {
-                if (!session_update_callback.is_none() && PyCallable_Check(session_update_callback.ptr())) {
+                if (is_callback_valid(session_update_callback)) {
                     session_update_callback(op, session);
                 }
             } catch (py::error_already_set& e) {
@@ -356,7 +380,7 @@ public:
         client_->setOnUserUpdate([this](int op, const Participant& participant) {
             py::gil_scoped_acquire acquire;
             try {
-                if (!user_update_callback.is_none() && PyCallable_Check(user_update_callback.ptr())) {
+                if (is_callback_valid(user_update_callback)) {
                     user_update_callback(op, participant);
                 }
             } catch (py::error_already_set& e) {
@@ -378,7 +402,7 @@ public:
         client_->setOnAudioData([this](const vector<uint8_t>& data, uint64_t timestamp, const Metadata& metadata) {
             py::gil_scoped_acquire acquire;
             try {
-                if (!audio_data_callback.is_none() && PyCallable_Check(audio_data_callback.ptr())) {
+                if (is_callback_valid(audio_data_callback)) {
                     py::bytes py_data(reinterpret_cast<const char*>(data.data()), data.size());
                     audio_data_callback(py_data, data.size(), timestamp, metadata);
                 }
@@ -404,7 +428,7 @@ public:
         client_->setOnVideoData([this](const vector<uint8_t>& data, uint64_t timestamp, const Metadata& metadata) {
             py::gil_scoped_acquire acquire;
             try {
-                if (!video_data_callback.is_none() && PyCallable_Check(video_data_callback.ptr())) {
+                if (is_callback_valid(video_data_callback)) {
                     py::bytes py_data(reinterpret_cast<const char*>(data.data()), data.size());
                     video_data_callback(py_data, data.size(), timestamp, metadata);
                 }
@@ -430,7 +454,7 @@ public:
         client_->setOnDeskshareData([this](const vector<uint8_t>& data, uint64_t timestamp, const Metadata& metadata) {
             py::gil_scoped_acquire acquire;
             try {
-                if (!deskshare_data_callback.is_none() && PyCallable_Check(deskshare_data_callback.ptr())) {
+                if (is_callback_valid(deskshare_data_callback)) {
                     py::bytes py_data(reinterpret_cast<const char*>(data.data()), data.size());
                     deskshare_data_callback(py_data, data.size(), timestamp, metadata);
                 }
@@ -456,7 +480,7 @@ public:
         client_->setOnTranscriptData([this](const vector<uint8_t>& data, uint64_t timestamp, const Metadata& metadata) {
             py::gil_scoped_acquire acquire;
             try {
-                if (!transcript_data_callback.is_none() && PyCallable_Check(transcript_data_callback.ptr())) {
+                if (is_callback_valid(transcript_data_callback)) {
                     py::bytes py_data(reinterpret_cast<const char*>(data.data()), data.size());
                     transcript_data_callback(py_data, data.size(), timestamp, metadata);
                 }
@@ -482,7 +506,7 @@ public:
         client_->setOnLeave([this](int reason) {
             py::gil_scoped_acquire acquire;
             try {
-                if (!leave_callback.is_none() && PyCallable_Check(leave_callback.ptr())) {
+                if (is_callback_valid(leave_callback)) {
                     leave_callback(reason);
                 }
             } catch (py::error_already_set& e) {
@@ -578,38 +602,6 @@ public:
             DEBUG_LOG("Unknown error setting deskshare parameters: " << e.what());
             PyErr_SetString(PyExc_RuntimeError, e.what());
             throw py::error_already_set();
-        }
-    }
-
-private:
-    unique_ptr<Client> client_;
-    int configured_media_types_;
-    bool is_configured_;
-    
-    py::function join_confirm_callback;
-    py::function session_update_callback;
-    py::function user_update_callback;
-    py::function audio_data_callback;
-    py::function video_data_callback;
-    py::function deskshare_data_callback;
-    py::function transcript_data_callback;
-    py::function leave_callback;
-
-    void reconfigure_media_types() {
-        if (!is_configured_) return;
-        
-        try {
-            MediaParams params;
-            client_->configure(params, configured_media_types_, false);
-        } catch (const Exception& e) {
-            DEBUG_LOG("Failed to reconfigure media types: " << e.what() << " (code: " << e.code() << ")");
-            // Don't throw here since this is called from callback setters
-        } catch (const exception& e) {
-            DEBUG_LOG("C++ exception reconfiguring media types: " << e.what());
-            // Don't throw here since this is called from callback setters
-        } catch (...) {
-            DEBUG_LOG("Unknown exception in reconfigure_media_types");
-            // Don't throw 
         }
     }
 };
