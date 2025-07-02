@@ -32,8 +32,8 @@ from ._rtms import (
     SESS_STATUS_ACTIVE, SESS_STATUS_PAUSED,
     
     # Parameter setting functions
-    set_audio_parameters,
-    set_video_parameters,
+    set_audio_params,
+    set_video_params,
     
     # Parameter dictionaries - import directly with their original names
     AudioContentType, AudioCodec, AudioSampleRate, AudioChannel, AudioDataOption,
@@ -588,23 +588,23 @@ def leave():
     """
     return _global_client.leave()
 
-def set_audio_parameters(params):
+def set_audio_params(params):
     """
     Set audio parameters for the global client.
     
     Args:
         params (dict): Dictionary of audio parameters
     """
-    return _global_client.set_audio_parameters(params)
+    return _global_client.set_audio_params(params)
 
-def set_video_parameters(params):
+def set_video_params(params):
     """
     Set video parameters for the global client.
     
     Args:
         params (dict): Dictionary of video parameters
     """
-    return _global_client.set_video_parameters(params)
+    return _global_client.set_video_params(params)
 
 def uninitialize():
     """
@@ -739,8 +739,8 @@ __all__ = [
     "uuid", 
     "stream_id",
     "generate_signature",
-    "set_audio_parameters",
-    "set_video_parameters",
+    "set_audio_params",
+    "set_video_params",
     
     # Logging functions
     "log_debug",

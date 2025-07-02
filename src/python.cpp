@@ -457,9 +457,9 @@ public:
         });
     }
 
-    void set_audio_parameters(py::dict params) {
+    void set_audio_params(py::dict params) {
         try {
-            AudioParameters audio_params;
+            AudioParams audio_params;
             
             if (params.contains("contentType"))
                 audio_params.setContentType(params["contentType"].cast<int>());
@@ -476,7 +476,7 @@ public:
             if (params.contains("frameSize"))
                 audio_params.setFrameSize(params["frameSize"].cast<int>());
             
-            client_->setAudioParameters(audio_params);
+            client_->setAudioParams(audio_params);
         } catch (const Exception& e) {
             DEBUG_LOG("Error setting audio parameters: " << e.what() << " (code: " << e.code() << ")");
             PyErr_SetString(PyExc_RuntimeError, e.what());
@@ -488,9 +488,9 @@ public:
         }
     }
 
-    void set_video_parameters(py::dict params) {
+    void set_video_params(py::dict params) {
         try {
-            VideoParameters video_params;
+            VideoParams video_params;
             
             if (params.contains("contentType"))
                 video_params.setContentType(params["contentType"].cast<int>());
@@ -503,7 +503,7 @@ public:
             if (params.contains("fps"))
                 video_params.setFps(params["fps"].cast<int>());
             
-            client_->setVideoParameters(video_params);
+            client_->setVideoParams(video_params);
         } catch (const Exception& e) {
             DEBUG_LOG("Error setting video parameters: " << e.what() << " (code: " << e.code() << ")");
             PyErr_SetString(PyExc_RuntimeError, e.what());
@@ -532,7 +532,7 @@ private:
         if (!is_configured_) return;
         
         try {
-            MediaParameters params;
+            MediaParams params;
             client_->configure(params, configured_media_types_, false);
         } catch (const Exception& e) {
             DEBUG_LOG("Failed to reconfigure media types: " << e.what() << " (code: " << e.code() << ")");
@@ -582,8 +582,8 @@ PYBIND11_MODULE(_rtms, m) {
         .def("release", &PyClient::release, "Release resources")
         .def("uuid", &PyClient::uuid, "Get the UUID of the current meeting")
         .def("stream_id", &PyClient::stream_id, "Get the stream ID of the current meeting")
-        .def("set_audio_parameters", &PyClient::set_audio_parameters, "Set audio parameters")
-        .def("set_video_parameters", &PyClient::set_video_parameters, "Set video parameters")
+        .def("set_audio_params", &PyClient::set_audio_params, "Set audio parameters")
+        .def("set_video_params", &PyClient::set_video_params, "Set video parameters")
 
         // Decorator methods
         .def("on_join_confirm", &PyClient::on_join_confirm, "Get a decorator for join confirm events")
@@ -700,20 +700,20 @@ PYBIND11_MODULE(_rtms, m) {
         return callback;
     }, "Set callback for leave events");
 
-    m.def("set_audio_parameters", [](py::dict params) {
+    m.def("set_audio_params", [](py::dict params) {
         try {
-            global_client.set_audio_parameters(params);
+            global_client.set_audio_params(params);
         } catch (const py::error_already_set& e) {
-            DEBUG_LOG("Error in global set_audio_parameters: " << e.what());
+            DEBUG_LOG("Error in global set_audio_params: " << e.what());
             throw;
         }
     }, "Set global audio parameters");
 
-    m.def("set_video_parameters", [](py::dict params) {
+    m.def("set_video_params", [](py::dict params) {
         try {
-            global_client.set_video_parameters(params);
+            global_client.set_video_params(params);
         } catch (const py::error_already_set& e) {
-            DEBUG_LOG("Error in global set_video_parameters: " << e.what());
+            DEBUG_LOG("Error in global set_video_params: " << e.what());
             throw;
         }
     }, "Set global video parameters");
