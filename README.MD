@@ -170,8 +170,8 @@ Docker Compose provides an isolated build environment with all necessary depende
 #### Steps
 ```bash
 # Install system dependencies
-apt update
-apt install -y cmake python3-full python3-pip pipx
+sudo apt update
+sudo apt install -y cmake python3-full python3-pip pipx git
 npm install -g prebuild
 pip install "pybind11[global]" python-dotenv pdoc3
 
