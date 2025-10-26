@@ -520,6 +520,193 @@ export function onWebhookEvent(callback: WebhookCallback | RawWebhookCallback): 
 }
 
 /**
+ * Validates audio parameters and throws helpful errors
+ * 
+ * @private
+ * @param params Audio parameters to validate
+ */
+function validateAudioParams(params: AudioParams): void {
+  // Validate contentType
+  if (params.contentType !== undefined) {
+    const validValues = Object.values(nativeRtms.AudioContentType || {});
+    if (!validValues.includes(params.contentType)) {
+      throw new Error(
+        `Invalid audio contentType: ${params.contentType}. ` +
+        `Use rtms.AudioContentType constants (e.g., rtms.AudioContentType.RAW_AUDIO)`
+      );
+    }
+  }
+  
+  // Validate codec
+  if (params.codec !== undefined) {
+    const validValues = Object.values(nativeRtms.AudioCodec || {});
+    if (!validValues.includes(params.codec)) {
+      throw new Error(
+        `Invalid audio codec: ${params.codec}. ` +
+        `Use rtms.AudioCodec constants (e.g., rtms.AudioCodec.OPUS)`
+      );
+    }
+  }
+  
+  // Validate sampleRate
+  if (params.sampleRate !== undefined) {
+    const validValues = Object.values(nativeRtms.AudioSampleRate || {});
+    if (!validValues.includes(params.sampleRate)) {
+      throw new Error(
+        `Invalid audio sampleRate: ${params.sampleRate}. ` +
+        `Use rtms.AudioSampleRate constants (e.g., rtms.AudioSampleRate.SR_48K)`
+      );
+    }
+  }
+  
+  // Validate channel
+  if (params.channel !== undefined) {
+    const validValues = Object.values(nativeRtms.AudioChannel || {});
+    if (!validValues.includes(params.channel)) {
+      throw new Error(
+        `Invalid audio channel: ${params.channel}. ` +
+        `Use rtms.AudioChannel constants (e.g., rtms.AudioChannel.STEREO)`
+      );
+    }
+  }
+  
+  // Validate dataOpt
+  if (params.dataOpt !== undefined) {
+    const validValues = Object.values(nativeRtms.AudioDataOption || {});
+    if (!validValues.includes(params.dataOpt)) {
+      throw new Error(
+        `Invalid audio dataOpt: ${params.dataOpt}. ` +
+        `Use rtms.AudioDataOption constants (e.g., rtms.AudioDataOption.AUDIO_MIXED_STREAM)`
+      );
+    }
+  }
+  
+  // Validate numeric ranges
+  if (params.duration !== undefined && (params.duration < 0 || params.duration > 10000)) {
+    Logger.warn(
+      'validation',
+      `Audio duration ${params.duration}ms is outside typical range (0-10000ms)`
+    );
+  }
+  
+  if (params.frameSize !== undefined && (params.frameSize < 0 || params.frameSize > 100000)) {
+    Logger.warn(
+      'validation',
+      `Audio frameSize ${params.frameSize} is outside typical range (0-100000)`
+    );
+  }
+}
+
+/**
+ * Validates video parameters and throws helpful errors
+ * 
+ * @private
+ * @param params Video parameters to validate
+ */
+function validateVideoParams(params: VideoParams): void {
+  // Validate contentType
+  if (params.contentType !== undefined) {
+    const validValues = Object.values(nativeRtms.VideoContentType || {});
+    if (!validValues.includes(params.contentType)) {
+      throw new Error(
+        `Invalid video contentType: ${params.contentType}. ` +
+        `Use rtms.VideoContentType constants (e.g., rtms.VideoContentType.RAW_VIDEO)`
+      );
+    }
+  }
+  
+  // Validate codec
+  if (params.codec !== undefined) {
+    const validValues = Object.values(nativeRtms.VideoCodec || {});
+    if (!validValues.includes(params.codec)) {
+      throw new Error(
+        `Invalid video codec: ${params.codec}. ` +
+        `Use rtms.VideoCodec constants (e.g., rtms.VideoCodec.H264)`
+      );
+    }
+  }
+  
+  // Validate resolution
+  if (params.resolution !== undefined) {
+    const validValues = Object.values(nativeRtms.VideoResolution || {});
+    if (!validValues.includes(params.resolution)) {
+      throw new Error(
+        `Invalid video resolution: ${params.resolution}. ` +
+        `Use rtms.VideoResolution constants (e.g., rtms.VideoResolution.HD)`
+      );
+    }
+  }
+  
+  // Validate dataOpt
+  if (params.dataOpt !== undefined) {
+    const validValues = Object.values(nativeRtms.VideoDataOption || {});
+    if (!validValues.includes(params.dataOpt)) {
+      throw new Error(
+        `Invalid video dataOpt: ${params.dataOpt}. ` +
+        `Use rtms.VideoDataOption constants (e.g., rtms.VideoDataOption.VIDEO_SINGLE_ACTIVE_STREAM)`
+      );
+    }
+  }
+  
+  // Validate numeric ranges
+  if (params.fps !== undefined && (params.fps < 1 || params.fps > 120)) {
+    Logger.warn(
+      'validation',
+      `Video fps ${params.fps} is outside typical range (1-120)`
+    );
+  }
+}
+
+/**
+ * Validates deskshare parameters and throws helpful errors
+ * 
+ * @private
+ * @param params Deskshare parameters to validate
+ */
+function validateDeskshareParams(params: DeskshareParams): void {
+  // Validate contentType
+  if (params.contentType !== undefined) {
+    const validValues = Object.values(nativeRtms.VideoContentType || {});
+    if (!validValues.includes(params.contentType)) {
+      throw new Error(
+        `Invalid deskshare contentType: ${params.contentType}. ` +
+        `Use rtms.VideoContentType constants (e.g., rtms.VideoContentType.RAW_VIDEO)`
+      );
+    }
+  }
+  
+  // Validate codec
+  if (params.codec !== undefined) {
+    const validValues = Object.values(nativeRtms.VideoCodec || {});
+    if (!validValues.includes(params.codec)) {
+      throw new Error(
+        `Invalid deskshare codec: ${params.codec}. ` +
+        `Use rtms.VideoCodec constants (e.g., rtms.VideoCodec.H264)`
+      );
+    }
+  }
+  
+  // Validate resolution
+  if (params.resolution !== undefined) {
+    const validValues = Object.values(nativeRtms.VideoResolution || {});
+    if (!validValues.includes(params.resolution)) {
+      throw new Error(
+        `Invalid deskshare resolution: ${params.resolution}. ` +
+        `Use rtms.VideoResolution constants (e.g., rtms.VideoResolution.HD)`
+      );
+    }
+  }
+  
+  // Validate numeric ranges
+  if (params.fps !== undefined && (params.fps < 1 || params.fps > 120)) {
+    Logger.warn(
+      'validation',
+      `Deskshare fps ${params.fps} is outside typical range (1-120)`
+    );
+  }
+}
+
+/**
  * Generic function to set media parameters with consistent logging
  * 
  * @param context Context identifier for logging (client/global)
@@ -536,6 +723,21 @@ function setParameters<T>(
   operation: (params: T) => boolean
 ): boolean {
   Logger.debug(context, `Setting ${type} parameters: ${JSON.stringify(params)}`);
+  
+  // Validate parameters based on type
+  try {
+    if (type === 'audio' && 'codec' in (params as any)) {
+      validateAudioParams(params as unknown as AudioParams);
+    } else if (type === 'video' && 'codec' in (params as any)) {
+      validateVideoParams(params as unknown as VideoParams);
+    } else if (type === 'deskshare' && 'codec' in (params as any)) {
+      validateDeskshareParams(params as unknown as DeskshareParams);
+    }
+  } catch (validationError) {
+    Logger.error(context, `Parameter validation failed: ${validationError instanceof Error ? validationError.message : 'Unknown error'}`);
+    throw validationError;
+  }
+  
   try {
     const result = operation(params);
     if (result) {
