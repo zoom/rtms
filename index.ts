@@ -6,7 +6,7 @@ import { createRequire } from 'module';
 import { IncomingMessage, Server, ServerResponse } from 'http';
 
 import type { 
-  JoinParams, SignatureParams, WebhookCallback, 
+  JoinParams, SignatureParams, WebhookCallback, RawWebhookCallback,
   VideoParams, AudioParams, DeskshareParams
 } from "./rtms.d.ts";
 
@@ -344,6 +344,20 @@ function generateSignature({ client, secret, uuid, streamId }: SignatureParams):
 }
 
 /**
+ * Helper type to detect callback type
+ */
+type WebhookCallbackUnion = WebhookCallback | RawWebhookCallback;
+
+/**
+ * Type guard to check if callback is RawWebhookCallback
+ * 
+ * @private
+ */
+function isRawWebhookCallback(callback: WebhookCallbackUnion): callback is RawWebhookCallback {
+  return callback.length >= 3;
+}
+
+/**
  * Creates a request handler for webhook events
  * 
  * @private
@@ -351,7 +365,7 @@ function generateSignature({ client, secret, uuid, streamId }: SignatureParams):
  * @param path The URL path to listen on
  * @returns A request handler function
  */
-function createWebhookHandler(callback: WebhookCallback, path: string) {
+function createWebhookHandler(callback: WebhookCallbackUnion, path: string) {
   return (req: IncomingMessage, res: ServerResponse) => {
     const headers = { 'Content-Type': 'application/json' };
 
@@ -376,17 +390,36 @@ function createWebhookHandler(callback: WebhookCallback, path: string) {
           payloadSize: body.length 
         });
         
-        // Run callback in next tick to avoid blocking server
-        process.nextTick(() => {
-          try {
-            callback(payload);
-          } catch (err) {
-            Logger.error('webhook', `Error in webhook callback: ${err instanceof Error ? err.message : 'Unknown error'}`);
-          }
-        });
+        // Check if this is a raw webhook callback
+        const isRawCallback = isRawWebhookCallback(callback);
         
-        res.writeHead(200, headers);
-        res.end(JSON.stringify({ status: 'ok' }));
+        if (isRawCallback) {
+          // For raw callbacks, pass req and res objects
+          process.nextTick(() => {
+            try {
+              (callback as RawWebhookCallback)(payload, req, res);
+            } catch (err) {
+              Logger.error('webhook', `Error in webhook callback: ${err instanceof Error ? err.message : 'Unknown error'}`);
+              // Send error response if not already sent
+              if (!res.headersSent) {
+                res.writeHead(500, headers);
+                res.end(JSON.stringify({ error: 'Internal Server Error' }));
+              }
+            }
+          });
+        } else {
+          // For basic callbacks, only pass payload and auto-respond
+          process.nextTick(() => {
+            try {
+              (callback as WebhookCallback)(payload);
+            } catch (err) {
+              Logger.error('webhook', `Error in webhook callback: ${err instanceof Error ? err.message : 'Unknown error'}`);
+            }
+          });
+          
+          res.writeHead(200, headers);
+          res.end(JSON.stringify({ status: 'ok' }));
+        }
       } catch (e) {
         Logger.error('webhook', `Error parsing webhook JSON: ${e instanceof Error ? e.message : 'Unknown error'}`);
         res.writeHead(400, headers);
@@ -411,7 +444,7 @@ function createWebhookHandler(callback: WebhookCallback, path: string) {
  * @param callback Function to call when webhook events are received
  * 
  */
-export function onWebhookEvent(callback: WebhookCallback): void {
+export function onWebhookEvent(callback: WebhookCallback | RawWebhookCallback): void {
   if (webhookServer?.listening) {
     Logger.warn('webhook', 'Webhook server is already running');
     return;
@@ -439,8 +472,8 @@ export function onWebhookEvent(callback: WebhookCallback): void {
   
   const useSecureServer = hasCert && hasKey;
   
-  // Create the request handler
-  const requestHandler = createWebhookHandler(callback, path);
+  // Create the request handler (works with both WebhookCallback and RawWebhookCallback)
+  const requestHandler = createWebhookHandler(callback as WebhookCallbackUnion, path);
   
   if (useSecureServer) {
     // Set up HTTPS server with the provided certificates

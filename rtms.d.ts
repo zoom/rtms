@@ -306,6 +306,25 @@ export interface SignatureParams {
 export type WebhookCallback = (payload: Record<string, any>) => void;
 
 /**
+ * Enhanced callback function for processing webhook events with raw HTTP access
+ * 
+ * This callback provides access to the raw HTTP request and response objects,
+ * allowing developers to handle webhook validation challenges and customize
+ * responses as needed.
+ * 
+ * @param payload The JSON payload of the webhook event
+ * @param req The raw HTTP request object
+ * @param res The raw HTTP response object
+ * 
+ * @category Callback Types
+ */
+export type RawWebhookCallback = (
+  payload: Record<string, any>,
+  req: import('http').IncomingMessage,
+  res: import('http').ServerResponse
+) => void;
+
+/**
  * Callback function for when a join operation is confirmed
  * 
  * @param reason The reason code for the join confirmation
@@ -794,34 +813,53 @@ export class Client {
  * - ZM_RTMS_KEY: Path to SSL certificate key file
  * - ZM_RTMS_CA_WEBHOOK: (Optional) Path to CA certificate for client verification
  * 
+ * The callback can be either a basic WebhookCallback (receives only the payload)
+ * or a RawWebhookCallback (receives payload, request, and response objects for
+ * custom handling of webhook validation challenges).
+ * 
  * @param callback Function to call when webhook events are received
  * 
  * @example
  * ```typescript
  * import rtms from '@zoom/rtms';
  * 
- * // Set up the webhook listener (uses HTTPS if certificates are provided)
- * rtms.onWebhookEvent(({event, payload}) => {
- *   if (event === "meeting.rtms.started") {
+ * // Basic webhook handler (automatically responds with 200 OK)
+ * rtms.onWebhookEvent((payload) => {
+ *   if (payload.event === "meeting.rtms.started") {
  *     console.log(`RTMS started for meeting: ${payload.meeting_uuid}`);
- *     
- *     // Create a dedicated client for this meeting
- *     const client = new rtms.Client();
- *     
- *     // Set up callbacks
- *     client.onAudioData((data, timestamp, metadata) => {
- *       console.log(`Received audio: ${data.length} bytes from ${metadata.userName}`);
- *     });
- *     
- *     // Join the meeting
- *     client.join(payload);
  *   }
+ * });
+ * ```
+ * 
+ * @example
+ * ```typescript
+ * // Advanced webhook handler with raw HTTP access for custom validation
+ * rtms.onWebhookEvent((payload, req, res) => {
+ *   // Access headers for webhook validation
+ *   const authorization = req.headers.authorization;
+ *   const signature = req.headers['x-zoom-signature'];
+ *   
+ *   // Custom validation logic here
+ *   if (!validateSignature(payload, signature)) {
+ *     res.writeHead(401);
+ *     res.end('Unauthorized');
+ *     return;
+ *   }
+ *   
+ *   // Process the event
+ *   if (payload.event === "meeting.rtms.started") {
+ *     console.log(`RTMS started for meeting: ${payload.meeting_uuid}`);
+ *   }
+ *   
+ *   // Custom response
+ *   res.writeHead(200, { 'Content-Type': 'application/json' });
+ *   res.end(JSON.stringify({ status: 'ok' }));
  * });
  * ```
  * 
  * @category Common Functions
  */
-export function onWebhookEvent(callback: WebhookCallback): void;
+export function onWebhookEvent(callback: WebhookCallback | RawWebhookCallback): void;
 
 /**
  * Joins a Zoom RTMS session using the global client
