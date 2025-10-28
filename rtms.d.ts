@@ -179,6 +179,10 @@ export interface ParticipantInfo {
 export interface SessionInfo {
   /** The unique identifier for this session */
   sessionId: string;
+  /** The stream ID for this session */
+  streamId: string;
+  /** The meeting ID for this session */
+  meetingId: string;
   /** The start time of this session (Unix timestamp) */
   statTime: number;
   /** The current status of this session (SESS_STATUS_*) */
@@ -274,6 +278,10 @@ export interface JoinParams {
   timeout?: number;
   /** The interval between poll operations in milliseconds */
   pollInterval?: number;
+  /** Whether to verify TLS certificates (1 = verify, 0 = don't verify, defaults to 1) */
+  is_verify_cert?: number;
+  /** User agent string to send in requests */
+  agent?: string;
 }
 
 /**
@@ -391,6 +399,15 @@ export type TranscriptDataCallback = (buffer: Buffer, size: number, timestamp: n
  * @category Callback Types
  */
 export type LeaveCallback = (reason: number) => void;
+
+/**
+ * Callback function for extended event data
+ * 
+ * @param eventData The extended event data as a string
+ * 
+ * @category Callback Types
+ */
+export type EventExCallback = (eventData: string) => void;
 
 //-----------------------------------------------------------------------------------
 // Client class
@@ -776,6 +793,14 @@ export class Client {
    * ```
    */
   onLeave(callback: LeaveCallback): boolean;
+  
+  /**
+   * Set callback for extended event data
+   * 
+   * @param callback Function to call when extended event data is received
+   * @returns true if callback was set successfully
+   */
+  onEventEx(callback: EventExCallback): boolean;
 }
 
 //-----------------------------------------------------------------------------------
@@ -1065,6 +1090,14 @@ export function onTranscriptData(callback: TranscriptDataCallback): boolean;
  * @category Singleton API
  */
 export function onLeave(callback: LeaveCallback): boolean;
+
+/**
+ * Set callback for extended event data (global client)
+ * 
+ * @param callback Function to call when extended event data is received
+ * @returns true if callback was set successfully
+ */
+export function onEventEx(callback: EventExCallback): boolean;
 
 //-----------------------------------------------------------------------------------
 // Utility functions

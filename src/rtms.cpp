@@ -28,11 +28,21 @@ int Metadata::userId() const {
 
 Session::Session(const session_info& info)
     : session_id_(info.session_id ? info.session_id : ""),
+      stream_id_(info.stream_id ? info.stream_id : ""),
+      meeting_id_(info.meeting_id[0] != '\0' ? string(info.meeting_id) : ""),
       stat_time_(info.stat_time),
       status_(info.status) {}
 
 string Session::sessionId() const {
     return session_id_;
+}
+
+string Session::streamId() const {
+    return stream_id_;
+}
+
+string Session::meetingId() const {
+    return meeting_id_;
 }
 
 int Session::statTime() const {
@@ -330,8 +340,10 @@ Client::~Client() {
     }
 }
 
-void Client::initialize(const string& ca_path) {
-    int result = rtms_init(ca_path.empty() ? nullptr : ca_path.c_str());
+void Client::initialize(const string& ca_path, int is_verify_cert, const char* agent) {
+    // SDK will crash if agent is nullptr, so pass empty string instead
+    const char* agent_str = (agent != nullptr) ? agent : "";
+    int result = rtms_init(ca_path.empty() ? nullptr : ca_path.c_str(), is_verify_cert, agent_str);
     if (result != RTMS_SDK_OK) {
         throw Exception(result, "Failed to initialize RTMS SDK");
     }
@@ -448,6 +460,11 @@ void Client::setOnLeave(LeaveFn callback) {
     leave_callback_ = std::move(callback);
 }
 
+void Client::setOnEventEx(EventExFn callback) {
+    lock_guard<mutex> lock(mutex_);
+    event_ex_callback_ = std::move(callback);
+}
+
 void Client::setDeskshareParams(const DeskshareParams& ds_params)
 {
     media_params_.setDeskshareParams(ds_params);
@@ -475,6 +492,7 @@ void Client::join(const string& meeting_uuid, const string& rtms_stream_id,
     ops.on_video_data = &Client::handleVideoData;
     ops.on_transcript_data = &Client::handleTranscriptData;
     ops.on_leave = &Client::handleLeave;
+    ops.on_event_ex = &Client::handleEventEx;
     
     int result = rtms_set_callbacks(sdk_, &ops);
     throwIfError(result, "set_callbacks");
@@ -648,6 +666,17 @@ void Client::handleLeave(struct rtms_csdk* sdk, int reason) {
         lock_guard<mutex> lock(client->mutex_);
         if (client->leave_callback_) {
             client->leave_callback_(reason);
+        }
+    }
+}
+
+void Client::handleEventEx(struct rtms_csdk* sdk, const char* buf, int size) {
+    Client* client = getClient(sdk);
+    if (client && buf && size > 0) {
+        lock_guard<mutex> lock(client->mutex_);
+        if (client->event_ex_callback_) {
+            string event_data(buf, size);
+            client->event_ex_callback_(event_data);
         }
     }
 }

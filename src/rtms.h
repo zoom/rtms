@@ -26,6 +26,8 @@ class Session {
 public:
     explicit Session(const session_info& info);
     string sessionId() const;
+    string streamId() const;
+    string meetingId() const;
 
     int statTime() const;
     int status() const;
@@ -34,6 +36,8 @@ public:
 
 private:
     string session_id_;
+    string stream_id_;
+    string meeting_id_;
     int stat_time_;
     int status_;
 };
@@ -195,6 +199,7 @@ public:
     using VideoDataFn = function<void(const vector<uint8_t>&, uint64_t,  const Metadata&)>;
     using TranscriptDataFn = function<void(const vector<uint8_t>&, uint64_t, const Metadata&)>;
     using LeaveFn = function<void(int)>;
+    using EventExFn = function<void(const string&)>;
 
     // Media type constants
     enum MediaType {
@@ -209,7 +214,7 @@ public:
     Client();
     ~Client();
 
-    static void initialize(const string& ca);
+    static void initialize(const string& ca, int is_verify_cert = 1, const char* agent = nullptr);
     static void uninitialize();
     void configure(const MediaParams& params, int media_types, bool enable_application_layer_encryption = false);
 
@@ -226,6 +231,7 @@ public:
     void setOnVideoData(VideoDataFn callback);
     void setOnTranscriptData(TranscriptDataFn callback);
     void setOnLeave(LeaveFn callback);
+    void setOnEventEx(EventExFn callback);
 
     void setDeskshareParams(const DeskshareParams& ds_params);
     void setVideoParams(const VideoParams& video_params);
@@ -258,6 +264,7 @@ private:
     VideoDataFn video_data_callback_;
     TranscriptDataFn transcript_data_callback_;
     LeaveFn leave_callback_;
+    EventExFn event_ex_callback_;
 
     static void handleJoinConfirm(struct rtms_csdk* sdk, int reason);
     static void handleSessionUpdate(struct rtms_csdk* sdk, int op, struct session_info* sess);
@@ -267,6 +274,7 @@ private:
     static void handleVideoData(struct rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, struct rtms_metadata* md);
     static void handleTranscriptData(struct rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, struct rtms_metadata* md);
     static void handleLeave(struct rtms_csdk* sdk, int reason);
+    static void handleEventEx(struct rtms_csdk* sdk, const char* buf, int size);
 
     static unordered_map<struct rtms_csdk*, Client*> sdk_registry_;
     static mutex registry_mutex_;

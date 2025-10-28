@@ -21,6 +21,7 @@ Napi::ThreadSafeFunction global_tsfn_audio_data;
 Napi::ThreadSafeFunction global_tsfn_video_data;
 Napi::ThreadSafeFunction global_tsfn_transcript_data;
 Napi::ThreadSafeFunction global_tsfn_leave;
+Napi::ThreadSafeFunction global_tsfn_event_ex;
 
 // Function to ensure global client is initialized
 void ensure_global_client() {
@@ -61,6 +62,7 @@ private:
     Napi::Value setOnVideoData(const Napi::CallbackInfo& info);
     Napi::Value setOnTranscriptData(const Napi::CallbackInfo& info);
     Napi::Value setOnLeave(const Napi::CallbackInfo& info);
+    Napi::Value setOnEventEx(const Napi::CallbackInfo& info);
 
     unique_ptr<rtms::Client> client_;
     Napi::ThreadSafeFunction tsfn_join_confirm_;
@@ -70,7 +72,8 @@ private:
     Napi::ThreadSafeFunction tsfn_audio_data_;
     Napi::ThreadSafeFunction tsfn_video_data_;
     Napi::ThreadSafeFunction tsfn_transcript_data_;
-    Napi::ThreadSafeFunction tsfn_leave_;    
+    Napi::ThreadSafeFunction tsfn_leave_;
+    Napi::ThreadSafeFunction tsfn_event_ex_;
 };
 
 Napi::Value NodeClient::poll(const Napi::CallbackInfo& info) {
@@ -307,10 +310,12 @@ Napi::Value NodeClient::setOnSessionUpdate(const Napi::CallbackInfo& info) {
     );
 
     client_->setOnSessionUpdate([this](int op, const rtms::Session& session) {
-        auto callback = [op, sessionId = session.sessionId(), statTime = session.statTime(), status = session.status()]
+        auto callback = [op, sessionId = session.sessionId(), streamId = session.streamId(), meetingId = session.meetingId(), statTime = session.statTime(), status = session.status()]
                         (Napi::Env env, Napi::Function jsCallback) {
             Napi::Object sessionObj = Napi::Object::New(env);
             sessionObj.Set("sessionId", Napi::String::New(env, sessionId));
+            sessionObj.Set("streamId", Napi::String::New(env, streamId));
+            sessionObj.Set("meetingId", Napi::String::New(env, meetingId));
             sessionObj.Set("statTime", Napi::Number::New(env, statTime));
             sessionObj.Set("status", Napi::Number::New(env, status));
             sessionObj.Set("isActive", Napi::Boolean::New(env, status == SESS_STATUS_ACTIVE));
@@ -531,6 +536,35 @@ Napi::Value NodeClient::setOnLeave(const Napi::CallbackInfo& info) {
     return Napi::Boolean::New(env, true);
 }
 
+Napi::Value NodeClient::setOnEventEx(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::HandleScope scope(env);
+
+    if (info.Length() < 1 || !info[0].IsFunction()) {
+        Napi::TypeError::New(env, "Function argument expected").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    Napi::Function callback = info[0].As<Napi::Function>();
+    
+    if (tsfn_event_ex_) {
+        tsfn_event_ex_.Release();
+    }
+
+    tsfn_event_ex_ = Napi::ThreadSafeFunction::New(
+        env, callback, "EventExCallback", 0, 1
+    );
+
+    client_->setOnEventEx([this](const string& eventData) {
+        auto callback = [eventData](Napi::Env env, Napi::Function jsCallback) {
+            jsCallback.Call({Napi::String::New(env, eventData)});
+        };
+        tsfn_event_ex_.BlockingCall(callback);
+    });
+
+    return Napi::Boolean::New(env, true);
+}
+
 Napi::Value NodeClient::enableVideo(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
@@ -596,6 +630,7 @@ NodeClient::~NodeClient() {
     if (tsfn_video_data_) tsfn_video_data_.Release();
     if (tsfn_transcript_data_) tsfn_transcript_data_.Release();
     if (tsfn_leave_) tsfn_leave_.Release();
+    if (tsfn_event_ex_) tsfn_event_ex_.Release();
 }
 
 Napi::Value NodeClient::initialize(const Napi::CallbackInfo& info) {
@@ -604,11 +639,24 @@ Napi::Value NodeClient::initialize(const Napi::CallbackInfo& info) {
 
     try {
         string ca_path = "";
+        int is_verify_cert = 1;
+        string agent_str = "";
+        const char* agent = nullptr;
+        
         if (info.Length() > 0 && info[0].IsString()) {
             ca_path = info[0].As<Napi::String>();
         }
         
-        rtms::Client::initialize(ca_path);
+        if (info.Length() > 1 && info[1].IsNumber()) {
+            is_verify_cert = info[1].As<Napi::Number>().Int32Value();
+        }
+        
+        if (info.Length() > 2 && info[2].IsString()) {
+            agent_str = info[2].As<Napi::String>();
+            agent = agent_str.c_str();
+        }
+        
+        rtms::Client::initialize(ca_path, is_verify_cert, agent);
         return Napi::Boolean::New(env, true);
     } catch (const rtms::Exception& e) {
         Napi::Error::New(env, e.what()).ThrowAsJavaScriptException();
@@ -854,10 +902,12 @@ Napi::Value globalSetOnSessionUpdate(const Napi::CallbackInfo& info) {
     );
 
     global_client->setOnSessionUpdate([](int op, const rtms::Session& session) {
-        auto callback = [op, sessionId = session.sessionId(), statTime = session.statTime(), status = session.status()]
+        auto callback = [op, sessionId = session.sessionId(), streamId = session.streamId(), meetingId = session.meetingId(), statTime = session.statTime(), status = session.status()]
                         (Napi::Env env, Napi::Function jsCallback) {
             Napi::Object sessionObj = Napi::Object::New(env);
             sessionObj.Set("sessionId", Napi::String::New(env, sessionId));
+            sessionObj.Set("streamId", Napi::String::New(env, streamId));
+            sessionObj.Set("meetingId", Napi::String::New(env, meetingId));
             sessionObj.Set("statTime", Napi::Number::New(env, statTime));
             sessionObj.Set("status", Napi::Number::New(env, status));
             sessionObj.Set("isActive", Napi::Boolean::New(env, status == SESS_STATUS_ACTIVE));
@@ -1139,6 +1189,36 @@ Napi::Value globalSetOnLeave(const Napi::CallbackInfo& info) {
     return Napi::Boolean::New(env, true);
 }
 
+Napi::Value globalSetOnEventEx(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::HandleScope scope(env);
+
+    if (info.Length() < 1 || !info[0].IsFunction()) {
+        Napi::TypeError::New(env, "Function argument expected").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    ensure_global_client();
+    Napi::Function callback = info[0].As<Napi::Function>();
+    
+    if (global_tsfn_event_ex) {
+        global_tsfn_event_ex.Release();
+    }
+
+    global_tsfn_event_ex = Napi::ThreadSafeFunction::New(
+        env, callback, "GlobalEventExCallback", 0, 1
+    );
+
+    global_client->setOnEventEx([](const string& eventData) {
+        auto callback = [eventData](Napi::Env env, Napi::Function jsCallback) {
+            jsCallback.Call({Napi::String::New(env, eventData)});
+        };
+        global_tsfn_event_ex.BlockingCall(callback);
+    });
+
+    return Napi::Boolean::New(env, true);
+}
+
 Napi::Value globalEnableAudio(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
@@ -1211,6 +1291,7 @@ Napi::Object NodeClient::init(Napi::Env env, Napi::Object exports) {
         InstanceMethod("onVideoData", &NodeClient::setOnVideoData),
         InstanceMethod("onTranscriptData", &NodeClient::setOnTranscriptData),
         InstanceMethod("onLeave", &NodeClient::setOnLeave),
+        InstanceMethod("onEventEx", &NodeClient::setOnEventEx),
     });
 
     Napi::FunctionReference* constructor = new Napi::FunctionReference();
@@ -1239,6 +1320,7 @@ Napi::Object NodeClient::init(Napi::Env env, Napi::Object exports) {
     exports.Set("onVideoData", Napi::Function::New(env, globalSetOnVideoData));
     exports.Set("onTranscriptData", Napi::Function::New(env, globalSetOnTranscriptData));
     exports.Set("onLeave", Napi::Function::New(env, globalSetOnLeave));
+    exports.Set("onEventEx", Napi::Function::New(env, globalSetOnEventEx));
     
     // Export constants
     exports.Set(Napi::String::New(env, "MEDIA_TYPE_AUDIO"), Napi::Number::New(env, SDK_AUDIO));

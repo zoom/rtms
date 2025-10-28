@@ -290,10 +290,12 @@ function findCACertificate(specifiedPath?: string): string {
  * 
  * @private
  * @param caPath Optional explicit path to a CA certificate
+ * @param isVerifyCert Whether to verify TLS certificates (1 = verify, 0 = don't verify)
+ * @param agent User agent string to send in requests
  * @returns true if initialization succeeded
  * @throws Error if initialization failed
  */
-function ensureInitialized(caPath?: string): boolean {
+function ensureInitialized(caPath?: string, isVerifyCert?: number, agent?: string): boolean {
   if (isInitialized) {
     Logger.debug('rtms', 'SDK already initialized');
     return true;
@@ -303,7 +305,12 @@ function ensureInitialized(caPath?: string): boolean {
   
   try {
     Logger.info('rtms', `Initializing RTMS SDK with CA certificate: ${certPath || 'none'}`);
-    nativeRtms.Client.initialize(certPath);
+    // Handle undefined values by providing defaults
+    nativeRtms.Client.initialize(
+      certPath, 
+      isVerifyCert ?? 1,  // Use nullish coalescing to provide default
+      agent ?? undefined
+    );
     isInitialized = true;
     Logger.info('rtms', 'RTMS SDK initialized successfully');
     return true;
@@ -548,7 +555,9 @@ class Client extends nativeRtms.Client {
   join(options: JoinParams): boolean {
     let ret = false;
     const caPath = options.ca || process.env['ZM_RTMS_CA'];
-    ret = ensureInitialized(caPath);
+    const isVerifyCert = options.is_verify_cert !== undefined ? options.is_verify_cert : 1;
+    const agent = options.agent;
+    ret = ensureInitialized(caPath, isVerifyCert, agent);
 
     const {
       meeting_uuid,
@@ -755,7 +764,9 @@ function join(options: JoinParams): boolean {
  
   let ret = false;
   const caPath = options.ca || process.env['ZM_RTMS_CA'];
-  ret = ensureInitialized(caPath);
+  const isVerifyCert = options.is_verify_cert !== undefined ? options.is_verify_cert : 1;
+  const agent = options.agent;
+  ret = ensureInitialized(caPath, isVerifyCert, agent);
 
   const {
     meeting_uuid,
