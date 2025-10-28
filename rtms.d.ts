@@ -179,6 +179,10 @@ export interface ParticipantInfo {
 export interface SessionInfo {
   /** The unique identifier for this session */
   sessionId: string;
+  /** The stream ID for this session */
+  streamId: string;
+  /** The meeting ID for this session */
+  meetingId: string;
   /** The start time of this session (Unix timestamp) */
   statTime: number;
   /** The current status of this session (SESS_STATUS_*) */
@@ -274,6 +278,10 @@ export interface JoinParams {
   timeout?: number;
   /** The interval between poll operations in milliseconds */
   pollInterval?: number;
+  /** Whether to verify TLS certificates (1 = verify, 0 = don't verify, defaults to 1) */
+  is_verify_cert?: number;
+  /** User agent string to send in requests */
+  agent?: string;
 }
 
 /**
@@ -304,6 +312,25 @@ export interface SignatureParams {
  * @category Callback Types
  */
 export type WebhookCallback = (payload: Record<string, any>) => void;
+
+/**
+ * Enhanced callback function for processing webhook events with raw HTTP access
+ * 
+ * This callback provides access to the raw HTTP request and response objects,
+ * allowing developers to handle webhook validation challenges and customize
+ * responses as needed.
+ * 
+ * @param payload The JSON payload of the webhook event
+ * @param req The raw HTTP request object
+ * @param res The raw HTTP response object
+ * 
+ * @category Callback Types
+ */
+export type RawWebhookCallback = (
+  payload: Record<string, any>,
+  req: import('http').IncomingMessage,
+  res: import('http').ServerResponse
+) => void;
 
 /**
  * Callback function for when a join operation is confirmed
@@ -391,6 +418,15 @@ export type TranscriptDataCallback = (buffer: Buffer, size: number, timestamp: n
  * @category Callback Types
  */
 export type LeaveCallback = (reason: number) => void;
+
+/**
+ * Callback function for extended event data
+ * 
+ * @param eventData The extended event data as a string
+ * 
+ * @category Callback Types
+ */
+export type EventExCallback = (eventData: string) => void;
 
 //-----------------------------------------------------------------------------------
 // Client class
@@ -776,6 +812,14 @@ export class Client {
    * ```
    */
   onLeave(callback: LeaveCallback): boolean;
+  
+  /**
+   * Set callback for extended event data
+   * 
+   * @param callback Function to call when extended event data is received
+   * @returns true if callback was set successfully
+   */
+  onEventEx(callback: EventExCallback): boolean;
 }
 
 //-----------------------------------------------------------------------------------
@@ -794,34 +838,53 @@ export class Client {
  * - ZM_RTMS_KEY: Path to SSL certificate key file
  * - ZM_RTMS_CA_WEBHOOK: (Optional) Path to CA certificate for client verification
  * 
+ * The callback can be either a basic WebhookCallback (receives only the payload)
+ * or a RawWebhookCallback (receives payload, request, and response objects for
+ * custom handling of webhook validation challenges).
+ * 
  * @param callback Function to call when webhook events are received
  * 
  * @example
  * ```typescript
  * import rtms from '@zoom/rtms';
  * 
- * // Set up the webhook listener (uses HTTPS if certificates are provided)
- * rtms.onWebhookEvent(({event, payload}) => {
- *   if (event === "meeting.rtms.started") {
+ * // Basic webhook handler (automatically responds with 200 OK)
+ * rtms.onWebhookEvent((payload) => {
+ *   if (payload.event === "meeting.rtms.started") {
  *     console.log(`RTMS started for meeting: ${payload.meeting_uuid}`);
- *     
- *     // Create a dedicated client for this meeting
- *     const client = new rtms.Client();
- *     
- *     // Set up callbacks
- *     client.onAudioData((data, timestamp, metadata) => {
- *       console.log(`Received audio: ${data.length} bytes from ${metadata.userName}`);
- *     });
- *     
- *     // Join the meeting
- *     client.join(payload);
  *   }
+ * });
+ * ```
+ * 
+ * @example
+ * ```typescript
+ * // Advanced webhook handler with raw HTTP access for custom validation
+ * rtms.onWebhookEvent((payload, req, res) => {
+ *   // Access headers for webhook validation
+ *   const authorization = req.headers.authorization;
+ *   const signature = req.headers['x-zoom-signature'];
+ *   
+ *   // Custom validation logic here
+ *   if (!validateSignature(payload, signature)) {
+ *     res.writeHead(401);
+ *     res.end('Unauthorized');
+ *     return;
+ *   }
+ *   
+ *   // Process the event
+ *   if (payload.event === "meeting.rtms.started") {
+ *     console.log(`RTMS started for meeting: ${payload.meeting_uuid}`);
+ *   }
+ *   
+ *   // Custom response
+ *   res.writeHead(200, { 'Content-Type': 'application/json' });
+ *   res.end(JSON.stringify({ status: 'ok' }));
  * });
  * ```
  * 
  * @category Common Functions
  */
-export function onWebhookEvent(callback: WebhookCallback): void;
+export function onWebhookEvent(callback: WebhookCallback | RawWebhookCallback): void;
 
 /**
  * Joins a Zoom RTMS session using the global client
@@ -1065,6 +1128,14 @@ export function onTranscriptData(callback: TranscriptDataCallback): boolean;
  * @category Singleton API
  */
 export function onLeave(callback: LeaveCallback): boolean;
+
+/**
+ * Set callback for extended event data (global client)
+ * 
+ * @param callback Function to call when extended event data is received
+ * @returns true if callback was set successfully
+ */
+export function onEventEx(callback: EventExCallback): boolean;
 
 //-----------------------------------------------------------------------------------
 // Utility functions

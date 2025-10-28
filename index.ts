@@ -6,7 +6,7 @@ import { createRequire } from 'module';
 import { IncomingMessage, Server, ServerResponse } from 'http';
 
 import type { 
-  JoinParams, SignatureParams, WebhookCallback, 
+  JoinParams, SignatureParams, WebhookCallback, RawWebhookCallback,
   VideoParams, AudioParams, DeskshareParams
 } from "./rtms.d.ts";
 
@@ -290,10 +290,12 @@ function findCACertificate(specifiedPath?: string): string {
  * 
  * @private
  * @param caPath Optional explicit path to a CA certificate
+ * @param isVerifyCert Whether to verify TLS certificates (1 = verify, 0 = don't verify)
+ * @param agent User agent string to send in requests
  * @returns true if initialization succeeded
  * @throws Error if initialization failed
  */
-function ensureInitialized(caPath?: string): boolean {
+function ensureInitialized(caPath?: string, isVerifyCert?: number, agent?: string): boolean {
   if (isInitialized) {
     Logger.debug('rtms', 'SDK already initialized');
     return true;
@@ -303,7 +305,12 @@ function ensureInitialized(caPath?: string): boolean {
   
   try {
     Logger.info('rtms', `Initializing RTMS SDK with CA certificate: ${certPath || 'none'}`);
-    nativeRtms.Client.initialize(certPath);
+    // Handle undefined values by providing defaults
+    nativeRtms.Client.initialize(
+      certPath, 
+      isVerifyCert ?? 1,  // Use nullish coalescing to provide default
+      agent ?? undefined
+    );
     isInitialized = true;
     Logger.info('rtms', 'RTMS SDK initialized successfully');
     return true;
@@ -344,6 +351,20 @@ function generateSignature({ client, secret, uuid, streamId }: SignatureParams):
 }
 
 /**
+ * Helper type to detect callback type
+ */
+type WebhookCallbackUnion = WebhookCallback | RawWebhookCallback;
+
+/**
+ * Type guard to check if callback is RawWebhookCallback
+ * 
+ * @private
+ */
+function isRawWebhookCallback(callback: WebhookCallbackUnion): callback is RawWebhookCallback {
+  return callback.length >= 3;
+}
+
+/**
  * Creates a request handler for webhook events
  * 
  * @private
@@ -351,7 +372,7 @@ function generateSignature({ client, secret, uuid, streamId }: SignatureParams):
  * @param path The URL path to listen on
  * @returns A request handler function
  */
-function createWebhookHandler(callback: WebhookCallback, path: string) {
+function createWebhookHandler(callback: WebhookCallbackUnion, path: string) {
   return (req: IncomingMessage, res: ServerResponse) => {
     const headers = { 'Content-Type': 'application/json' };
 
@@ -376,17 +397,36 @@ function createWebhookHandler(callback: WebhookCallback, path: string) {
           payloadSize: body.length 
         });
         
-        // Run callback in next tick to avoid blocking server
-        process.nextTick(() => {
-          try {
-            callback(payload);
-          } catch (err) {
-            Logger.error('webhook', `Error in webhook callback: ${err instanceof Error ? err.message : 'Unknown error'}`);
-          }
-        });
+        // Check if this is a raw webhook callback
+        const isRawCallback = isRawWebhookCallback(callback);
         
-        res.writeHead(200, headers);
-        res.end(JSON.stringify({ status: 'ok' }));
+        if (isRawCallback) {
+          // For raw callbacks, pass req and res objects
+          process.nextTick(() => {
+            try {
+              (callback as RawWebhookCallback)(payload, req, res);
+            } catch (err) {
+              Logger.error('webhook', `Error in webhook callback: ${err instanceof Error ? err.message : 'Unknown error'}`);
+              // Send error response if not already sent
+              if (!res.headersSent) {
+                res.writeHead(500, headers);
+                res.end(JSON.stringify({ error: 'Internal Server Error' }));
+              }
+            }
+          });
+        } else {
+          // For basic callbacks, only pass payload and auto-respond
+          process.nextTick(() => {
+            try {
+              (callback as WebhookCallback)(payload);
+            } catch (err) {
+              Logger.error('webhook', `Error in webhook callback: ${err instanceof Error ? err.message : 'Unknown error'}`);
+            }
+          });
+          
+          res.writeHead(200, headers);
+          res.end(JSON.stringify({ status: 'ok' }));
+        }
       } catch (e) {
         Logger.error('webhook', `Error parsing webhook JSON: ${e instanceof Error ? e.message : 'Unknown error'}`);
         res.writeHead(400, headers);
@@ -411,7 +451,7 @@ function createWebhookHandler(callback: WebhookCallback, path: string) {
  * @param callback Function to call when webhook events are received
  * 
  */
-export function onWebhookEvent(callback: WebhookCallback): void {
+export function onWebhookEvent(callback: WebhookCallback | RawWebhookCallback): void {
   if (webhookServer?.listening) {
     Logger.warn('webhook', 'Webhook server is already running');
     return;
@@ -439,8 +479,8 @@ export function onWebhookEvent(callback: WebhookCallback): void {
   
   const useSecureServer = hasCert && hasKey;
   
-  // Create the request handler
-  const requestHandler = createWebhookHandler(callback, path);
+  // Create the request handler (works with both WebhookCallback and RawWebhookCallback)
+  const requestHandler = createWebhookHandler(callback as WebhookCallbackUnion, path);
   
   if (useSecureServer) {
     // Set up HTTPS server with the provided certificates
@@ -487,6 +527,193 @@ export function onWebhookEvent(callback: WebhookCallback): void {
 }
 
 /**
+ * Validates audio parameters and throws helpful errors
+ * 
+ * @private
+ * @param params Audio parameters to validate
+ */
+function validateAudioParams(params: AudioParams): void {
+  // Validate contentType
+  if (params.contentType !== undefined) {
+    const validValues = Object.values(nativeRtms.AudioContentType || {});
+    if (!validValues.includes(params.contentType)) {
+      throw new Error(
+        `Invalid audio contentType: ${params.contentType}. ` +
+        `Use rtms.AudioContentType constants (e.g., rtms.AudioContentType.RAW_AUDIO)`
+      );
+    }
+  }
+  
+  // Validate codec
+  if (params.codec !== undefined) {
+    const validValues = Object.values(nativeRtms.AudioCodec || {});
+    if (!validValues.includes(params.codec)) {
+      throw new Error(
+        `Invalid audio codec: ${params.codec}. ` +
+        `Use rtms.AudioCodec constants (e.g., rtms.AudioCodec.OPUS)`
+      );
+    }
+  }
+  
+  // Validate sampleRate
+  if (params.sampleRate !== undefined) {
+    const validValues = Object.values(nativeRtms.AudioSampleRate || {});
+    if (!validValues.includes(params.sampleRate)) {
+      throw new Error(
+        `Invalid audio sampleRate: ${params.sampleRate}. ` +
+        `Use rtms.AudioSampleRate constants (e.g., rtms.AudioSampleRate.SR_48K)`
+      );
+    }
+  }
+  
+  // Validate channel
+  if (params.channel !== undefined) {
+    const validValues = Object.values(nativeRtms.AudioChannel || {});
+    if (!validValues.includes(params.channel)) {
+      throw new Error(
+        `Invalid audio channel: ${params.channel}. ` +
+        `Use rtms.AudioChannel constants (e.g., rtms.AudioChannel.STEREO)`
+      );
+    }
+  }
+  
+  // Validate dataOpt
+  if (params.dataOpt !== undefined) {
+    const validValues = Object.values(nativeRtms.AudioDataOption || {});
+    if (!validValues.includes(params.dataOpt)) {
+      throw new Error(
+        `Invalid audio dataOpt: ${params.dataOpt}. ` +
+        `Use rtms.AudioDataOption constants (e.g., rtms.AudioDataOption.AUDIO_MIXED_STREAM)`
+      );
+    }
+  }
+  
+  // Validate numeric ranges
+  if (params.duration !== undefined && (params.duration < 0 || params.duration > 10000)) {
+    Logger.warn(
+      'validation',
+      `Audio duration ${params.duration}ms is outside typical range (0-10000ms)`
+    );
+  }
+  
+  if (params.frameSize !== undefined && (params.frameSize < 0 || params.frameSize > 100000)) {
+    Logger.warn(
+      'validation',
+      `Audio frameSize ${params.frameSize} is outside typical range (0-100000)`
+    );
+  }
+}
+
+/**
+ * Validates video parameters and throws helpful errors
+ * 
+ * @private
+ * @param params Video parameters to validate
+ */
+function validateVideoParams(params: VideoParams): void {
+  // Validate contentType
+  if (params.contentType !== undefined) {
+    const validValues = Object.values(nativeRtms.VideoContentType || {});
+    if (!validValues.includes(params.contentType)) {
+      throw new Error(
+        `Invalid video contentType: ${params.contentType}. ` +
+        `Use rtms.VideoContentType constants (e.g., rtms.VideoContentType.RAW_VIDEO)`
+      );
+    }
+  }
+  
+  // Validate codec
+  if (params.codec !== undefined) {
+    const validValues = Object.values(nativeRtms.VideoCodec || {});
+    if (!validValues.includes(params.codec)) {
+      throw new Error(
+        `Invalid video codec: ${params.codec}. ` +
+        `Use rtms.VideoCodec constants (e.g., rtms.VideoCodec.H264)`
+      );
+    }
+  }
+  
+  // Validate resolution
+  if (params.resolution !== undefined) {
+    const validValues = Object.values(nativeRtms.VideoResolution || {});
+    if (!validValues.includes(params.resolution)) {
+      throw new Error(
+        `Invalid video resolution: ${params.resolution}. ` +
+        `Use rtms.VideoResolution constants (e.g., rtms.VideoResolution.HD)`
+      );
+    }
+  }
+  
+  // Validate dataOpt
+  if (params.dataOpt !== undefined) {
+    const validValues = Object.values(nativeRtms.VideoDataOption || {});
+    if (!validValues.includes(params.dataOpt)) {
+      throw new Error(
+        `Invalid video dataOpt: ${params.dataOpt}. ` +
+        `Use rtms.VideoDataOption constants (e.g., rtms.VideoDataOption.VIDEO_SINGLE_ACTIVE_STREAM)`
+      );
+    }
+  }
+  
+  // Validate numeric ranges
+  if (params.fps !== undefined && (params.fps < 1 || params.fps > 120)) {
+    Logger.warn(
+      'validation',
+      `Video fps ${params.fps} is outside typical range (1-120)`
+    );
+  }
+}
+
+/**
+ * Validates deskshare parameters and throws helpful errors
+ * 
+ * @private
+ * @param params Deskshare parameters to validate
+ */
+function validateDeskshareParams(params: DeskshareParams): void {
+  // Validate contentType
+  if (params.contentType !== undefined) {
+    const validValues = Object.values(nativeRtms.VideoContentType || {});
+    if (!validValues.includes(params.contentType)) {
+      throw new Error(
+        `Invalid deskshare contentType: ${params.contentType}. ` +
+        `Use rtms.VideoContentType constants (e.g., rtms.VideoContentType.RAW_VIDEO)`
+      );
+    }
+  }
+  
+  // Validate codec
+  if (params.codec !== undefined) {
+    const validValues = Object.values(nativeRtms.VideoCodec || {});
+    if (!validValues.includes(params.codec)) {
+      throw new Error(
+        `Invalid deskshare codec: ${params.codec}. ` +
+        `Use rtms.VideoCodec constants (e.g., rtms.VideoCodec.H264)`
+      );
+    }
+  }
+  
+  // Validate resolution
+  if (params.resolution !== undefined) {
+    const validValues = Object.values(nativeRtms.VideoResolution || {});
+    if (!validValues.includes(params.resolution)) {
+      throw new Error(
+        `Invalid deskshare resolution: ${params.resolution}. ` +
+        `Use rtms.VideoResolution constants (e.g., rtms.VideoResolution.HD)`
+      );
+    }
+  }
+  
+  // Validate numeric ranges
+  if (params.fps !== undefined && (params.fps < 1 || params.fps > 120)) {
+    Logger.warn(
+      'validation',
+      `Deskshare fps ${params.fps} is outside typical range (1-120)`
+    );
+  }
+}
+
+/**
  * Generic function to set media parameters with consistent logging
  * 
  * @param context Context identifier for logging (client/global)
@@ -503,6 +730,21 @@ function setParameters<T>(
   operation: (params: T) => boolean
 ): boolean {
   Logger.debug(context, `Setting ${type} parameters: ${JSON.stringify(params)}`);
+  
+  // Validate parameters based on type
+  try {
+    if (type === 'audio' && 'codec' in (params as any)) {
+      validateAudioParams(params as unknown as AudioParams);
+    } else if (type === 'video' && 'codec' in (params as any)) {
+      validateVideoParams(params as unknown as VideoParams);
+    } else if (type === 'deskshare' && 'codec' in (params as any)) {
+      validateDeskshareParams(params as unknown as DeskshareParams);
+    }
+  } catch (validationError) {
+    Logger.error(context, `Parameter validation failed: ${validationError instanceof Error ? validationError.message : 'Unknown error'}`);
+    throw validationError;
+  }
+  
   try {
     const result = operation(params);
     if (result) {
@@ -548,7 +790,9 @@ class Client extends nativeRtms.Client {
   join(options: JoinParams): boolean {
     let ret = false;
     const caPath = options.ca || process.env['ZM_RTMS_CA'];
-    ret = ensureInitialized(caPath);
+    const isVerifyCert = options.is_verify_cert !== undefined ? options.is_verify_cert : 1;
+    const agent = options.agent;
+    ret = ensureInitialized(caPath, isVerifyCert, agent);
 
     const {
       meeting_uuid,
@@ -755,7 +999,9 @@ function join(options: JoinParams): boolean {
  
   let ret = false;
   const caPath = options.ca || process.env['ZM_RTMS_CA'];
-  ret = ensureInitialized(caPath);
+  const isVerifyCert = options.is_verify_cert !== undefined ? options.is_verify_cert : 1;
+  const agent = options.agent;
+  ret = ensureInitialized(caPath, isVerifyCert, agent);
 
   const {
     meeting_uuid,

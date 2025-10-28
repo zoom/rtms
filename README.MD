@@ -23,6 +23,7 @@ The RTMS SDK allows developers to:
 - Process real-time media streams (audio, video, transcripts)
 - Receive events about session and participant updates
 - Build applications that interact with Zoom meetings in real-time
+- Handle webhook events with full control over validation and responses
 
 ## Installation
 
@@ -62,6 +63,51 @@ rtms.onWebhookEvent(({event, payload}) => {
     });
 
     client.join(payload);
+});
+```
+
+### Node.js - Advanced Webhook Handling
+
+For advanced use cases requiring custom webhook validation or response handling (e.g., Zoom's webhook validation challenge), you can use the enhanced callback with raw HTTP access:
+
+```javascript
+import rtms from "@zoom/rtms";
+
+rtms.onWebhookEvent((payload, req, res) => {
+    // Access request headers for webhook validation
+    const signature = req.headers['x-zoom-signature'];
+    
+    // Handle Zoom's webhook validation challenge
+    if (req.headers['x-zoom-webhook-validator']) {
+        const validationToken = req.headers['x-zoom-webhook-validator'];
+        
+        // Echo back the validation token
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ plainToken: validationToken }));
+        return;
+    }
+    
+    // Custom validation logic
+    if (!validateWebhookSignature(payload, signature)) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid signature' }));
+        return;
+    }
+    
+    // Process the webhook payload
+    if (payload.event === "meeting.rtms_started") {
+        const client = new rtms.Client();
+        
+        client.onAudioData((data, timestamp, metadata) => {
+            console.log(`Received audio from ${metadata.userName}`);
+        });
+        
+        client.join(payload.payload);
+    }
+    
+    // Send custom response
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok' }));
 });
 ```
 
