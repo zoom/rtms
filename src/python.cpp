@@ -556,6 +556,8 @@ PYBIND11_MODULE(_rtms, m) {
     // Expose classes
     py::class_<Session>(m, "Session")
         .def_property_readonly("session_id", &Session::sessionId)
+        .def_property_readonly("stream_id", &Session::streamId)
+        .def_property_readonly("meeting_id", &Session::meetingId)
         .def_property_readonly("stat_time", &Session::statTime)
         .def_property_readonly("status", &Session::status)
         .def_property_readonly("is_active", &Session::isActive)
