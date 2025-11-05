@@ -5,6 +5,7 @@ docs
 dist
 build
 prebuilds
+test-results
 
 .env
 .prebuild-installrc
