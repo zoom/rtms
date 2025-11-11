@@ -1,126 +1,324 @@
 """
-Zoom RTMS SDK
------------------------
-
-.. currentmodule:: rtms
-
-.. autosummary::
-    :toctree: _generate
-
-    initialize
-    join
-    leave
-    poll
-    uuid
-    stream_id
-    generate_signature
-    set_debug
-    Client
-    Session
-    Participant
-    Metadata
+Zoom RTMS SDK - Python Type Stubs
+Real-Time Media Streaming SDK for Python
 """
 
-# Core initialization and connection functions
-def initialize(ca: str) -> int:
-    """
-    Initialize Realtime Media Streams
+from typing import Callable, Dict, Any, Optional
 
-    Takes the path to a CA Certificate
-    """
+# ============================================================================
+# Data Classes
+# ============================================================================
 
-def join(uuid: str, stream_id: str, signature: str, server_urls: str, timeout: int = -1) -> bool:
-    """
-    Join a Zoom RTMS session using the global client
-    """
+class Session:
+    """Information about a Zoom meeting session"""
+    @property
+    def sessionId(self) -> str: ...
+    @property
+    def streamId(self) -> str: ...
+    @property
+    def meetingId(self) -> str: ...
+    @property
+    def statTime(self) -> int: ...
+    @property
+    def status(self) -> int: ...
+    @property
+    def isActive(self) -> bool: ...
+    @property
+    def isPaused(self) -> bool: ...
 
-def leave() -> bool:
-    """
-    Leave the RTMS session and clean up resources
-    """
+class Participant:
+    """Information about a participant in a Zoom meeting"""
+    @property
+    def id(self) -> int: ...
+    @property
+    def name(self) -> str: ...
 
-def uninitialize() -> bool:
-    """
-    Uninitialize the RTMS SDK
-    """
+class Metadata:
+    """Metadata about a participant in a Zoom meeting"""
+    @property
+    def userName(self) -> str: ...
+    @property
+    def userId(self) -> int: ...
 
-def uuid() -> str:
-    """
-    Get the UUID of the current meeting
-    """
+# ============================================================================
+# Parameter Classes
+# ============================================================================
 
-def stream_id() -> str:
-    """
-    Get the stream ID of the current session
-    """
+class AudioParams:
+    """Audio streaming parameters"""
+    def __init__(
+        self,
+        content_type: int = 0,
+        codec: int = 0,
+        sample_rate: int = 0,
+        channel: int = 0,
+        data_opt: int = 0,
+        duration: int = 0,
+        frame_size: int = 0
+    ) -> None: ...
 
-def generate_signature(client: str, secret: str, uuid: str, stream_id: str) -> str:
-    """
-    Generate a signature for RTMS authentication
-    """
+    @property
+    def contentType(self) -> int: ...
+    @contentType.setter
+    def contentType(self, value: int) -> None: ...
 
-def set_debug(enable: bool = True) -> None:
-    """
-    Enable or disable debug logging
-    """
+    @property
+    def codec(self) -> int: ...
+    @codec.setter
+    def codec(self, value: int) -> None: ...
 
-# Event handling decorators
-def on_webhook_event(callback=None, port=None, path=None):
-    """
-    Register a webhook event handler
-    """
+    @property
+    def sampleRate(self) -> int: ...
+    @sampleRate.setter
+    def sampleRate(self, value: int) -> None: ...
 
-def on_join_confirm(func):
-    """
-    Decorator for join confirmation callback
-    """
+    @property
+    def channel(self) -> int: ...
+    @channel.setter
+    def channel(self, value: int) -> None: ...
 
-def on_session_update(func):
-    """
-    Decorator for session update callback
-    """
+    @property
+    def dataOpt(self) -> int: ...
+    @dataOpt.setter
+    def dataOpt(self, value: int) -> None: ...
 
-def on_user_update(func):
-    """
-    Decorator for user update callback
-    """
+    @property
+    def duration(self) -> int: ...
+    @duration.setter
+    def duration(self, value: int) -> None: ...
 
-def on_audio_data(func):
-    """
-    Decorator for audio data callback
-    """
+    @property
+    def frameSize(self) -> int: ...
+    @frameSize.setter
+    def frameSize(self, value: int) -> None: ...
 
-def on_video_data(func):
-    """
-    Decorator for video data callback
-    """
+class VideoParams:
+    """Video streaming parameters"""
+    def __init__(
+        self,
+        content_type: int = 0,
+        codec: int = 0,
+        resolution: int = 0,
+        data_opt: int = 0,
+        fps: int = 0
+    ) -> None: ...
 
-def on_transcript_data(func):
-    """
-    Decorator for transcript data callback
-    """
+    @property
+    def contentType(self) -> int: ...
+    @contentType.setter
+    def contentType(self, value: int) -> None: ...
 
-def on_leave(func):
-    """
-    Decorator for leave callback
-    """
+    @property
+    def codec(self) -> int: ...
+    @codec.setter
+    def codec(self, value: int) -> None: ...
 
-# Constants
-SDK_AUDIO: int
-SDK_VIDEO: int
-SDK_TRANSCRIPT: int
-SDK_ALL: int
+    @property
+    def resolution(self) -> int: ...
+    @resolution.setter
+    def resolution(self, value: int) -> None: ...
 
-SESSION_ADD: int
-SESSION_STOP: int
-SESSION_PAUSE: int
-SESSION_RESUME: int
+    @property
+    def dataOpt(self) -> int: ...
+    @dataOpt.setter
+    def dataOpt(self, value: int) -> None: ...
 
-USER_JOIN: int
-USER_LEAVE: int
+    @property
+    def fps(self) -> int: ...
+    @fps.setter
+    def fps(self, value: int) -> None: ...
 
-RTMS_SDK_FAILURE: int
+class DeskshareParams:
+    """Deskshare streaming parameters"""
+    def __init__(
+        self,
+        content_type: int = 0,
+        codec: int = 0,
+        resolution: int = 0,
+        fps: int = 0
+    ) -> None: ...
+
+    @property
+    def contentType(self) -> int: ...
+    @contentType.setter
+    def contentType(self, value: int) -> None: ...
+
+    @property
+    def codec(self) -> int: ...
+    @codec.setter
+    def codec(self, value: int) -> None: ...
+
+    @property
+    def resolution(self) -> int: ...
+    @resolution.setter
+    def resolution(self, value: int) -> None: ...
+
+    @property
+    def fps(self) -> int: ...
+    @fps.setter
+    def fps(self, value: int) -> None: ...
+
+# ============================================================================
+# Client Class
+# ============================================================================
+
+class Client:
+    """RTMS Client for connecting to Zoom real-time media streams"""
+
+    def __init__(self) -> None: ...
+
+    @staticmethod
+    def initialize(ca_path: str, is_verify_cert: int = 1, agent: Optional[str] = None) -> None:
+        """Initialize the RTMS SDK"""
+        ...
+
+    @staticmethod
+    def uninitialize() -> None:
+        """Uninitialize the RTMS SDK"""
+        ...
+
+    def join(
+        self,
+        meeting_uuid: Optional[str] = None,
+        rtms_stream_id: Optional[str] = None,
+        server_urls: Optional[str] = None,
+        signature: Optional[str] = None,
+        timeout: int = -1,
+        ca: Optional[str] = None,
+        client: Optional[str] = None,
+        secret: Optional[str] = None,
+        poll_interval: int = 10,
+        **kwargs: Any
+    ) -> bool:
+        """Join a Zoom RTMS session"""
+        ...
+
+    def poll(self) -> None:
+        """Poll for events (call periodically)"""
+        ...
+
+    def release(self) -> None:
+        """Release client resources"""
+        ...
+
+    def leave(self) -> bool:
+        """Leave the RTMS session"""
+        ...
+
+    def stop(self) -> bool:
+        """Stop the RTMS client (alias for leave)"""
+        ...
+
+    def uuid(self) -> str:
+        """Get meeting UUID"""
+        ...
+
+    def streamId(self) -> str:
+        """Get stream ID"""
+        ...
+
+    def enableAudio(self, enable: bool) -> None:
+        """Enable/disable audio streaming"""
+        ...
+
+    def enableVideo(self, enable: bool) -> None:
+        """Enable/disable video streaming"""
+        ...
+
+    def enableTranscript(self, enable: bool) -> None:
+        """Enable/disable transcript streaming"""
+        ...
+
+    def enableDeskshare(self, enable: bool) -> None:
+        """Enable/disable deskshare streaming"""
+        ...
+
+    def setAudioParams(self, params: AudioParams) -> None:
+        """Set audio parameters"""
+        ...
+
+    def setVideoParams(self, params: VideoParams) -> None:
+        """Set video parameters"""
+        ...
+
+    def setDeskshareParams(self, params: DeskshareParams) -> None:
+        """Set deskshare parameters"""
+        ...
+
+    def onJoinConfirm(self, callback: Callable[[int], None]) -> None:
+        """Register join confirm callback"""
+        ...
+
+    def onSessionUpdate(self, callback: Callable[[int, Session], None]) -> None:
+        """Register session update callback"""
+        ...
+
+    def onUserUpdate(self, callback: Callable[[int, Participant], None]) -> None:
+        """Register user update callback"""
+        ...
+
+    def onAudioData(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
+        """Register audio data callback"""
+        ...
+
+    def onVideoData(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
+        """Register video data callback"""
+        ...
+
+    def onDeskshareData(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
+        """Register deskshare data callback"""
+        ...
+
+    def onTranscriptData(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
+        """Register transcript data callback"""
+        ...
+
+    def onLeave(self, callback: Callable[[int], None]) -> None:
+        """Register leave callback"""
+        ...
+
+    def onEventEx(self, callback: Callable[[str], None]) -> None:
+        """Register extended event callback"""
+        ...
+
+    def on_webhook_event(
+        self,
+        callback: Optional[Callable[[Dict[str, Any]], None]] = None,
+        port: Optional[int] = None,
+        path: Optional[str] = None
+    ) -> Callable[[Dict[str, Any]], None]:
+        """Register webhook event handler"""
+        ...
+
+# ============================================================================
+# Constants - Media Types
+# ============================================================================
+
+MEDIA_TYPE_AUDIO: int
+MEDIA_TYPE_VIDEO: int
+MEDIA_TYPE_DESKSHARE: int
+MEDIA_TYPE_TRANSCRIPT: int
+MEDIA_TYPE_CHAT: int
+MEDIA_TYPE_ALL: int
+
+# ============================================================================
+# Constants - Events
+# ============================================================================
+
+SESSION_EVENT_ADD: int
+SESSION_EVENT_STOP: int
+SESSION_EVENT_PAUSE: int
+SESSION_EVENT_RESUME: int
+
+USER_EVENT_JOIN: int
+USER_EVENT_LEAVE: int
+
+# ============================================================================
+# Constants - Status Codes
+# ============================================================================
+
 RTMS_SDK_OK: int
+RTMS_SDK_FAILURE: int
 RTMS_SDK_TIMEOUT: int
 RTMS_SDK_NOT_EXIST: int
 RTMS_SDK_WRONG_TYPE: int
@@ -130,72 +328,164 @@ RTMS_SDK_INVALID_ARGS: int
 SESS_STATUS_ACTIVE: int
 SESS_STATUS_PAUSED: int
 
-# Classes
-class Session:
-    """Information about a Zoom meeting session"""
-    
-    def session_id(self) -> str: ...
-    def stat_time(self) -> int: ...
-    def status(self) -> int: ...
-    def is_active(self) -> bool: ...
-    def is_paused(self) -> bool: ...
+# ============================================================================
+# Parameter Dictionaries
+# ============================================================================
 
-class Participant:
-    """Information about a participant in a Zoom meeting"""
-    
-    def id(self) -> int: ...
-    def name(self) -> str: ...
+AudioContentType: Dict[str, int]
+AudioCodec: Dict[str, int]
+AudioSampleRate: Dict[str, int]
+AudioChannel: Dict[str, int]
+AudioDataOption: Dict[str, int]
 
-class Metadata:
-    """Metadata about a participant in a Zoom meeting"""
-    
-    def user_name(self) -> str: ...
-    def user_id(self) -> int: ...
+VideoContentType: Dict[str, int]
+VideoCodec: Dict[str, int]
+VideoResolution: Dict[str, int]
+VideoDataOption: Dict[str, int]
 
-class Client:
-    """RTMS Client for connecting to Zoom real-time media streams"""
-    
-    def __init__(self) -> None: ...
-    
-    @staticmethod
-    def initialize(ca_path: str) -> None: ...
-    
-    @staticmethod
-    def uninitialize() -> None: ...
-    
-    def join(self, 
-             uuid: str = None, 
-             stream_id: str = None,
-             server_urls: str = None,
-             signature: str = None,
-             timeout: int = -1,
-             ca: str = None,
-             client: str = None,
-             secret: str = None,
-             poll_interval: int = 10,
-             **kwargs) -> bool: ...
-    
-    def poll(self) -> None: ...
-    def release(self) -> None: ...
-    def stop(self) -> bool: ...
-    def leave(self) -> bool: ...
-    def uuid(self) -> str: ...
-    def stream_id(self) -> str: ...
-    
-    def on_webhook_event(self, callback=None, port=None, path=None): ...
-    def on_join_confirm(self): ...
-    def on_session_update(self): ...
-    def on_user_update(self): ...
-    def on_audio_data(self): ...
-    def on_video_data(self): ...
-    def on_transcript_data(self): ...
-    def on_leave(self): ...
-    
-    # For direct callback setting
-    def set_join_confirm_callback(self, func): ...
-    def set_session_update_callback(self, func): ...
-    def set_user_update_callback(self, func): ...
-    def set_audio_data_callback(self, func): ...
-    def set_video_data_callback(self, func): ...
-    def set_transcript_data_callback(self, func): ...
-    def set_leave_callback(self, func): ...
+MediaDataType: Dict[str, int]
+SessionState: Dict[str, int]
+StreamState: Dict[str, int]
+EventType: Dict[str, int]
+MessageType: Dict[str, int]
+StopReason: Dict[str, int]
+
+# ============================================================================
+# Global Functions
+# ============================================================================
+
+def initialize(ca_path: Optional[str] = None) -> bool:
+    """Initialize the RTMS SDK"""
+    ...
+
+def uninitialize() -> bool:
+    """Uninitialize the RTMS SDK"""
+    ...
+
+def join(
+    meeting_uuid: Optional[str] = None,
+    rtms_stream_id: Optional[str] = None,
+    server_urls: Optional[str] = None,
+    signature: Optional[str] = None,
+    timeout: int = -1,
+    ca: Optional[str] = None,
+    client: Optional[str] = None,
+    secret: Optional[str] = None,
+    poll_interval: int = 10,
+    **kwargs: Any
+) -> bool:
+    """Join a Zoom RTMS session using the global client"""
+    ...
+
+def leave() -> bool:
+    """Leave the RTMS session"""
+    ...
+
+def uuid() -> str:
+    """Get the UUID of the current meeting"""
+    ...
+
+def stream_id() -> str:
+    """Get the stream ID of the current session"""
+    ...
+
+def generate_signature(client: str, secret: str, uuid: str, stream_id: str) -> str:
+    """Generate a signature for RTMS authentication"""
+    ...
+
+def setAudioParams(params: AudioParams) -> None:
+    """Set audio parameters for the global client"""
+    ...
+
+def setVideoParams(params: VideoParams) -> None:
+    """Set video parameters for the global client"""
+    ...
+
+def setDeskshareParams(params: DeskshareParams) -> None:
+    """Set deskshare parameters for the global client"""
+    ...
+
+# ============================================================================
+# Callback Decorators
+# ============================================================================
+
+def on_webhook_event(
+    callback: Optional[Callable[[Dict[str, Any]], None]] = None,
+    port: Optional[int] = None,
+    path: Optional[str] = None
+) -> Callable[[Dict[str, Any]], None]:
+    """Register a webhook event handler"""
+    ...
+
+def onJoinConfirm(func: Callable[[int], None]) -> Callable[[int], None]:
+    """Decorator for join confirmation callback"""
+    ...
+
+def onSessionUpdate(func: Callable[[int, Session], None]) -> Callable[[int, Session], None]:
+    """Decorator for session update callback"""
+    ...
+
+def onUserUpdate(func: Callable[[int, Participant], None]) -> Callable[[int, Participant], None]:
+    """Decorator for user update callback"""
+    ...
+
+def onAudioData(func: Callable[[bytes, int, int, Metadata], None]) -> Callable[[bytes, int, int, Metadata], None]:
+    """Decorator for audio data callback"""
+    ...
+
+def onVideoData(func: Callable[[bytes, int, int, Metadata], None]) -> Callable[[bytes, int, int, Metadata], None]:
+    """Decorator for video data callback"""
+    ...
+
+def onDeskshareData(func: Callable[[bytes, int, int, Metadata], None]) -> Callable[[bytes, int, int, Metadata], None]:
+    """Decorator for deskshare data callback"""
+    ...
+
+def onTranscriptData(func: Callable[[bytes, int, int, Metadata], None]) -> Callable[[bytes, int, int, Metadata], None]:
+    """Decorator for transcript data callback"""
+    ...
+
+def onLeave(func: Callable[[int], None]) -> Callable[[int], None]:
+    """Decorator for leave callback"""
+    ...
+
+def onEventEx(func: Callable[[str], None]) -> Callable[[str], None]:
+    """Decorator for extended event callback"""
+    ...
+
+# ============================================================================
+# Logging
+# ============================================================================
+
+class LogLevel:
+    """Available log levels for RTMS SDK logging"""
+    ERROR: int
+    WARN: int
+    INFO: int
+    DEBUG: int
+    TRACE: int
+
+class LogFormat:
+    """Available log output formats"""
+    PROGRESSIVE: str
+    JSON: str
+
+def log_debug(component: str, message: str, details: Optional[Dict[str, Any]] = None) -> None:
+    """Log a debug message"""
+    ...
+
+def log_info(component: str, message: str, details: Optional[Dict[str, Any]] = None) -> None:
+    """Log an info message"""
+    ...
+
+def log_warn(component: str, message: str, details: Optional[Dict[str, Any]] = None) -> None:
+    """Log a warning message"""
+    ...
+
+def log_error(component: str, message: str, details: Optional[Dict[str, Any]] = None) -> None:
+    """Log an error message"""
+    ...
+
+def configure_logger(options: Dict[str, Any]) -> None:
+    """Configure the logger with the specified options"""
+    ...

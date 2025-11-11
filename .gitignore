@@ -6,8 +6,10 @@ dist
 build
 prebuilds
 test-results
+claude.md
 
 .env
+.venv/**
 .prebuild-installrc
 *.pem
 

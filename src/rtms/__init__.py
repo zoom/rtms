@@ -14,27 +14,22 @@ from pathlib import Path
 from ._rtms import (
     # Classes
     Client as _ClientBase, Session, Participant, Metadata,
-    
-    # Main functions
-    _initialize, _uninitialize, 
-    
+    AudioParams, VideoParams, DeskshareParams,
+
     # Media type constants
-    SDK_AUDIO, SDK_VIDEO, SDK_TRANSCRIPT, SDK_ALL,
-    
+    MEDIA_TYPE_AUDIO, MEDIA_TYPE_VIDEO, MEDIA_TYPE_DESKSHARE,
+    MEDIA_TYPE_TRANSCRIPT, MEDIA_TYPE_CHAT, MEDIA_TYPE_ALL,
+
     # Event constants
-    SESSION_ADD, SESSION_STOP, SESSION_PAUSE, SESSION_RESUME,
-    USER_JOIN, USER_LEAVE,
-    
+    SESSION_EVENT_ADD, SESSION_EVENT_STOP, SESSION_EVENT_PAUSE, SESSION_EVENT_RESUME,
+    USER_EVENT_JOIN, USER_EVENT_LEAVE,
+
     # Status code constants
     RTMS_SDK_FAILURE, RTMS_SDK_OK, RTMS_SDK_TIMEOUT,
     RTMS_SDK_NOT_EXIST, RTMS_SDK_WRONG_TYPE,
     RTMS_SDK_INVALID_STATUS, RTMS_SDK_INVALID_ARGS,
     SESS_STATUS_ACTIVE, SESS_STATUS_PAUSED,
-    
-    # Parameter setting functions
-    set_audio_parameters,
-    set_video_parameters,
-    
+
     # Parameter dictionaries - import directly with their original names
     AudioContentType, AudioCodec, AudioSampleRate, AudioChannel, AudioDataOption,
     VideoContentType, VideoCodec, VideoResolution, VideoDataOption,
@@ -282,35 +277,60 @@ class WebhookServer:
 class Client(_ClientBase):
     """
     RTMS Client - provides real-time media streaming capabilities
-    
-    This client allows you to join Zoom meetings and process audio, video, 
+
+    This client allows you to join Zoom meetings and process audio, video,
     and transcript data in real-time.
     """
-    
+
+    _sdk_initialized = False
+
     def __init__(self):
         """Initialize a new RTMS client"""
+        # Ensure SDK is initialized before creating client instance
+        if not Client._sdk_initialized:
+            try:
+                ca_path = find_ca_certificate()
+                log_debug("client", f"Initializing SDK with CA: {ca_path}")
+                _ClientBase.initialize(ca_path, 1, "python-rtms")
+                Client._sdk_initialized = True
+                log_debug("client", "SDK initialized successfully")
+            except Exception as e:
+                log_error("client", f"SDK initialization failed: {e}")
+                # Try with empty path as fallback
+                try:
+                    log_debug("client", "Trying SDK initialization with empty CA path")
+                    _ClientBase.initialize("", 1, "python-rtms")
+                    Client._sdk_initialized = True
+                    log_debug("client", "SDK initialized with empty CA path")
+                except Exception as e2:
+                    log_error("client", f"SDK initialization failed completely: {e2}")
+                    raise RuntimeError(f"Failed to initialize RTMS SDK: {e2}")
+
         super().__init__()
         self._polling_thread = None
         self._polling_interval = 10  # milliseconds
         self._running = False
         self._webhook_server = None
-        
-    def join(self, 
-             meeting_uuid: str = None, 
-             rtms_stream_id: str = None, 
-             server_urls: str = None, 
-             signature: str = None, 
-             timeout: int = -1, 
-             ca: str = None, 
-             client: str = None, 
+        self._main_thread_id = threading.get_ident()  # Remember the main thread ID
+        self._join_queue = []  # Queue for pending join requests
+        self._join_lock = threading.Lock()  # Lock for join queue
+
+    def join(self,
+             meeting_uuid: str = None,
+             rtms_stream_id: str = None,
+             server_urls: str = None,
+             signature: str = None,
+             timeout: int = -1,
+             ca: str = None,
+             client: str = None,
              secret: str = None,
              poll_interval: int = 10,
              **kwargs):
         """
         Join a RTMS session.
-        
+
         Can be called with positional arguments or with a dictionary of parameters.
-        
+
         Args:
             meeting_uuid (str): Meeting UUID
             rtms_stream_id (str): RTMS stream ID
@@ -322,7 +342,7 @@ class Client(_ClientBase):
             secret (str, optional): Client secret. If empty, uses ZM_RTMS_SECRET env var.
             poll_interval (int, optional): Polling interval in milliseconds. Defaults to 10.
             **kwargs: Additional arguments passed to join
-            
+
         Returns:
             bool: True if joined successfully, False otherwise
         """
@@ -345,11 +365,11 @@ class Client(_ClientBase):
                 # Update with any additional kwargs
                 params.update(kwargs)
                 return self._join_with_params(**params)
-            
+
             # Check if uuid is actually a dictionary (first param)
             if isinstance(meeting_uuid, dict):
                 return self._join_with_params(**meeting_uuid)
-                
+
             # Otherwise, use the parameters directly
             return self._join_with_params(
                 meeting_uuid=meeting_uuid,
@@ -366,11 +386,26 @@ class Client(_ClientBase):
             log_error("client", f"Error in join: {e}")
             traceback.print_exc()
             return False
-    
+
     def _join_with_params(self, **params):
         """
-        Internal method to join with parameter dictionary
+        Internal method to join with parameter dictionary.
+
+        IMPORTANT: Due to SDK threading constraints, the actual join() must be called
+        from the same thread that initialized the SDK (the main thread). If this is
+        called from a different thread (e.g., webhook handler), we queue the request.
         """
+        # Check if we're on the main thread
+        current_thread_id = threading.get_ident()
+        if current_thread_id != self._main_thread_id:
+            log_debug("client", f"Join called from non-main thread {current_thread_id}, queuing request")
+            # Queue the join request for processing on the main thread
+            with self._join_lock:
+                self._join_queue.append(params)
+            log_debug("client", "Join request queued, will be processed by main thread")
+            return True  # Return immediately; actual join happens later
+
+        # We're on the main thread, proceed with join
         try:
             # Extract parameters with defaults
             meeting_uuid = params.get('meeting_uuid')
@@ -379,10 +414,10 @@ class Client(_ClientBase):
             signature = params.get('signature')
             timeout = params.get('timeout', -1)
             ca = params.get('ca')
-            client = params.get('client', os.getenv('ZM_RTMS_CLIENT')) 
-            secret = params.get('secret', os.getenv('ZM_RTMS_SECRET')) 
+            client = params.get('client', os.getenv('ZM_RTMS_CLIENT'))
+            secret = params.get('secret', os.getenv('ZM_RTMS_SECRET'))
             poll_interval = params.get('poll_interval', 10)
-            
+
 
             if not meeting_uuid:
                 raise ValueError("Meeting UUID is required")
@@ -390,10 +425,7 @@ class Client(_ClientBase):
                 raise ValueError("RTMS Stream ID is required")
             if not server_urls:
                 raise ValueError("Server URLs is required")
-                
-            # Initialize RTMS if not already initialized
-            self._initialize_rtms(ca)
-            
+
             # Generate signature if not provided
             if not signature:
                 try:
@@ -401,33 +433,46 @@ class Client(_ClientBase):
                 except Exception as e:
                     log_error("client", f"Error generating signature: {e}")
                     raise
-            
+
             # Store polling interval
             self._polling_interval = poll_interval
-            
+
             # Join the meeting
             log_info("client", f"Joining meeting: {meeting_uuid}")
             super().join(meeting_uuid, rtms_stream_id, signature, server_urls, timeout)
-            
+
             # Start polling thread
-            self.poll()
-            
+            self._start_polling()
+
             log_info("client", "Successfully joined meeting")
             return True
         except Exception as e:
             log_error("client", f"Error joining meeting: {e}")
             traceback.print_exc()
             return False
-    
+
+    def _process_join_queue(self):
+        """Process any pending join requests from the queue"""
+        with self._join_lock:
+            if not self._join_queue:
+                return
+            # Process all pending requests
+            requests = self._join_queue[:]
+            self._join_queue.clear()
+
+        for params in requests:
+            log_debug("client", "Processing queued join request")
+            self._join_with_params(**params)
+
     def _initialize_rtms(self, ca_path=None):
         """Initialize the RTMS SDK with the best available CA certificate"""
         try:
             # Find the best CA certificate
             ca_path = find_ca_certificate(ca_path)
-            
+
             # Initialize the SDK
             log_debug("client", f"Initializing RTMS with CA: {ca_path}")
-            _initialize(ca_path)
+            _ClientBase.initialize(ca_path)
             return True
         except Exception as e:
             log_error("client", f"Error initializing RTMS: {e}")
@@ -435,106 +480,85 @@ class Client(_ClientBase):
             # Try with an empty path as a last resort
             try:
                 log_debug("client", "Trying initialization with empty CA path")
-                _initialize("")
+                _ClientBase.initialize("")
                 return True
             except Exception as e2:
                 log_error("client", f"Failed to initialize with empty CA path: {e2}")
                 raise e  # Raise the original error
-    
-    def _polling_worker(self):
-        """Background thread for polling RTMS client"""
-        log_debug("client", "Starting polling worker thread")
-        
-        threading.current_thread().name = "RTMS_Polling_Thread"
-        
-        while self._running:
+
+    def _poll_if_needed(self):
+        """
+        Poll the RTMS client if needed.
+
+        IMPORTANT: Due to SDK threading constraints, poll() must be called from the
+        main thread (same thread that initialized the SDK). This should be called
+        periodically from the main loop.
+        """
+        if self._running:
             try:
-                # Use a shorter timeout to ensure responsive shutdown
-                for _ in range(10):  # Split sleep into smaller chunks for more responsive shutdown
-                    if not self._running:
-                        break
-                    time.sleep(self._polling_interval / 1000 / 10)  # Convert to seconds and divide by 10
-                
-                if not self._running:
-                    break
-                    
-                # Call poll if we're still running
-                self.poll()
+                super().poll()
             except Exception as e:
                 log_error("client", f"Error during polling: {e}")
-                # Don't break the loop on errors, just log and continue
-                time.sleep(0.5)  # Add small delay to avoid tight loop if there are persistent errors
-                
-        log_debug("client", "Polling worker thread stopped")
-    
+
     def _start_polling(self):
-        """Start the polling thread"""
-        if self._polling_thread and self._polling_thread.is_alive():
-            return
-        
+        """Mark that polling should begin (will be done from main thread)"""
         self._running = True
-        self._polling_thread = threading.Thread(target=self._polling_worker)
-        self._polling_thread.daemon = True
-        self._polling_thread.start()
-    
+        log_debug("client", "Polling enabled - call _poll_if_needed() from main loop")
+
     def _stop_polling(self):
-        """Stop the polling thread"""
+        """Stop polling"""
         self._running = False
-        if self._polling_thread and self._polling_thread.is_alive():
-            try:
-                self._polling_thread.join(timeout=1)
-            except Exception as e:
-                log_error("client", f"Error stopping polling thread: {e}")
-    
+        log_debug("client", "Polling stopped")
+
     def stop(self):
         """
         Stop RTMS client and release resources.
-        
+
         This is equivalent to calling leave(), but with a more intuitive name.
         """
         return self.leave()
-    
+
     def leave(self):
         """
         Leave the RTMS session and stop all threads.
-        
+
         Returns:
             bool: True if left successfully
         """
         log_info("client", "Leaving RTMS session")
-        
+
         # Stop polling thread
         self._stop_polling()
-        
+
         # Stop webhook server if we have one
         if self._webhook_server:
             self._webhook_server.stop()
             self._webhook_server = None
-        
+
         try:
             # Release RTMS resources
-            self.release()
+            super().release()
             return True
         except Exception as e:
             log_error("client", f"Error releasing RTMS resources: {e}")
             traceback.print_exc()
             return False
-    
+
     def on_webhook_event(self, callback=None, port=None, path=None):
         """
         Register a webhook event handler.
-        
+
         This can be used as a decorator or a direct method call:
-        
+
         @client.on_webhook_event(port=8080, path='/webhook')
         def handle_webhook(payload):
             print(f"Received webhook: {payload}")
-            
+
         Args:
             callback (callable, optional): Function to call when a webhook is received
             port (int, optional): Port to listen on. Defaults to ZM_RTMS_PORT env var or 8080
             path (str, optional): URL path to listen on. Defaults to ZM_RTMS_PATH env var or '/'
-            
+
         Returns:
             callable: Decorator function if used as a decorator
         """
@@ -543,18 +567,18 @@ class Client(_ClientBase):
             # Start webhook server with provided callback
             self._start_webhook_server(callback)
             return callback
-        
+
         # If used as a decorator with arguments or as a method call
         def decorator(func):
             self._start_webhook_server(func, port, path)
             return func
-        
+
         return decorator
-    
+
     def _start_webhook_server(self, callback, port=None, path=None):
         """
         Start the webhook server
-        
+
         Args:
             callback (callable): Function to call when a webhook is received
             port (int, optional): Port to listen on. Defaults to ZM_RTMS_PORT env var or 8080
@@ -563,55 +587,71 @@ class Client(_ClientBase):
         if not self._webhook_server:
             port = port or int(os.getenv('ZM_RTMS_PORT', '8080'))
             path = path or os.getenv('ZM_RTMS_PATH', '/')
-            
+
             self._webhook_server = WebhookServer(port, path)
-        
+
         self._webhook_server.start(callback)
         print(f"🚀 Listening for webhook events at http://localhost:{self._webhook_server.port}{self._webhook_server.path}")
 
 # For backward compatibility, create a global client and expose its methods
-_global_client = Client()
+_global_client = None
+
+def _get_global_client():
+    """Get or create the global client instance"""
+    global _global_client
+    if _global_client is None:
+        _global_client = Client()
+    return _global_client
 
 def join(*args, **kwargs):
     """
     Join a RTMS session using the global client.
-    
+
     See Client.join for documentation.
     """
-    return _global_client.join(*args, **kwargs)
+    return _get_global_client().join(*args, **kwargs)
 
 def leave():
     """
     Leave the RTMS session using the global client.
-    
+
     See Client.leave for documentation.
     """
-    return _global_client.leave()
+    return _get_global_client().leave()
 
-def set_audio_parameters(params):
+def setAudioParams(params):
     """
     Set audio parameters for the global client.
-    
-    Args:
-        params (dict): Dictionary of audio parameters
-    """
-    return _global_client.set_audio_parameters(params)
 
-def set_video_parameters(params):
+    Args:
+        params (AudioParams): Audio parameters object
+    """
+    return _get_global_client().setAudioParams(params)
+
+def setVideoParams(params):
     """
     Set video parameters for the global client.
-    
+
     Args:
-        params (dict): Dictionary of video parameters
+        params (VideoParams): Video parameters object
     """
-    return _global_client.set_video_parameters(params)
+    return _get_global_client().setVideoParams(params)
+
+def setDeskshareParams(params):
+    """
+    Set deskshare parameters for the global client.
+
+    Args:
+        params (DeskshareParams): Deskshare parameters object
+    """
+    return _get_global_client().setDeskshareParams(params)
 
 def uninitialize():
     """
     Uninitialize the RTMS SDK.
     """
     try:
-        _uninitialize()
+        _ClientBase.uninitialize()
         return True
     except Exception as e:
         log_error("rtms", f"Error uninitializing RTMS SDK: {e}")
@@ -641,57 +681,67 @@ def stream_id():
 def on_webhook_event(*args, **kwargs):
     """
     Register a webhook event handler using the global client.
-    
+
     See Client.on_webhook_event for documentation.
     """
-    return _global_client.on_webhook_event(*args, **kwargs)
+    return _get_global_client().on_webhook_event(*args, **kwargs)
 
 # Create proper decorator functions for global client
-def on_join_confirm(func):
+def onJoinConfirm(func):
     """Decorator for join confirmation callback"""
-    _global_client.set_join_confirm_callback(func)
+    _get_global_client().onJoinConfirm(func)
     return func
 
-def on_session_update(func):
+def onSessionUpdate(func):
     """Decorator for session update callback"""
-    _global_client.set_session_update_callback(func)
+    _get_global_client().onSessionUpdate(func)
     return func
 
-def on_user_update(func):
+def onUserUpdate(func):
     """Decorator for user update callback"""
-    _global_client.set_user_update_callback(func)
+    _get_global_client().onUserUpdate(func)
     return func
 
-def on_audio_data(func):
+def onAudioData(func):
     """Decorator for audio data callback"""
-    _global_client.set_audio_data_callback(func)
+    _get_global_client().onAudioData(func)
     return func
 
-def on_video_data(func):
+def onVideoData(func):
     """Decorator for video data callback"""
-    _global_client.set_video_data_callback(func)
+    _get_global_client().onVideoData(func)
     return func
 
-def on_transcript_data(func):
+def onDeskshareData(func):
+    """Decorator for deskshare data callback"""
+    _get_global_client().onDeskshareData(func)
+    return func
+
+def onTranscriptData(func):
     """Decorator for transcript data callback"""
-    _global_client.set_transcript_data_callback(func)
+    _get_global_client().onTranscriptData(func)
     return func
 
-def on_leave(func):
+def onLeave(func):
     """Decorator for leave callback"""
-    _global_client.set_leave_callback(func)
+    _get_global_client().onLeave(func)
+    return func
+
+def onEventEx(func):
+    """Decorator for extended event callback"""
+    _get_global_client().onEventEx(func)
     return func
 
 def initialize(ca_path=None):
     """
     Initialize the RTMS SDK.
-    
+
     Args:
         ca_path (str, optional): Path to the CA certificate file.
     """
     ca_path = find_ca_certificate(ca_path)
     try:
-        _initialize(ca_path)
+        _ClientBase.initialize(ca_path)
         return True
     except Exception as e:
         log_error("rtms", f"Error initializing RTMS SDK: {e}")
@@ -703,24 +753,29 @@ __all__ = [
     "Session",
     "Participant",
     "Metadata",
+    "AudioParams",
+    "VideoParams",
+    "DeskshareParams",
     "LogLevel",
     "LogFormat",
-    "MediaType",
-    "SessionEvent",
-    "UserEvent",
-    "SessionStatus",
-    
-    # Constants
-    "SDK_AUDIO",
-    "SDK_VIDEO",
-    "SDK_TRANSCRIPT",
-    "SDK_ALL",
-    "SESSION_ADD",
-    "SESSION_STOP",
-    "SESSION_PAUSE",
-    "SESSION_RESUME",
-    "USER_JOIN",
-    "USER_LEAVE",
+
+    # Constants - Media Types
+    "MEDIA_TYPE_AUDIO",
+    "MEDIA_TYPE_VIDEO",
+    "MEDIA_TYPE_DESKSHARE",
+    "MEDIA_TYPE_TRANSCRIPT",
+    "MEDIA_TYPE_CHAT",
+    "MEDIA_TYPE_ALL",
+
+    # Constants - Events
+    "SESSION_EVENT_ADD",
+    "SESSION_EVENT_STOP",
+    "SESSION_EVENT_PAUSE",
+    "SESSION_EVENT_RESUME",
+    "USER_EVENT_JOIN",
+    "USER_EVENT_LEAVE",
+
+    # Constants - Status Codes
     "RTMS_SDK_FAILURE",
     "RTMS_SDK_OK",
     "RTMS_SDK_TIMEOUT",
@@ -730,31 +785,52 @@ __all__ = [
     "RTMS_SDK_INVALID_ARGS",
     "SESS_STATUS_ACTIVE",
     "SESS_STATUS_PAUSED",
-    
+
+    # Parameter dictionaries
+    "AudioContentType",
+    "AudioCodec",
+    "AudioSampleRate",
+    "AudioChannel",
+    "AudioDataOption",
+    "VideoContentType",
+    "VideoCodec",
+    "VideoResolution",
+    "VideoDataOption",
+    "MediaDataType",
+    "SessionState",
+    "StreamState",
+    "EventType",
+    "MessageType",
+    "StopReason",
+
     # Core functions
     "join",
     "leave",
     "initialize",
     "uninitialize",
-    "uuid", 
+    "uuid",
     "stream_id",
     "generate_signature",
-    "set_audio_parameters",
-    "set_video_parameters",
-    
+    "setAudioParams",
+    "setVideoParams",
+    "setDeskshareParams",
+
     # Logging functions
     "log_debug",
     "log_info",
     "log_warn",
     "log_error",
-    
+    "configure_logger",
+
     # Callback decorators
     "on_webhook_event",
-    "on_join_confirm",
-    "on_session_update",
-    "on_user_update",
-    "on_audio_data",
-    "on_video_data",
-    "on_transcript_data",
-    "on_leave"
+    "onJoinConfirm",
+    "onSessionUpdate",
+    "onUserUpdate",
+    "onAudioData",
+    "onVideoData",
+    "onDeskshareData",
+    "onTranscriptData",
+    "onLeave",
+    "onEventEx"
 ]

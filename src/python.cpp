@@ -2,910 +2,624 @@
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
 
-#include <thread>
-#include <functional>
-#include <memory>
-#include <iostream>
-
 #include "rtms.h"
 
-using namespace std;
-using namespace rtms;
 namespace py = pybind11;
+using namespace rtms;
 
-#define RTMS_PY_DEBUG 1
+// ============================================================================
+// Python Client Wrapper
+// ============================================================================
 
-#if RTMS_PY_DEBUG
-#define DEBUG_LOG(msg) std::cerr << "[RTMS-CORE-SDK] " << msg << std::endl
-#else
-#define DEBUG_LOG(msg)
-#endif
-
-// Python-friendly wrapper class for RTMS Client
+/**
+ * PyClient wraps the C++ Client class and manages Python callback lifecycle.
+ *
+ * Key responsibilities:
+ * - Manage C++ Client instance
+ * - Store Python callbacks and ensure proper GIL management
+ * - Handle conversion between C++ and Python types
+ * - Provide Pythonic API matching Node.js implementation
+ */
 class PyClient {
 public:
-    PyClient() : configured_media_types_(0), is_configured_(false) {
-        try {
-            client_ = make_unique<Client>();
-        } catch (const exception& e) {
-            DEBUG_LOG("Error creating client instance: " << e.what());
-            throw py::error_already_set();
-        }
+    PyClient() : client_(std::make_unique<Client>()) {
+        // Client created successfully
     }
-    
+
     ~PyClient() {
-        // First clear all callbacks to avoid issues during destruction
-        try {
-            // Reset all callbacks to empty functions to avoid calling Python
-            // during destruction when Python might be shutting down
-            if (client_) {
-                client_->setOnJoinConfirm([](int) {});
-                client_->setOnSessionUpdate([](int, const Session&) {});
-                client_->setOnUserUpdate([](int, const Participant&) {});
-                client_->setOnAudioData([](const vector<uint8_t>&, uint32_t, const Metadata&) {});
-                client_->setOnVideoData([](const vector<uint8_t>&, uint32_t, const Metadata&) {});
-                client_->setOnTranscriptData([](const vector<uint8_t>&, uint32_t, const Metadata&) {});
-                client_->setOnLeave([](int) {});
-            }
-        } catch (const Exception& e) {
-            DEBUG_LOG("Error during callback cleanup: " << e.what() << " (error code: " << e.code() << ")");
-        } catch (const exception& e) {
-            DEBUG_LOG("C++ exception during callback cleanup: " << e.what());
-        } catch (...) {
-            DEBUG_LOG("Unknown exception during callback cleanup");
-        }
-        
-        // Release any Python references
-        join_confirm_callback = py::none();
-        session_update_callback = py::none();
-        user_update_callback = py::none();
-        audio_data_callback = py::none();
-        video_data_callback = py::none();
-        transcript_data_callback = py::none();
-        leave_callback = py::none();
+        // Clear all callbacks before destruction
+        clearCallbacks();
     }
 
-    static void initialize(const string& ca_path) {
-        try {
-            Client::initialize(ca_path);
-        } catch (const Exception& e) {
-            DEBUG_LOG("RTMS initialization error: " << e.what() << " (code: " << e.code() << ")");
-            PyErr_SetString(PyExc_RuntimeError, e.what());
-            throw py::error_already_set();
-        } catch (const exception& e) {
-            DEBUG_LOG("Unknown error during initialization: " << e.what());
-            PyErr_SetString(PyExc_RuntimeError, e.what());
-            throw py::error_already_set();
-        }
-    }
+    // ========================================================================
+    // Core Methods
+    // ========================================================================
 
-    static void uninitialize() {
-        try {
-            Client::uninitialize();
-        } catch (const Exception& e) {
-            DEBUG_LOG("RTMS uninitialization error: " << e.what() << " (code: " << e.code() << ")");
-            PyErr_SetString(PyExc_RuntimeError, e.what());
-            throw py::error_already_set();
-        } catch (const exception& e) {
-            DEBUG_LOG("Unknown error during uninitialization: " << e.what());
-            PyErr_SetString(PyExc_RuntimeError, e.what());
-            throw py::error_already_set();
-        }
-    }
-
-    void join(const string& uuid, const string& stream_id, const string& signature, 
-             const string& server_url, int timeout = -1) {
-        try {
-            // Configure if not already configured
-            if (!is_configured_ && configured_media_types_ > 0) {
-                DEBUG_LOG("Configuring client with media types: " << configured_media_types_);
-                
-                MediaParams params;
-                
-                if (configured_media_types_ & static_cast<int>(SDK_AUDIO)) {
-                    DEBUG_LOG("Setting up full audio parameters");
-                    AudioParams audio;
-
-                    audio.setContentType(0);    // Default content type
-                    audio.setCodec(0);          // Default codec
-                    audio.setSampleRate(16000); // 16kHz is common for audio
-                    audio.setChannel(1);        // Mono
-                    audio.setDataOpt(0);        // Default data option
-                    audio.setDuration(20);      // 20ms frame duration
-                    audio.setFrameSize(320);    // 16000Hz * 20ms = 320 samples
-                    params.setAudioParams(audio);
-                }
-                
-                if (configured_media_types_ & static_cast<int>(SDK_VIDEO)) {
-                    DEBUG_LOG("Setting up full video parameters");
-                    VideoParams video;
-
-                    video.setContentType(0);    // Default content type
-                    video.setCodec(0);          // Default codec
-                    video.setResolution(0);     // Default resolution
-                    video.setDataOpt(0);        // Default data option
-                    video.setFps(30);           // 30 frames per second
-                    params.setVideoParams(video);
-                }
-                
-                int media_types = configured_media_types_ > 0 ? configured_media_types_ : static_cast<int>(SDK_ALL);
-                
-                DEBUG_LOG("Calling configure with media types: " << media_types);
-                client_->configure(params, configured_media_types_, false);
-                is_configured_ = true;
-            }
-            
-            client_->join(uuid, stream_id, signature, server_url, timeout);
-        } catch (const Exception& e) {
-            DEBUG_LOG("Error joining RTMS session: " << e.what() << " (code: " << e.code() << ")");
-            PyErr_SetString(PyExc_RuntimeError, e.what());
-            throw py::error_already_set();
-        } catch (const exception& e) {
-            DEBUG_LOG("Unknown error during join: " << e.what());
-            PyErr_SetString(PyExc_RuntimeError, e.what());
-            throw py::error_already_set();
-        }
-    }
-
-    // Support joining with a dictionary/kwargs
-    void join_with_options(py::dict options) {
-        try {
-            string uuid = options["uuid"].cast<string>();
-            string stream_id = options["stream_id"].cast<string>();
-            string server_urls = options["server_urls"].cast<string>();
-            
-            // Get optional parameters with defaults
-            string signature = options.contains("signature") ? options["signature"].cast<string>() : "";
-            string client = options.contains("client") ? options["client"].cast<string>() : "";
-            string secret = options.contains("secret") ? options["secret"].cast<string>() : "";
-            int timeout = options.contains("timeout") ? options["timeout"].cast<int>() : -1;
-            
-            join(uuid, stream_id, signature, server_urls, timeout);
-        } catch (const py::error_already_set& e) {
-            // Just rethrow Python errors
-            throw;
-        } catch (const Exception& e) {
-            DEBUG_LOG("RTMS error in join_with_options: " << e.what() << " (code: " << e.code() << ")");
-            PyErr_SetString(PyExc_RuntimeError, e.what());
-            throw py::error_already_set();
-        } catch (const std::exception& e) {
-            DEBUG_LOG("C++ exception in join_with_options: " << e.what());
-            PyErr_SetString(PyExc_RuntimeError, e.what());
-            throw py::error_already_set();
-        }
+    void join(const std::string& uuid, const std::string& stream_id,
+             const std::string& signature, const std::string& server_urls,
+             int timeout = -1) {
+        client_->join(uuid, stream_id, signature, server_urls, timeout);
     }
 
     void poll() {
-        try {
-            // Don't use gil_scoped_release in poll - this is dangerous if
-            // called from a background thread that didn't properly acquire GIL
-            client_->poll();
-        } catch (const Exception& e) {
-            DEBUG_LOG("Error during polling: " << e.what() << " (code: " << e.code() << ")");
-            // Don't throw exceptions from poll - this could crash if called from a background thread
-            return;
-        } catch (const exception& e) {
-            DEBUG_LOG("C++ exception during polling: " << e.what());
-            return;
-        } catch (...) {
-            DEBUG_LOG("Unknown exception during polling");
-            return;
-        }
+        client_->poll();
     }
 
     void release() {
-        try {
-            client_->release();
-        } catch (const Exception& e) {
-            DEBUG_LOG("Error releasing RTMS client: " << e.what() << " (code: " << e.code() << ")");
-            PyErr_SetString(PyExc_RuntimeError, e.what());
-            throw py::error_already_set();
-        } catch (const exception& e) {
-            DEBUG_LOG("Unknown error during release: " << e.what());
-            PyErr_SetString(PyExc_RuntimeError, e.what());
-            throw py::error_already_set();
-        }
+        stopCallbacks();
+        client_->release();
     }
 
-    string uuid() const {
-        try {
-            return client_->uuid();
-        } catch (const Exception& e) {
-            DEBUG_LOG("Error getting UUID: " << e.what() << " (code: " << e.code() << ")");
-            PyErr_SetString(PyExc_RuntimeError, e.what());
-            throw py::error_already_set();
-        } catch (const exception& e) {
-            DEBUG_LOG("Unknown error getting UUID: " << e.what());
-            PyErr_SetString(PyExc_RuntimeError, e.what());
-            throw py::error_already_set();
-        }
+    std::string uuid() const {
+        return client_->uuid();
     }
 
-    string stream_id() const {
-        try {
-            return client_->streamId();
-        } catch (const Exception& e) {
-            DEBUG_LOG("Error getting stream ID: " << e.what() << " (code: " << e.code() << ")");
-            PyErr_SetString(PyExc_RuntimeError, e.what());
-            throw py::error_already_set();
-        } catch (const exception& e) {
-            DEBUG_LOG("Unknown error getting stream ID: " << e.what());
-            PyErr_SetString(PyExc_RuntimeError, e.what());
-            throw py::error_already_set();
-        }
+    std::string streamId() const {
+        return client_->streamId();
     }
 
-    // Methods that return functions that can be used as decorators
-    py::function on_join_confirm() {
-        // Create a decorator function that will capture 'this'
-        return py::cpp_function([this](py::function func) {
-            this->set_join_confirm_callback(func);
-            return func;
-        });
+    // ========================================================================
+    // Media Control Methods
+    // ========================================================================
+
+    void enableAudio(bool enable) {
+        client_->enableAudio(enable);
     }
-    
-    py::function on_session_update() {
-        return py::cpp_function([this](py::function func) {
-            this->set_session_update_callback(func);
-            return func;
-        });
+
+    void enableVideo(bool enable) {
+        client_->enableVideo(enable);
     }
-    
-    py::function on_user_update() {
-        return py::cpp_function([this](py::function func) {
-            this->set_user_update_callback(func);
-            return func;
-        });
+
+    void enableTranscript(bool enable) {
+        client_->enableTranscript(enable);
     }
-    
-    py::function on_audio_data() {
-        return py::cpp_function([this](py::function func) {
-            this->set_audio_data_callback(func);
-            return func;
-        });
+
+    void enableDeskshare(bool enable) {
+        client_->enableDeskshare(enable);
     }
-    
-    py::function on_video_data() {
-        return py::cpp_function([this](py::function func) {
-            this->set_video_data_callback(func);
-            return func;
-        });
+
+    // ========================================================================
+    // Parameter Setting Methods
+    // ========================================================================
+
+    void setAudioParams(const AudioParams& params) {
+        client_->setAudioParams(params);
     }
-    
-    py::function on_transcript_data() {
-        return py::cpp_function([this](py::function func) {
-            this->set_transcript_data_callback(func);
-            return func;
-        });
+
+    void setVideoParams(const VideoParams& params) {
+        client_->setVideoParams(params);
     }
-    
-    py::function on_leave() {
-        return py::cpp_function([this](py::function func) {
-            this->set_leave_callback(func);
-            return func;
-        });
+
+    void setDeskshareParams(const DeskshareParams& params) {
+        client_->setDeskshareParams(params);
     }
-    
-    // Direct callback setting methods
-    void set_join_confirm_callback(py::function callback) {
-        // Store Python callback
-        join_confirm_callback = callback;
-        
+
+    // ========================================================================
+    // Callback Registration Methods
+    // ========================================================================
+
+    void onJoinConfirm(py::function callback) {
+        join_confirm_callback_ = callback;
         client_->setOnJoinConfirm([this](int reason) {
-            py::gil_scoped_acquire acquire;
-            try {
-                if (!join_confirm_callback.is_none() && PyCallable_Check(join_confirm_callback.ptr())) {
-                    join_confirm_callback(reason);
+            if (!join_confirm_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try {
+                    join_confirm_callback_(reason);
+                } catch (const py::error_already_set& e) {
+                    py::print("Error in join confirm callback:", e.what());
                 }
-            } catch (py::error_already_set& e) {
-                DEBUG_LOG("Python exception in join confirm callback: " << e.what());
-                e.restore();  // This ensures the Python exception is properly restored
-            } catch (const Exception& e) {
-                DEBUG_LOG("RTMS exception in join confirm callback: " << e.what() << " (code: " << e.code() << ")");
-            } catch (std::exception& e) {
-                DEBUG_LOG("C++ exception in join confirm callback: " << e.what());
-            } catch (...) {
-                DEBUG_LOG("Unknown exception in join confirm callback");
             }
         });
     }
 
-    void set_session_update_callback(py::function callback) {
-        session_update_callback = callback;
-        
+    void onSessionUpdate(py::function callback) {
+        session_update_callback_ = callback;
         client_->setOnSessionUpdate([this](int op, const Session& session) {
-            py::gil_scoped_acquire acquire;
-            try {
-                if (!session_update_callback.is_none() && PyCallable_Check(session_update_callback.ptr())) {
-                    session_update_callback(op, session);
+            if (!session_update_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try {
+                    session_update_callback_(op, session);
+                } catch (const py::error_already_set& e) {
+                    py::print("Error in session update callback:", e.what());
                 }
-            } catch (py::error_already_set& e) {
-                DEBUG_LOG("Python exception in session update callback: " << e.what());
-                e.restore();
-            } catch (const Exception& e) {
-                DEBUG_LOG("RTMS exception in session update callback: " << e.what() << " (code: " << e.code() << ")");
-            } catch (std::exception& e) {
-                DEBUG_LOG("C++ exception in session update callback: " << e.what());
-            } catch (...) {
-                DEBUG_LOG("Unknown exception in session update callback");
             }
         });
     }
 
-    void set_user_update_callback(py::function callback) {
-        user_update_callback = callback;
-        
+    void onUserUpdate(py::function callback) {
+        user_update_callback_ = callback;
         client_->setOnUserUpdate([this](int op, const Participant& participant) {
-            py::gil_scoped_acquire acquire;
-            try {
-                if (!user_update_callback.is_none() && PyCallable_Check(user_update_callback.ptr())) {
-                    user_update_callback(op, participant);
+            if (!user_update_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try {
+                    user_update_callback_(op, participant);
+                } catch (const py::error_already_set& e) {
+                    py::print("Error in user update callback:", e.what());
                 }
-            } catch (py::error_already_set& e) {
-                DEBUG_LOG("Python exception in user update callback: " << e.what());
-                e.restore();
-            } catch (const Exception& e) {
-                DEBUG_LOG("RTMS exception in user update callback: " << e.what() << " (code: " << e.code() << ")");
-            } catch (std::exception& e) {
-                DEBUG_LOG("C++ exception in user update callback: " << e.what());
-            } catch (...) {
-                DEBUG_LOG("Unknown exception in user update callback");
             }
         });
     }
 
-    void set_audio_data_callback(py::function callback) {
-        audio_data_callback = callback;
-        
-        client_->setOnAudioData([this](const vector<uint8_t>& data, uint32_t timestamp, const Metadata& metadata) {
-            py::gil_scoped_acquire acquire;
-            try {
-                if (!audio_data_callback.is_none() && PyCallable_Check(audio_data_callback.ptr())) {
+    void onAudioData(py::function callback) {
+        audio_data_callback_ = callback;
+        client_->setOnAudioData([this](const std::vector<uint8_t>& data, uint64_t timestamp, const Metadata& metadata) {
+            if (!audio_data_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try {
                     py::bytes py_data(reinterpret_cast<const char*>(data.data()), data.size());
-                    audio_data_callback(py_data, data.size(), timestamp, metadata);
+                    audio_data_callback_(py_data, data.size(), timestamp, metadata);
+                } catch (const py::error_already_set& e) {
+                    py::print("Error in audio data callback:", e.what());
                 }
-            } catch (py::error_already_set& e) {
-                DEBUG_LOG("Python exception in audio data callback: " << e.what());
-                e.restore();
-            } catch (const Exception& e) {
-                DEBUG_LOG("RTMS exception in audio data callback: " << e.what() << " (code: " << e.code() << ")");
-            } catch (std::exception& e) {
-                DEBUG_LOG("C++ exception in audio data callback: " << e.what());
-            } catch (...) {
-                DEBUG_LOG("Unknown exception in audio data callback");
             }
         });
-        
-        // Enable audio media type
-        configured_media_types_ |= static_cast<int>(SDK_AUDIO);
-        reconfigure_media_types();
     }
 
-    void set_video_data_callback(py::function callback) {
-        video_data_callback = callback;
-        
-        client_->setOnVideoData([this](const vector<uint8_t>& data, uint32_t timestamp, const Metadata& metadata) {
-            py::gil_scoped_acquire acquire;
-            try {
-                if (!video_data_callback.is_none() && PyCallable_Check(video_data_callback.ptr())) {
+    void onVideoData(py::function callback) {
+        video_data_callback_ = callback;
+        client_->setOnVideoData([this](const std::vector<uint8_t>& data, uint64_t timestamp, const Metadata& metadata) {
+            if (!video_data_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try {
                     py::bytes py_data(reinterpret_cast<const char*>(data.data()), data.size());
-                    video_data_callback(py_data, data.size(), timestamp, metadata);
+                    video_data_callback_(py_data, data.size(), timestamp, metadata);
+                } catch (const py::error_already_set& e) {
+                    py::print("Error in video data callback:", e.what());
                 }
-            } catch (py::error_already_set& e) {
-                DEBUG_LOG("Python exception in video data callback: " << e.what());
-                e.restore();
-            } catch (const Exception& e) {
-                DEBUG_LOG("RTMS exception in video data callback: " << e.what() << " (code: " << e.code() << ")");
-            } catch (std::exception& e) {
-                DEBUG_LOG("C++ exception in video data callback: " << e.what());
-            } catch (...) {
-                DEBUG_LOG("Unknown exception in video data callback");
             }
         });
-        
-        // Enable video media type
-        configured_media_types_ |= static_cast<int>(SDK_VIDEO);
-        reconfigure_media_types();
     }
 
-    void set_transcript_data_callback(py::function callback) {
-        transcript_data_callback = callback;
-        
-        client_->setOnTranscriptData([this](const vector<uint8_t>& data, uint32_t timestamp, const Metadata& metadata) {
-            py::gil_scoped_acquire acquire;
-            try {
-                if (!transcript_data_callback.is_none() && PyCallable_Check(transcript_data_callback.ptr())) {
+    void onDeskshareData(py::function callback) {
+        deskshare_data_callback_ = callback;
+        client_->setOnDeskshareData([this](const std::vector<uint8_t>& data, uint64_t timestamp, const Metadata& metadata) {
+            if (!deskshare_data_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try {
                     py::bytes py_data(reinterpret_cast<const char*>(data.data()), data.size());
-                    transcript_data_callback(py_data, data.size(), timestamp, metadata);
+                    deskshare_data_callback_(py_data, data.size(), timestamp, metadata);
+                } catch (const py::error_already_set& e) {
+                    py::print("Error in deskshare data callback:", e.what());
                 }
-            } catch (py::error_already_set& e) {
-                DEBUG_LOG("Python exception in transcript data callback: " << e.what());
-                e.restore();
-            } catch (const Exception& e) {
-                DEBUG_LOG("RTMS exception in transcript data callback: " << e.what() << " (code: " << e.code() << ")");
-            } catch (std::exception& e) {
-                DEBUG_LOG("C++ exception in transcript data callback: " << e.what());
-            } catch (...) {
-                DEBUG_LOG("Unknown exception in transcript data callback");
             }
         });
-        
-        // Enable transcript media type
-        configured_media_types_ |= static_cast<int>(SDK_TRANSCRIPT);
-        reconfigure_media_types();
     }
 
-    void set_leave_callback(py::function callback) {
-        leave_callback = callback;
-        
+    void onTranscriptData(py::function callback) {
+        transcript_data_callback_ = callback;
+        client_->setOnTranscriptData([this](const std::vector<uint8_t>& data, uint64_t timestamp, const Metadata& metadata) {
+            if (!transcript_data_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try {
+                    py::bytes py_data(reinterpret_cast<const char*>(data.data()), data.size());
+                    transcript_data_callback_(py_data, data.size(), timestamp, metadata);
+                } catch (const py::error_already_set& e) {
+                    py::print("Error in transcript data callback:", e.what());
+                }
+            }
+        });
+    }
+
+    void onLeave(py::function callback) {
+        leave_callback_ = callback;
         client_->setOnLeave([this](int reason) {
-            py::gil_scoped_acquire acquire;
-            try {
-                if (!leave_callback.is_none() && PyCallable_Check(leave_callback.ptr())) {
-                    leave_callback(reason);
+            if (!leave_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try {
+                    leave_callback_(reason);
+                } catch (const py::error_already_set& e) {
+                    py::print("Error in leave callback:", e.what());
                 }
-            } catch (py::error_already_set& e) {
-                DEBUG_LOG("Python exception in leave callback: " << e.what());
-                e.restore();
-            } catch (const Exception& e) {
-                DEBUG_LOG("RTMS exception in leave callback: " << e.what() << " (code: " << e.code() << ")");
-            } catch (std::exception& e) {
-                DEBUG_LOG("C++ exception in leave callback: " << e.what());
-            } catch (...) {
-                DEBUG_LOG("Unknown exception in leave callback");
             }
         });
     }
 
-    void set_audio_parameters(py::dict params) {
-        try {
-            AudioParameters audio_params;
-            
-            if (params.contains("contentType"))
-                audio_params.setContentType(params["contentType"].cast<int>());
-            if (params.contains("codec"))
-                audio_params.setCodec(params["codec"].cast<int>());
-            if (params.contains("sampleRate"))
-                audio_params.setSampleRate(params["sampleRate"].cast<int>());
-            if (params.contains("channel"))
-                audio_params.setChannel(params["channel"].cast<int>());
-            if (params.contains("dataOpt"))
-                audio_params.setDataOpt(params["dataOpt"].cast<int>());
-            if (params.contains("duration"))
-                audio_params.setDuration(params["duration"].cast<int>());
-            if (params.contains("frameSize"))
-                audio_params.setFrameSize(params["frameSize"].cast<int>());
-            
-            client_->setAudioParameters(audio_params);
-        } catch (const Exception& e) {
-            DEBUG_LOG("Error setting audio parameters: " << e.what() << " (code: " << e.code() << ")");
-            PyErr_SetString(PyExc_RuntimeError, e.what());
-            throw py::error_already_set();
-        } catch (const exception& e) {
-            DEBUG_LOG("Unknown error setting audio parameters: " << e.what());
-            PyErr_SetString(PyExc_RuntimeError, e.what());
-            throw py::error_already_set();
-        }
-    }
-
-    void set_video_parameters(py::dict params) {
-        try {
-            VideoParameters video_params;
-            
-            if (params.contains("contentType"))
-                video_params.setContentType(params["contentType"].cast<int>());
-            if (params.contains("codec"))
-                video_params.setCodec(params["codec"].cast<int>());
-            if (params.contains("resolution"))
-                video_params.setResolution(params["resolution"].cast<int>());
-            if (params.contains("dataOpt"))
-                video_params.setDataOpt(params["dataOpt"].cast<int>());
-            if (params.contains("fps"))
-                video_params.setFps(params["fps"].cast<int>());
-            
-            client_->setVideoParameters(video_params);
-        } catch (const Exception& e) {
-            DEBUG_LOG("Error setting video parameters: " << e.what() << " (code: " << e.code() << ")");
-            PyErr_SetString(PyExc_RuntimeError, e.what());
-            throw py::error_already_set();
-        } catch (const exception& e) {
-            DEBUG_LOG("Unknown error setting video parameters: " << e.what());
-            PyErr_SetString(PyExc_RuntimeError, e.what());
-            throw py::error_already_set();
-        }
+    void onEventEx(py::function callback) {
+        event_ex_callback_ = callback;
+        client_->setOnEventEx([this](const std::string& event_data) {
+            if (!event_ex_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try {
+                    event_ex_callback_(event_data);
+                } catch (const py::error_already_set& e) {
+                    py::print("Error in event ex callback:", e.what());
+                }
+            }
+        });
     }
 
 private:
-    unique_ptr<Client> client_;
-    int configured_media_types_;
-    bool is_configured_;
-    
-    py::function join_confirm_callback;
-    py::function session_update_callback;
-    py::function user_update_callback;
-    py::function audio_data_callback;
-    py::function video_data_callback;
-    py::function transcript_data_callback;
-    py::function leave_callback;
+    std::unique_ptr<Client> client_;
 
-    void reconfigure_media_types() {
-        if (!is_configured_) return;
-        
-        try {
-            MediaParameters params;
-            client_->configure(params, configured_media_types_, false);
-        } catch (const Exception& e) {
-            DEBUG_LOG("Failed to reconfigure media types: " << e.what() << " (code: " << e.code() << ")");
-            // Don't throw here since this is called from callback setters
-        } catch (const exception& e) {
-            DEBUG_LOG("C++ exception reconfiguring media types: " << e.what());
-            // Don't throw here since this is called from callback setters
-        } catch (...) {
-            DEBUG_LOG("Unknown exception in reconfigure_media_types");
-            // Don't throw 
+    // Python callback storage
+    py::object join_confirm_callback_ = py::none();
+    py::object session_update_callback_ = py::none();
+    py::object user_update_callback_ = py::none();
+    py::object audio_data_callback_ = py::none();
+    py::object video_data_callback_ = py::none();
+    py::object deskshare_data_callback_ = py::none();
+    py::object transcript_data_callback_ = py::none();
+    py::object leave_callback_ = py::none();
+    py::object event_ex_callback_ = py::none();
+
+    void clearCallbacks() {
+        join_confirm_callback_ = py::none();
+        session_update_callback_ = py::none();
+        user_update_callback_ = py::none();
+        audio_data_callback_ = py::none();
+        video_data_callback_ = py::none();
+        deskshare_data_callback_ = py::none();
+        transcript_data_callback_ = py::none();
+        leave_callback_ = py::none();
+        event_ex_callback_ = py::none();
+    }
+
+    void stopCallbacks() {
+        // Replace callbacks with no-ops to prevent calling Python during shutdown
+        if (client_) {
+            client_->setOnJoinConfirm([](int) {});
+            client_->setOnSessionUpdate([](int, const Session&) {});
+            client_->setOnUserUpdate([](int, const Participant&) {});
+            client_->setOnAudioData([](const std::vector<uint8_t>&, uint64_t, const Metadata&) {});
+            client_->setOnVideoData([](const std::vector<uint8_t>&, uint64_t, const Metadata&) {});
+            client_->setOnDeskshareData([](const std::vector<uint8_t>&, uint64_t, const Metadata&) {});
+            client_->setOnTranscriptData([](const std::vector<uint8_t>&, uint64_t, const Metadata&) {});
+            client_->setOnLeave([](int) {});
+            client_->setOnEventEx([](const std::string&) {});
         }
     }
 };
 
-// Global client for backward compatibility
-static PyClient global_client;
+// ============================================================================
+// Module Definition
+// ============================================================================
 
 PYBIND11_MODULE(_rtms, m) {
-    m.doc() = "Zoom RTMS Python Bindings";
+    m.doc() = "Zoom RTMS Python Bindings - Real-Time Media Streaming SDK";
 
-    // Expose classes
+    // ========================================================================
+    // Exception Class
+    // ========================================================================
+
+    py::register_exception<Exception>(m, "RTMSException");
+
+    // ========================================================================
+    // Data Classes
+    // ========================================================================
+
     py::class_<Session>(m, "Session")
-        .def_property_readonly("session_id", &Session::sessionId)
-        .def_property_readonly("stream_id", &Session::streamId)
-        .def_property_readonly("meeting_id", &Session::meetingId)
-        .def_property_readonly("stat_time", &Session::statTime)
+        .def_property_readonly("sessionId", &Session::sessionId)
+        .def_property_readonly("streamId", &Session::streamId)
+        .def_property_readonly("meetingId", &Session::meetingId)
+        .def_property_readonly("statTime", &Session::statTime)
         .def_property_readonly("status", &Session::status)
-        .def_property_readonly("is_active", &Session::isActive)
-        .def_property_readonly("is_paused", &Session::isPaused);
+        .def_property_readonly("isActive", &Session::isActive)
+        .def_property_readonly("isPaused", &Session::isPaused);
 
     py::class_<Participant>(m, "Participant")
         .def_property_readonly("id", &Participant::id)
         .def_property_readonly("name", &Participant::name);
 
     py::class_<Metadata>(m, "Metadata")
-        .def_property_readonly("user_name", &Metadata::userName)
-        .def_property_readonly("user_id", &Metadata::userId);
+        .def_property_readonly("userName", &Metadata::userName)
+        .def_property_readonly("userId", &Metadata::userId);
 
-    // Expose PyClient as the Client class
+    // ========================================================================
+    // Parameter Classes
+    // ========================================================================
+
+    py::class_<AudioParams>(m, "AudioParams")
+        .def(py::init<>())
+        .def(py::init<int, int, int, int, int, int, int>(),
+             py::arg("content_type"), py::arg("codec"), py::arg("sample_rate"),
+             py::arg("channel"), py::arg("data_opt"), py::arg("duration"),
+             py::arg("frame_size"))
+        .def_property("contentType", &AudioParams::contentType, &AudioParams::setContentType)
+        .def_property("codec", &AudioParams::codec, &AudioParams::setCodec)
+        .def_property("sampleRate", &AudioParams::sampleRate, &AudioParams::setSampleRate)
+        .def_property("channel", &AudioParams::channel, &AudioParams::setChannel)
+        .def_property("dataOpt", &AudioParams::dataOpt, &AudioParams::setDataOpt)
+        .def_property("duration", &AudioParams::duration, &AudioParams::setDuration)
+        .def_property("frameSize", &AudioParams::frameSize, &AudioParams::setFrameSize);
+
+    py::class_<VideoParams>(m, "VideoParams")
+        .def(py::init<>())
+        .def(py::init<int, int, int, int, int>(),
+             py::arg("content_type"), py::arg("codec"), py::arg("resolution"),
+             py::arg("data_opt"), py::arg("fps"))
+        .def_property("contentType", &VideoParams::contentType, &VideoParams::setContentType)
+        .def_property("codec", &VideoParams::codec, &VideoParams::setCodec)
+        .def_property("resolution", &VideoParams::resolution, &VideoParams::setResolution)
+        .def_property("dataOpt", &VideoParams::dataOpt, &VideoParams::setDataOpt)
+        .def_property("fps", &VideoParams::fps, &VideoParams::setFps);
+
+    py::class_<DeskshareParams>(m, "DeskshareParams")
+        .def(py::init<>())
+        .def(py::init<int, int, int, int>(),
+             py::arg("content_type"), py::arg("codec"), py::arg("resolution"),
+             py::arg("fps"))
+        .def_property("contentType", &DeskshareParams::contentType, &DeskshareParams::setContentType)
+        .def_property("codec", &DeskshareParams::codec, &DeskshareParams::setCodec)
+        .def_property("resolution", &DeskshareParams::resolution, &DeskshareParams::setResolution)
+        .def_property("fps", &DeskshareParams::fps, &DeskshareParams::setFps);
+
+    // ========================================================================
+    // Client Class
+    // ========================================================================
+
     py::class_<PyClient>(m, "Client")
         .def(py::init<>())
-        .def_static("initialize", &PyClient::initialize, "Initialize the RTMS SDK with the specified CA certificate path")
-        .def_static("uninitialize", &PyClient::uninitialize, "Uninitialize the RTMS SDK")
-        .def("join", &PyClient::join, "Join a meeting with the specified parameters", 
-            py::arg("uuid"), py::arg("stream_id"), py::arg("signature"), 
-            py::arg("server_urls"), py::arg("timeout") = -1)
-        .def("join", &PyClient::join_with_options, "Join a meeting with a dictionary of options")
-        .def("poll", &PyClient::poll, "Poll for new events")
-        .def("release", &PyClient::release, "Release resources")
-        .def("uuid", &PyClient::uuid, "Get the UUID of the current meeting")
-        .def("stream_id", &PyClient::stream_id, "Get the stream ID of the current meeting")
-        .def("set_audio_parameters", &PyClient::set_audio_parameters, "Set audio parameters")
-        .def("set_video_parameters", &PyClient::set_video_parameters, "Set video parameters")
+        .def_static("initialize", [](const std::string& ca_path, int is_verify_cert = 1, const char* agent = nullptr) {
+            py::print("[DEBUG python.cpp] Client::initialize() called with ca_path:", ca_path.empty() ? "(empty)" : ca_path);
+            Client::initialize(ca_path, is_verify_cert, agent);
+            py::print("[DEBUG python.cpp] Client::initialize() completed successfully");
+        },
+             "Initialize the RTMS SDK",
+             py::arg("ca_path"), py::arg("is_verify_cert") = 1, py::arg("agent") = nullptr)
+        .def_static("uninitialize", &Client::uninitialize,
+             "Uninitialize the RTMS SDK")
+        .def("join", &PyClient::join,
+             "Join an RTMS session",
+             py::arg("uuid"), py::arg("stream_id"), py::arg("signature"),
+             py::arg("server_urls"), py::arg("timeout") = -1)
+        .def("poll", &PyClient::poll,
+             "Poll for events (call periodically)")
+        .def("release", &PyClient::release,
+             "Release client resources")
+        .def("uuid", &PyClient::uuid,
+             "Get meeting UUID")
+        .def("streamId", &PyClient::streamId,
+             "Get stream ID")
+        .def("enableAudio", &PyClient::enableAudio,
+             "Enable/disable audio streaming")
+        .def("enableVideo", &PyClient::enableVideo,
+             "Enable/disable video streaming")
+        .def("enableTranscript", &PyClient::enableTranscript,
+             "Enable/disable transcript streaming")
+        .def("enableDeskshare", &PyClient::enableDeskshare,
+             "Enable/disable deskshare streaming")
+        .def("setAudioParams", &PyClient::setAudioParams,
+             "Set audio parameters")
+        .def("setVideoParams", &PyClient::setVideoParams,
+             "Set video parameters")
+        .def("setDeskshareParams", &PyClient::setDeskshareParams,
+             "Set deskshare parameters")
+        .def("onJoinConfirm", &PyClient::onJoinConfirm,
+             "Register join confirm callback")
+        .def("onSessionUpdate", &PyClient::onSessionUpdate,
+             "Register session update callback")
+        .def("onUserUpdate", &PyClient::onUserUpdate,
+             "Register user update callback")
+        .def("onAudioData", &PyClient::onAudioData,
+             "Register audio data callback")
+        .def("onVideoData", &PyClient::onVideoData,
+             "Register video data callback")
+        .def("onDeskshareData", &PyClient::onDeskshareData,
+             "Register deskshare data callback")
+        .def("onTranscriptData", &PyClient::onTranscriptData,
+             "Register transcript data callback")
+        .def("onLeave", &PyClient::onLeave,
+             "Register leave callback")
+        .def("onEventEx", &PyClient::onEventEx,
+             "Register extended event callback");
 
-        // Decorator methods
-        .def("on_join_confirm", &PyClient::on_join_confirm, "Get a decorator for join confirm events")
-        .def("on_session_update", &PyClient::on_session_update, "Get a decorator for session update events")
-        .def("on_user_update", &PyClient::on_user_update, "Get a decorator for participant update events")
-        .def("on_audio_data", &PyClient::on_audio_data, "Get a decorator for receiving audio data")
-        .def("on_video_data", &PyClient::on_video_data, "Get a decorator for receiving video data")
-        .def("on_transcript_data", &PyClient::on_transcript_data, "Get a decorator for receiving transcript data") 
-        .def("on_leave", &PyClient::on_leave, "Get a decorator for leave events")
-        // Direct callback setting methods
-        .def("set_join_confirm_callback", &PyClient::set_join_confirm_callback)
-        .def("set_session_update_callback", &PyClient::set_session_update_callback)
-        .def("set_user_update_callback", &PyClient::set_user_update_callback)
-        .def("set_audio_data_callback", &PyClient::set_audio_data_callback)
-        .def("set_video_data_callback", &PyClient::set_video_data_callback)
-        .def("set_transcript_data_callback", &PyClient::set_transcript_data_callback)
-        .def("set_leave_callback", &PyClient::set_leave_callback);
+    // ========================================================================
+    // Constants - Media Types
+    // ========================================================================
 
-    // Define module functions that operate on the global client for backward compatibility
-    m.def("_initialize", [](const string& ca_path) {
-        try {
-            global_client.initialize(ca_path);
-        } catch (const py::error_already_set& e) {
-            DEBUG_LOG("Error in _initialize: " << e.what());
-            throw;
-        }
-    }, "Initialize the RTMS SDK with the specified CA certificate path");
-    
-    m.def("_uninitialize", []() {
-        try {
-            global_client.uninitialize();
-        } catch (const py::error_already_set& e) {
-            DEBUG_LOG("Error in _uninitialize: " << e.what());
-            throw;
-        }
-    }, "Uninitialize the RTMS SDK");
-    
-    m.def("_join", [](const string& uuid, const string& stream_id, const string& signature, 
-                    const string& server_urls, int timeout) {
-        try {
-            global_client.join(uuid, stream_id, signature, server_urls, timeout);
-        } catch (const py::error_already_set& e) {
-            DEBUG_LOG("Error in global _join: " << e.what());
-            throw;
-        }
-    }, "Join a meeting with the specified parameters", 
-       py::arg("uuid"), py::arg("stream_id"), py::arg("signature"), 
-       py::arg("server_urls"), py::arg("timeout") = -1);
-    
-    m.def("_poll", []() {
-        global_client.poll();
-    }, "Poll for new events");
-    
-    m.def("_release", []() {
-        try {
-            global_client.release();
-        } catch (const py::error_already_set& e) {
-            DEBUG_LOG("Error in global _release: " << e.what());
-            throw;
-        }
-    }, "Release resources");
-    
-    m.def("_uuid", []() {
-        try {
-            return global_client.uuid();
-        } catch (const py::error_already_set& e) {
-            DEBUG_LOG("Error in global _uuid: " << e.what());
-            throw;
-        }
-    }, "Get the UUID of the current meeting");
-    
-    m.def("_stream_id", []() {
-        try {
-            return global_client.stream_id();
-        } catch (const py::error_already_set& e) {
-            DEBUG_LOG("Error in global _stream_id: " << e.what());
-            throw;
-        }
-    }, "Get the stream ID of the current meeting");
-    
-    // Register callback decorators for the global client
-    m.def("on_join_confirm", [](py::function callback) {
-        global_client.set_join_confirm_callback(callback);
-        return callback;
-    }, "Set callback for join confirmation events");
-    
-    m.def("on_session_update", [](py::function callback) {
-        global_client.set_session_update_callback(callback);
-        return callback;
-    }, "Set callback for session update events");
-    
-    m.def("on_user_update", [](py::function callback) {
-        global_client.set_user_update_callback(callback);
-        return callback;
-    }, "Set callback for participant update events");
-    
-    m.def("on_audio_data", [](py::function callback) {
-        global_client.set_audio_data_callback(callback);
-        return callback;
-    }, "Set callback for receiving audio data");
-    
-    m.def("on_video_data", [](py::function callback) {
-        global_client.set_video_data_callback(callback);
-        return callback;
-    }, "Set callback for receiving video data");
-    
-    m.def("on_transcript_data", [](py::function callback) {
-        global_client.set_transcript_data_callback(callback);
-        return callback;
-    }, "Set callback for receiving transcript data");
-    
-    m.def("on_leave", [](py::function callback) {
-        global_client.set_leave_callback(callback);
-        return callback;
-    }, "Set callback for leave events");
+    m.attr("MEDIA_TYPE_AUDIO") = py::int_(static_cast<int>(SDK_AUDIO));
+    m.attr("MEDIA_TYPE_VIDEO") = py::int_(static_cast<int>(SDK_VIDEO));
+    m.attr("MEDIA_TYPE_DESKSHARE") = py::int_(static_cast<int>(SDK_DESKSHARE));
+    m.attr("MEDIA_TYPE_TRANSCRIPT") = py::int_(static_cast<int>(SDK_TRANSCRIPT));
+    m.attr("MEDIA_TYPE_CHAT") = py::int_(static_cast<int>(SDK_CHAT));
+    m.attr("MEDIA_TYPE_ALL") = py::int_(static_cast<int>(SDK_ALL));
 
-    m.def("set_audio_parameters", [](py::dict params) {
-        try {
-            global_client.set_audio_parameters(params);
-        } catch (const py::error_already_set& e) {
-            DEBUG_LOG("Error in global set_audio_parameters: " << e.what());
-            throw;
-        }
-    }, "Set global audio parameters");
+    // ========================================================================
+    // Constants - Session Events
+    // ========================================================================
 
-    m.def("set_video_parameters", [](py::dict params) {
-        try {
-            global_client.set_video_parameters(params);
-        } catch (const py::error_already_set& e) {
-            DEBUG_LOG("Error in global set_video_parameters: " << e.what());
-            throw;
-        }
-    }, "Set global video parameters");
+    m.attr("SESSION_EVENT_ADD") = py::int_(static_cast<int>(SESSION_ADD));
+    m.attr("SESSION_EVENT_STOP") = py::int_(static_cast<int>(SESSION_STOP));
+    m.attr("SESSION_EVENT_PAUSE") = py::int_(static_cast<int>(SESSION_PAUSE));
+    m.attr("SESSION_EVENT_RESUME") = py::int_(static_cast<int>(SESSION_RESUME));
 
-        // Expose SDK constants
-        m.attr("SDK_AUDIO") = py::int_(static_cast<int>(SDK_AUDIO));
-        m.attr("SDK_VIDEO") = py::int_(static_cast<int>(SDK_VIDEO));
-        m.attr("SDK_TRANSCRIPT") = py::int_(static_cast<int>(SDK_TRANSCRIPT));
-        m.attr("SDK_ALL") = py::int_(static_cast<int>(SDK_ALL));
-        
-        m.attr("SESSION_ADD") = py::int_(static_cast<int>(SESSION_ADD));
-        m.attr("SESSION_STOP") = py::int_(static_cast<int>(SESSION_STOP));
-        m.attr("SESSION_PAUSE") = py::int_(static_cast<int>(SESSION_PAUSE));
-        m.attr("SESSION_RESUME") = py::int_(static_cast<int>(SESSION_RESUME));
-        
-        m.attr("USER_JOIN") = py::int_(static_cast<int>(USER_JOIN));
-        m.attr("USER_LEAVE") = py::int_(static_cast<int>(USER_LEAVE));
-        
-        m.attr("RTMS_SDK_FAILURE") = py::int_(static_cast<int>(RTMS_SDK_FAILURE));
-        m.attr("RTMS_SDK_OK") = py::int_(static_cast<int>(RTMS_SDK_OK));
-        m.attr("RTMS_SDK_TIMEOUT") = py::int_(static_cast<int>(RTMS_SDK_TIMEOUT));
-        m.attr("RTMS_SDK_NOT_EXIST") = py::int_(static_cast<int>(RTMS_SDK_NOT_EXIST));
-        m.attr("RTMS_SDK_WRONG_TYPE") = py::int_(static_cast<int>(RTMS_SDK_WRONG_TYPE));
-        m.attr("RTMS_SDK_INVALID_STATUS") = py::int_(static_cast<int>(RTMS_SDK_INVALID_STATUS));
-        m.attr("RTMS_SDK_INVALID_ARGS") = py::int_(static_cast<int>(RTMS_SDK_INVALID_ARGS));
-        
-        m.attr("SESS_STATUS_ACTIVE") = py::int_(static_cast<int>(SESS_STATUS_ACTIVE));
-        m.attr("SESS_STATUS_PAUSED") = py::int_(static_cast<int>(SESS_STATUS_PAUSED));
-    
-        // ===== Audio Parameter Constants =====
-        
-        // Audio Content Type
-        py::dict audioContentType = py::dict();
-        audioContentType["UNDEFINED"] = py::int_(0);
-        audioContentType["RTP"] = py::int_(1);
-        audioContentType["RAW_AUDIO"] = py::int_(2);
-        audioContentType["FILE_STREAM"] = py::int_(4);
-        audioContentType["TEXT"] = py::int_(5);
-        m.attr("AudioContentType") = audioContentType;
-        
-        // Audio Codec
-        py::dict audioCodec = py::dict();
-        audioCodec["UNDEFINED"] = py::int_(0);
-        audioCodec["L16"] = py::int_(1);
-        audioCodec["G711"] = py::int_(2);
-        audioCodec["G722"] = py::int_(3);
-        audioCodec["OPUS"] = py::int_(4);
-        m.attr("AudioCodec") = audioCodec;
-        
-        // Audio Sample Rate
-        py::dict audioSampleRate = py::dict();
-        audioSampleRate["SR_8K"] = py::int_(0);
-        audioSampleRate["SR_16K"] = py::int_(1);
-        audioSampleRate["SR_32K"] = py::int_(2);
-        audioSampleRate["SR_48K"] = py::int_(3);
-        m.attr("AudioSampleRate") = audioSampleRate;
-        
-        // Audio Channel
-        py::dict audioChannel = py::dict();
-        audioChannel["MONO"] = py::int_(1);
-        audioChannel["STEREO"] = py::int_(2);
-        m.attr("AudioChannel") = audioChannel;
-        
-        // Audio Data Option
-        py::dict audioDataOption = py::dict();
-        audioDataOption["UNDEFINED"] = py::int_(0);
-        audioDataOption["AUDIO_MIXED_STREAM"] = py::int_(1);
-        audioDataOption["AUDIO_MULTI_STREAMS"] = py::int_(2);
-        m.attr("AudioDataOption") = audioDataOption;
-        
-        // ===== Video Parameter Constants =====
-        
-        // Video Content Type
-        py::dict videoContentType = py::dict();
-        videoContentType["UNDEFINED"] = py::int_(0);
-        videoContentType["RTP"] = py::int_(1);
-        videoContentType["RAW_VIDEO"] = py::int_(3);
-        videoContentType["FILE_STREAM"] = py::int_(4);
-        videoContentType["TEXT"] = py::int_(5);
-        m.attr("VideoContentType") = videoContentType;
-        
-        // Video Codec
-        py::dict videoCodec = py::dict();
-        videoCodec["UNDEFINED"] = py::int_(0);
-        videoCodec["JPG"] = py::int_(5);
-        videoCodec["PNG"] = py::int_(6);
-        videoCodec["H264"] = py::int_(7);
-        m.attr("VideoCodec") = videoCodec;
-        
-        // Video Resolution
-        py::dict videoResolution = py::dict();
-        videoResolution["SD"] = py::int_(1);
-        videoResolution["HD"] = py::int_(2);
-        videoResolution["FHD"] = py::int_(3);
-        videoResolution["QHD"] = py::int_(4);
-        m.attr("VideoResolution") = videoResolution;
-        
-        // Video Data Option
-        py::dict videoDataOption = py::dict();
-        videoDataOption["UNDEFINED"] = py::int_(0);
-        videoDataOption["VIDEO_SINGLE_ACTIVE_STREAM"] = py::int_(3);
-        videoDataOption["VIDEO_MIXED_SPEAKER_VIEW"] = py::int_(4);
-        videoDataOption["VIDEO_MIXED_GALLERY_VIEW"] = py::int_(5);
-        m.attr("VideoDataOption") = videoDataOption;
-        
-        // ===== Other Constant Dictionaries =====
-        
-        // Media Data Type
-        py::dict mediaDataType = py::dict();
-        mediaDataType["UNDEFINED"] = py::int_(0);
-        mediaDataType["AUDIO"] = py::int_(1);
-        mediaDataType["VIDEO"] = py::int_(2);
-        mediaDataType["DESKSHARE"] = py::int_(4);
-        mediaDataType["TRANSCRIPT"] = py::int_(8);
-        mediaDataType["CHAT"] = py::int_(16);
-        mediaDataType["ALL"] = py::int_(31);
-        m.attr("MediaDataType") = mediaDataType;
-        
-        // Session State
-        py::dict sessionState = py::dict();
-        sessionState["INACTIVE"] = py::int_(0);
-        sessionState["INITIALIZE"] = py::int_(1);
-        sessionState["STARTED"] = py::int_(2);
-        sessionState["PAUSED"] = py::int_(3);
-        sessionState["RESUMED"] = py::int_(4);
-        sessionState["STOPPED"] = py::int_(5);
-        m.attr("SessionState") = sessionState;
-        
-        // Stream State
-        py::dict streamState = py::dict();
-        streamState["INACTIVE"] = py::int_(0);
-        streamState["ACTIVE"] = py::int_(1);
-        streamState["INTERRUPTED"] = py::int_(2);
-        streamState["TERMINATING"] = py::int_(3);
-        streamState["TERMINATED"] = py::int_(4);
-        m.attr("StreamState") = streamState;
-        
-        // Event Type
-        py::dict eventType = py::dict();
-        eventType["UNDEFINED"] = py::int_(0);
-        eventType["FIRST_PACKET_TIMESTAMP"] = py::int_(1);
-        eventType["ACTIVE_SPEAKER_CHANGE"] = py::int_(2);
-        eventType["PARTICIPANT_JOIN"] = py::int_(3);
-        eventType["PARTICIPANT_LEAVE"] = py::int_(4);
-        m.attr("EventType") = eventType;
-        
-        // Message Type
-        py::dict messageType = py::dict();
-        messageType["UNDEFINED"] = py::int_(0);
-        messageType["SIGNALING_HAND_SHAKE_REQ"] = py::int_(1);
-        messageType["SIGNALING_HAND_SHAKE_RESP"] = py::int_(2);
-        messageType["DATA_HAND_SHAKE_REQ"] = py::int_(3);
-        messageType["DATA_HAND_SHAKE_RESP"] = py::int_(4);
-        messageType["EVENT_SUBSCRIPTION"] = py::int_(5);
-        messageType["EVENT_UPDATE"] = py::int_(6);
-        messageType["CLIENT_READY_ACK"] = py::int_(7);
-        messageType["STREAM_STATE_UPDATE"] = py::int_(8);
-        messageType["SESSION_STATE_UPDATE"] = py::int_(9);
-        messageType["SESSION_STATE_REQ"] = py::int_(10);
-        messageType["SESSION_STATE_RESP"] = py::int_(11);
-        messageType["KEEP_ALIVE_REQ"] = py::int_(12);
-        messageType["KEEP_ALIVE_RESP"] = py::int_(13);
-        messageType["MEDIA_DATA_AUDIO"] = py::int_(14);
-        messageType["MEDIA_DATA_VIDEO"] = py::int_(15);
-        messageType["MEDIA_DATA_SHARE"] = py::int_(16);
-        messageType["MEDIA_DATA_TRANSCRIPT"] = py::int_(17);
-        messageType["MEDIA_DATA_CHAT"] = py::int_(18);
-        m.attr("MessageType") = messageType;
-        
-        // Stop Reason
-        py::dict stopReason = py::dict();
-        stopReason["UNDEFINED"] = py::int_(0);
-        stopReason["STOP_BC_HOST_TRIGGERED"] = py::int_(1);
-        stopReason["STOP_BC_USER_TRIGGERED"] = py::int_(2);
-        stopReason["STOP_BC_USER_LEFT"] = py::int_(3);
-        stopReason["STOP_BC_USER_EJECTED"] = py::int_(4);
-        stopReason["STOP_BC_APP_DISABLED_BY_HOST"] = py::int_(5);
-        stopReason["STOP_BC_MEETING_ENDED"] = py::int_(6);
-        stopReason["STOP_BC_STREAM_CANCELED"] = py::int_(7);
-        stopReason["STOP_BC_STREAM_REVOKED"] = py::int_(8);
-        stopReason["STOP_BC_ALL_APPS_DISABLED"] = py::int_(9);
-        stopReason["STOP_BC_INTERNAL_EXCEPTION"] = py::int_(10);
-        stopReason["STOP_BC_CONNECTION_TIMEOUT"] = py::int_(11);
-        stopReason["STOP_BC_MEETING_CONNECTION_INTERRUPTED"] = py::int_(12);
-        stopReason["STOP_BC_SIGNAL_CONNECTION_INTERRUPTED"] = py::int_(13);
-        stopReason["STOP_BC_DATA_CONNECTION_INTERRUPTED"] = py::int_(14);
-        stopReason["STOP_BC_SIGNAL_CONNECTION_CLOSED_ABNORMALLY"] = py::int_(15);
-        stopReason["STOP_BC_DATA_CONNECTION_CLOSED_ABNORMALLY"] = py::int_(16);
-        stopReason["STOP_BC_EXIT_SIGNAL"] = py::int_(17);
-        stopReason["STOP_BC_AUTHENTICATION_FAILURE"] = py::int_(18);
-        m.attr("StopReason") = stopReason;
-        
+    // ========================================================================
+    // Constants - User Events
+    // ========================================================================
+
+    m.attr("USER_EVENT_JOIN") = py::int_(static_cast<int>(USER_JOIN));
+    m.attr("USER_EVENT_LEAVE") = py::int_(static_cast<int>(USER_LEAVE));
+
+    // ========================================================================
+    // Constants - Error Codes
+    // ========================================================================
+
+    m.attr("RTMS_SDK_OK") = py::int_(static_cast<int>(RTMS_SDK_OK));
+    m.attr("RTMS_SDK_FAILURE") = py::int_(static_cast<int>(RTMS_SDK_FAILURE));
+    m.attr("RTMS_SDK_TIMEOUT") = py::int_(static_cast<int>(RTMS_SDK_TIMEOUT));
+    m.attr("RTMS_SDK_NOT_EXIST") = py::int_(static_cast<int>(RTMS_SDK_NOT_EXIST));
+    m.attr("RTMS_SDK_WRONG_TYPE") = py::int_(static_cast<int>(RTMS_SDK_WRONG_TYPE));
+    m.attr("RTMS_SDK_INVALID_STATUS") = py::int_(static_cast<int>(RTMS_SDK_INVALID_STATUS));
+    m.attr("RTMS_SDK_INVALID_ARGS") = py::int_(static_cast<int>(RTMS_SDK_INVALID_ARGS));
+
+    // ========================================================================
+    // Constants - Session Status
+    // ========================================================================
+
+    m.attr("SESS_STATUS_ACTIVE") = py::int_(static_cast<int>(SESS_STATUS_ACTIVE));
+    m.attr("SESS_STATUS_PAUSED") = py::int_(static_cast<int>(SESS_STATUS_PAUSED));
+
+    // ========================================================================
+    // Constants - Audio Parameters
+    // ========================================================================
+
+    py::dict audioContentType;
+    audioContentType["UNDEFINED"] = 0;
+    audioContentType["RTP"] = 1;
+    audioContentType["RAW_AUDIO"] = 2;
+    audioContentType["FILE_STREAM"] = 4;
+    audioContentType["TEXT"] = 5;
+    m.attr("AudioContentType") = audioContentType;
+
+    py::dict audioCodec;
+    audioCodec["UNDEFINED"] = 0;
+    audioCodec["L16"] = 1;
+    audioCodec["G711"] = 2;
+    audioCodec["G722"] = 3;
+    audioCodec["OPUS"] = 4;
+    m.attr("AudioCodec") = audioCodec;
+
+    py::dict audioSampleRate;
+    audioSampleRate["SR_8K"] = 0;
+    audioSampleRate["SR_16K"] = 1;
+    audioSampleRate["SR_32K"] = 2;
+    audioSampleRate["SR_48K"] = 3;
+    m.attr("AudioSampleRate") = audioSampleRate;
+
+    py::dict audioChannel;
+    audioChannel["MONO"] = 1;
+    audioChannel["STEREO"] = 2;
+    m.attr("AudioChannel") = audioChannel;
+
+    py::dict audioDataOption;
+    audioDataOption["UNDEFINED"] = 0;
+    audioDataOption["AUDIO_MIXED_STREAM"] = 1;
+    audioDataOption["AUDIO_MULTI_STREAMS"] = 2;
+    m.attr("AudioDataOption") = audioDataOption;
+
+    // ========================================================================
+    // Constants - Video Parameters
+    // ========================================================================
+
+    py::dict videoContentType;
+    videoContentType["UNDEFINED"] = 0;
+    videoContentType["RTP"] = 1;
+    videoContentType["RAW_VIDEO"] = 3;
+    videoContentType["FILE_STREAM"] = 4;
+    videoContentType["TEXT"] = 5;
+    m.attr("VideoContentType") = videoContentType;
+
+    py::dict videoCodec;
+    videoCodec["UNDEFINED"] = 0;
+    videoCodec["JPG"] = 5;
+    videoCodec["PNG"] = 6;
+    videoCodec["H264"] = 7;
+    m.attr("VideoCodec") = videoCodec;
+
+    py::dict videoResolution;
+    videoResolution["SD"] = 1;
+    videoResolution["HD"] = 2;
+    videoResolution["FHD"] = 3;
+    videoResolution["QHD"] = 4;
+    m.attr("VideoResolution") = videoResolution;
+
+    py::dict videoDataOption;
+    videoDataOption["UNDEFINED"] = 0;
+    videoDataOption["VIDEO_SINGLE_ACTIVE_STREAM"] = 3;
+    videoDataOption["VIDEO_MIXED_SPEAKER_VIEW"] = 4;
+    videoDataOption["VIDEO_MIXED_GALLERY_VIEW"] = 5;
+    m.attr("VideoDataOption") = videoDataOption;
+
+    // ========================================================================
+    // Constants - Media Data Types
+    // ========================================================================
+
+    py::dict mediaDataType;
+    mediaDataType["UNDEFINED"] = 0;
+    mediaDataType["AUDIO"] = 1;
+    mediaDataType["VIDEO"] = 2;
+    mediaDataType["DESKSHARE"] = 4;
+    mediaDataType["TRANSCRIPT"] = 8;
+    mediaDataType["CHAT"] = 16;
+    mediaDataType["ALL"] = 31;
+    m.attr("MediaDataType") = mediaDataType;
+
+    // ========================================================================
+    // Constants - Session State
+    // ========================================================================
+
+    py::dict sessionState;
+    sessionState["INACTIVE"] = 0;
+    sessionState["INITIALIZE"] = 1;
+    sessionState["STARTED"] = 2;
+    sessionState["PAUSED"] = 3;
+    sessionState["RESUMED"] = 4;
+    sessionState["STOPPED"] = 5;
+    m.attr("SessionState") = sessionState;
+
+    // ========================================================================
+    // Constants - Stream State
+    // ========================================================================
+
+    py::dict streamState;
+    streamState["INACTIVE"] = 0;
+    streamState["ACTIVE"] = 1;
+    streamState["INTERRUPTED"] = 2;
+    streamState["TERMINATING"] = 3;
+    streamState["TERMINATED"] = 4;
+    m.attr("StreamState") = streamState;
+
+    // ========================================================================
+    // Constants - Event Type
+    // ========================================================================
+
+    py::dict eventType;
+    eventType["UNDEFINED"] = 0;
+    eventType["FIRST_PACKET_TIMESTAMP"] = 1;
+    eventType["ACTIVE_SPEAKER_CHANGE"] = 2;
+    eventType["PARTICIPANT_JOIN"] = 3;
+    eventType["PARTICIPANT_LEAVE"] = 4;
+    m.attr("EventType") = eventType;
+
+    // ========================================================================
+    // Constants - Message Type
+    // ========================================================================
+
+    py::dict messageType;
+    messageType["UNDEFINED"] = 0;
+    messageType["SIGNALING_HAND_SHAKE_REQ"] = 1;
+    messageType["SIGNALING_HAND_SHAKE_RESP"] = 2;
+    messageType["DATA_HAND_SHAKE_REQ"] = 3;
+    messageType["DATA_HAND_SHAKE_RESP"] = 4;
+    messageType["EVENT_SUBSCRIPTION"] = 5;
+    messageType["EVENT_UPDATE"] = 6;
+    messageType["CLIENT_READY_ACK"] = 7;
+    messageType["STREAM_STATE_UPDATE"] = 8;
+    messageType["SESSION_STATE_UPDATE"] = 9;
+    messageType["SESSION_STATE_REQ"] = 10;
+    messageType["SESSION_STATE_RESP"] = 11;
+    messageType["KEEP_ALIVE_REQ"] = 12;
+    messageType["KEEP_ALIVE_RESP"] = 13;
+    messageType["MEDIA_DATA_AUDIO"] = 14;
+    messageType["MEDIA_DATA_VIDEO"] = 15;
+    messageType["MEDIA_DATA_SHARE"] = 16;
+    messageType["MEDIA_DATA_TRANSCRIPT"] = 17;
+    messageType["MEDIA_DATA_CHAT"] = 18;
+    m.attr("MessageType") = messageType;
+
+    // ========================================================================
+    // Constants - Stop Reason
+    // ========================================================================
+
+    py::dict stopReason;
+    stopReason["UNDEFINED"] = 0;
+    stopReason["STOP_BC_HOST_TRIGGERED"] = 1;
+    stopReason["STOP_BC_USER_TRIGGERED"] = 2;
+    stopReason["STOP_BC_USER_LEFT"] = 3;
+    stopReason["STOP_BC_USER_EJECTED"] = 4;
+    stopReason["STOP_BC_APP_DISABLED_BY_HOST"] = 5;
+    stopReason["STOP_BC_MEETING_ENDED"] = 6;
+    stopReason["STOP_BC_STREAM_CANCELED"] = 7;
+    stopReason["STOP_BC_STREAM_REVOKED"] = 8;
+    stopReason["STOP_BC_ALL_APPS_DISABLED"] = 9;
+    stopReason["STOP_BC_INTERNAL_EXCEPTION"] = 10;
+    stopReason["STOP_BC_CONNECTION_TIMEOUT"] = 11;
+    stopReason["STOP_BC_MEETING_CONNECTION_INTERRUPTED"] = 12;
+    stopReason["STOP_BC_SIGNAL_CONNECTION_INTERRUPTED"] = 13;
+    stopReason["STOP_BC_DATA_CONNECTION_INTERRUPTED"] = 14;
+    stopReason["STOP_BC_SIGNAL_CONNECTION_CLOSED_ABNORMALLY"] = 15;
+    stopReason["STOP_BC_DATA_CONNECTION_CLOSED_ABNORMALLY"] = 16;
+    stopReason["STOP_BC_EXIT_SIGNAL"] = 17;
+    stopReason["STOP_BC_AUTHENTICATION_FAILURE"] = 18;
+    m.attr("StopReason") = stopReason;
 }
