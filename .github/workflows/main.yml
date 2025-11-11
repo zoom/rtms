@@ -12,23 +12,67 @@ permissions:
   id-token: write
 
 jobs:
+  # Test Node.js SDK
+  test-nodejs:
+    name: Test Node.js SDK
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Docker Compose
+      uses: docker/setup-compose-action@v1.1.0
+
+    - name: Run Node.js tests
+      run: docker compose run --rm test-js
+
+  # Test Python SDK
+  test-python:
+    name: Test Python SDK
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest python-dotenv
+
+    - name: Run Python tests
+      run: pytest tests/test_rtms.py -v
+
   # Test application build and generate documentation
   test-and-build-docs:
     name: Test Application & Build Documentation
     runs-on: ubuntu-latest
+    needs: [test-nodejs, test-python]
     # Only run on main/master branches and if tests pass
     if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Setup Docker Compose
       uses: docker/setup-compose-action@v1.1.0
-      
-    - name: Test application build and generate docs
+
+    - name: Test JS build and generate JS docs
       run: docker compose run --rm docs-js
-        
+
+    - name: Generate Python docs
+      run: |
+        python -m pip install --upgrade pip
+        pip install pdoc3
+        pdoc --html --output-dir docs/py --force src/rtms
+
     - name: Upload documentation artifact
       uses: actions/upload-artifact@v4
       with:

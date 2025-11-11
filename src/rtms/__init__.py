@@ -40,6 +40,7 @@ from ._rtms import (
 # Set up logging
 _log_level = os.getenv('ZM_RTMS_LOG_LEVEL', 'debug').lower()
 _log_format = os.getenv('ZM_RTMS_LOG_FORMAT', 'progressive').lower()
+_log_enabled = os.getenv('ZM_RTMS_LOG_ENABLED', 'true').lower() != 'false'
 
 
 class LogLevel(IntEnum):
@@ -61,6 +62,10 @@ _webhook_server = None
 def _log(level, component, message, details=None):
     """Log a message at the specified level"""
 
+    # Check if logging is enabled
+    if not _log_enabled:
+        return
+
     # Convert level name to enum value if it's a string
     if isinstance(level, str):
         level_map = {
@@ -71,7 +76,7 @@ def _log(level, component, message, details=None):
             'trace': LogLevel.TRACE
         }
         level = level_map.get(level.lower(), LogLevel.INFO)
-    
+
     # Check if we should log this level
     target_level = LogLevel[_log_level.upper()] if _log_level.upper() in LogLevel.__members__ else LogLevel.INFO
     if level > target_level:
@@ -121,15 +126,18 @@ def log_error(component, message, details=None):
 
 def configure_logger(options: dict):
     """Configure the logger with the specified options"""
-    global _log_level, _log_format
-    
+    global _log_level, _log_format, _log_enabled
+
     if 'level' in options:
         _log_level = options['level']
-    
+
     if 'format' in options:
         _log_format = options['format']
-    
-    log_info('logger', f"Logger configured: level={_log_level}, format={_log_format}")
+
+    if 'enabled' in options:
+        _log_enabled = options['enabled']
+
+    log_info('logger', f"Logger configured: level={_log_level}, format={_log_format}, enabled={_log_enabled}")
 
     log_debug("rtms", "Importing _rtms module")
 
@@ -193,6 +201,43 @@ def generate_signature(client, secret, uuid, rtms_stream_id):
 
     return signature
 
+class WebhookResponse:
+    """Wrapper for HTTP response to allow custom responses in raw webhook callbacks"""
+    def __init__(self, handler):
+        self.handler = handler
+        self._status = 200
+        self._headers = {}
+        self._sent = False
+
+    def set_status(self, code):
+        """Set HTTP status code"""
+        self._status = code
+
+    def set_header(self, name, value):
+        """Set HTTP response header"""
+        self._headers[name] = value
+
+    def send(self, data):
+        """Send response with data"""
+        if self._sent:
+            return
+
+        self.handler.send_response(self._status)
+        for name, value in self._headers.items():
+            self.handler.send_header(name, value)
+        if 'Content-Type' not in self._headers:
+            self.handler.send_header('Content-Type', 'application/json')
+        self.handler.end_headers()
+
+        if isinstance(data, dict):
+            self.handler.wfile.write(json.dumps(data).encode('utf-8'))
+        elif isinstance(data, str):
+            self.handler.wfile.write(data.encode('utf-8'))
+        elif isinstance(data, bytes):
+            self.handler.wfile.write(data)
+
+        self._sent = True
+
 class WebhookHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         # Validate request path
@@ -209,11 +254,31 @@ class WebhookHandler(BaseHTTPRequestHandler):
         try:
             payload = json.loads(body.decode('utf-8'))
             log_debug(f"webhook", f"Received webhook payload: {payload}")
-            self.server.webhook_callback(payload) 
 
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(b'Webhook received successfully')
+            # Check callback arity to determine if it's a raw callback
+            import inspect
+            sig = inspect.signature(self.server.webhook_callback)
+            param_count = len(sig.parameters)
+
+            response = WebhookResponse(self)
+
+            if param_count >= 3:
+                # Raw webhook callback - pass payload, request, response
+                self.server.webhook_callback(payload, self, response)
+
+                # If callback didn't send response, send default
+                if not response._sent:
+                    response.send({'status': 'ok'})
+            else:
+                # Simple webhook callback - just pass payload
+                self.server.webhook_callback(payload)
+
+                # Send default success response
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(b'{"status": "ok"}')
+
         except json.JSONDecodeError as e:
             log_error("webhook", f"Error parsing webhook JSON: {e}")
             self.send_response(400)
@@ -221,10 +286,11 @@ class WebhookHandler(BaseHTTPRequestHandler):
             self.wfile.write(b"Invalid JSON received")
         except Exception as e:
             log_error("webhook", f"Error processing webhook: {e}")
+            traceback.print_exc()
             self.send_response(500)
             self.end_headers()
             self.wfile.write(f"Internal error: {str(e)}".encode('utf-8'))
-    
+
     def log_message(self, format, *args):
         # Override to suppress default logging
         pass
@@ -273,6 +339,116 @@ class WebhookServer:
             self.server_thread = None
         except Exception as e:
             log_error("webhook", f"Error shutting down webhook server: {e}")
+
+# Parameter validation functions
+def _validate_audio_params(params):
+    """Validate audio parameters and provide helpful error messages"""
+    if not hasattr(params, '__dict__'):
+        return  # Not a parameter object
+
+    errors = []
+
+    # Check codec
+    if hasattr(params, 'codec') and params.codec is not None:
+        valid_codecs = [v for k, v in AudioCodec.__dict__.items() if not k.startswith('_')]
+        if params.codec not in valid_codecs:
+            errors.append(
+                f"Invalid audio codec: {params.codec}. "
+                f"Use rtms.AudioCodec constants (e.g., rtms.AudioCodec.OPUS)"
+            )
+
+    # Check sample rate
+    if hasattr(params, 'sampleRate') and params.sampleRate is not None:
+        valid_rates = [v for k, v in AudioSampleRate.__dict__.items() if not k.startswith('_')]
+        if params.sampleRate not in valid_rates:
+            errors.append(
+                f"Invalid audio sampleRate: {params.sampleRate}. "
+                f"Use rtms.AudioSampleRate constants (e.g., rtms.AudioSampleRate.SR_48K)"
+            )
+
+    # Check channel
+    if hasattr(params, 'channel') and params.channel is not None:
+        valid_channels = [v for k, v in AudioChannel.__dict__.items() if not k.startswith('_')]
+        if params.channel not in valid_channels:
+            errors.append(
+                f"Invalid audio channel: {params.channel}. "
+                f"Use rtms.AudioChannel constants (e.g., rtms.AudioChannel.STEREO)"
+            )
+
+    # Check content type
+    if hasattr(params, 'contentType') and params.contentType is not None:
+        valid_types = [v for k, v in AudioContentType.__dict__.items() if not k.startswith('_')]
+        if params.contentType not in valid_types:
+            errors.append(
+                f"Invalid audio contentType: {params.contentType}. "
+                f"Use rtms.AudioContentType constants (e.g., rtms.AudioContentType.RAW_AUDIO)"
+            )
+
+    # Check data option
+    if hasattr(params, 'dataOpt') and params.dataOpt is not None:
+        valid_opts = [v for k, v in AudioDataOption.__dict__.items() if not k.startswith('_')]
+        if params.dataOpt not in valid_opts:
+            errors.append(
+                f"Invalid audio dataOpt: {params.dataOpt}. "
+                f"Use rtms.AudioDataOption constants (e.g., rtms.AudioDataOption.AUDIO_MIXED_STREAM)"
+            )
+
+    if errors:
+        raise ValueError("\n".join(errors))
+
+
+def _validate_video_params(params):
+    """Validate video parameters and provide helpful error messages"""
+    if not hasattr(params, '__dict__'):
+        return
+
+    errors = []
+
+    # Check codec
+    if hasattr(params, 'codec') and params.codec is not None:
+        valid_codecs = [v for k, v in VideoCodec.__dict__.items() if not k.startswith('_')]
+        if params.codec not in valid_codecs:
+            errors.append(
+                f"Invalid video codec: {params.codec}. "
+                f"Use rtms.VideoCodec constants (e.g., rtms.VideoCodec.H264)"
+            )
+
+    # Check resolution
+    if hasattr(params, 'resolution') and params.resolution is not None:
+        valid_resolutions = [v for k, v in VideoResolution.__dict__.items() if not k.startswith('_')]
+        if params.resolution not in valid_resolutions:
+            errors.append(
+                f"Invalid video resolution: {params.resolution}. "
+                f"Use rtms.VideoResolution constants (e.g., rtms.VideoResolution.HD)"
+            )
+
+    # Check content type
+    if hasattr(params, 'contentType') and params.contentType is not None:
+        valid_types = [v for k, v in VideoContentType.__dict__.items() if not k.startswith('_')]
+        if params.contentType not in valid_types:
+            errors.append(
+                f"Invalid video contentType: {params.contentType}. "
+                f"Use rtms.VideoContentType constants (e.g., rtms.VideoContentType.RAW_VIDEO)"
+            )
+
+    # Check data option
+    if hasattr(params, 'dataOpt') and params.dataOpt is not None:
+        valid_opts = [v for k, v in VideoDataOption.__dict__.items() if not k.startswith('_')]
+        if params.dataOpt not in valid_opts:
+            errors.append(
+                f"Invalid video dataOpt: {params.dataOpt}. "
+                f"Use rtms.VideoDataOption constants (e.g., rtms.VideoDataOption.VIDEO_SINGLE_ACTIVE_STREAM)"
+            )
+
+    if errors:
+        raise ValueError("\n".join(errors))
+
+
+def _validate_deskshare_params(params):
+    """Validate deskshare parameters and provide helpful error messages"""
+    # Deskshare uses same parameter types as video
+    _validate_video_params(params)
+
 
 class Client(_ClientBase):
     """
@@ -518,6 +694,54 @@ class Client(_ClientBase):
         """
         return self.leave()
 
+    def setAudioParams(self, params):
+        """
+        Set audio parameters with validation.
+
+        Args:
+            params (AudioParams): Audio parameters object
+
+        Returns:
+            bool: True if parameters were set successfully
+
+        Raises:
+            ValueError: If parameters are invalid
+        """
+        _validate_audio_params(params)
+        return super().setAudioParams(params)
+
+    def setVideoParams(self, params):
+        """
+        Set video parameters with validation.
+
+        Args:
+            params (VideoParams): Video parameters object
+
+        Returns:
+            bool: True if parameters were set successfully
+
+        Raises:
+            ValueError: If parameters are invalid
+        """
+        _validate_video_params(params)
+        return super().setVideoParams(params)
+
+    def setDeskshareParams(self, params):
+        """
+        Set deskshare parameters with validation.
+
+        Args:
+            params (DeskshareParams): Deskshare parameters object
+
+        Returns:
+            bool: True if parameters were set successfully
+
+        Raises:
+            ValueError: If parameters are invalid
+        """
+        _validate_deskshare_params(params)
+        return super().setDeskshareParams(params)
+
     def leave(self):
         """
         Leave the RTMS session and stop all threads.
@@ -625,7 +849,11 @@ def setAudioParams(params):
 
     Args:
         params (AudioParams): Audio parameters object
+
+    Raises:
+        ValueError: If parameters are invalid
     """
+    _validate_audio_params(params)
     return _get_global_client().setAudioParams(params)
 
 def setVideoParams(params):
@@ -634,7 +862,11 @@ def setVideoParams(params):
 
     Args:
         params (VideoParams): Video parameters object
+
+    Raises:
+        ValueError: If parameters are invalid
     """
+    _validate_video_params(params)
     return _get_global_client().setVideoParams(params)
 
 def setDeskshareParams(params):
@@ -643,7 +875,11 @@ def setDeskshareParams(params):
 
     Args:
         params (DeskshareParams): Deskshare parameters object
+
+    Raises:
+        ValueError: If parameters are invalid
     """
+    _validate_deskshare_params(params)
     return _get_global_client().setDeskshareParams(params)
 
 def uninitialize():

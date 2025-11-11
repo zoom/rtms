@@ -10,7 +10,7 @@ Bindings for real-time audio, video, and transcript streams from Zoom Meetings
 | Language | Status | Supported Platforms |
 |----------|--------|---------------------|
 | Node.js | ✅ Supported | darwin-arm64, linux-x64 |
-| Python | 🚧 Under Development | - |
+| Python | ✅ Supported | darwin-arm64, linux-x64 |
 | Go | 📅 Planned | - |
 
 > We are actively working to expand both language and platform support in future releases.
@@ -27,19 +27,19 @@ The RTMS SDK allows developers to:
 
 ## Installation
 
-### Node.js (Currently Supported)
+### Node.js
 ```bash
 npm install @zoom/rtms
 ```
 
 The Node.js package provides both class-based and singleton APIs for connecting to RTMS streams.
 
-### Python (Under Development)
+### Python
 ```bash
 pip install rtms
 ```
 
-> ⚠️ The Python package is under active development. Some features may be limited or experimental.
+The Python package provides a Pythonic decorator-based API with full feature parity to Node.js.
 
 ## Usage
 
@@ -149,25 +149,133 @@ rtms.join({
 });
 ```
 
-### Python Integration (Planned API)
+### Python - Basic Usage
 
-This shows the planned decorator-based API for Python (under development):
+```python
+#!/usr/bin/env python3
+import rtms
+import signal
+import sys
+from dotenv import load_dotenv
+
+load_dotenv()
+
+client = rtms.Client()
+
+# Graceful shutdown handler
+def signal_handler(sig, frame):
+    print('\nShutting down gracefully...')
+    client.leave()
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+
+# Webhook event handler
+@client.on_webhook_event()
+def handle_webhook(payload):
+    if payload.get('event') == 'meeting.rtms_started':
+        rtms_payload = payload.get('payload', {})
+        client.join(
+            meeting_uuid=rtms_payload.get('meeting_uuid'),
+            rtms_stream_id=rtms_payload.get('rtms_stream_id'),
+            server_urls=rtms_payload.get('server_urls'),
+            signature=rtms_payload.get('signature')
+        )
+
+# Callback handlers
+@client.onJoinConfirm
+def on_join(reason):
+    print(f'Joined meeting: {reason}')
+
+@client.onTranscriptData
+def on_transcript(data, size, timestamp, metadata):
+    text = data.decode('utf-8')
+    print(f'[{metadata.userName}]: {text}')
+
+@client.onLeave
+def on_leave(reason):
+    print(f'Left meeting: {reason}')
+
+if __name__ == '__main__':
+    print('Webhook server running on http://localhost:8080')
+    import time
+    while True:
+        # Process queued join requests from webhook thread
+        client._process_join_queue()
+        # Poll for SDK events
+        client._poll_if_needed()
+        time.sleep(0.01)
+```
+
+### Python - Advanced Webhook Validation
+
+For production use cases requiring custom webhook validation:
 
 ```python
 import rtms
+import hmac
+import hashlib
 
-@rtms.on_webhook_event()
-def handle_webhook(payload):
-    if payload.get('event') != 'meeting.rtms_started':
+client = rtms.Client()
+
+@client.on_webhook_event()
+def handle_webhook(payload, request, response):
+    # Access request headers for validation
+    signature = request.headers.get('x-zoom-signature')
+
+    # Handle Zoom's webhook validation challenge
+    if request.headers.get('x-zoom-webhook-validator'):
+        validator = request.headers['x-zoom-webhook-validator']
+        response.set_status(200)
+        response.send({'plainToken': validator})
         return
-    
-    client = rtms.Client()
-    
-    @client.on_audio_data()
-    def handle_audio(buffer, size, timestamp, metadata):
-        print(f"Received audio: {size} bytes")
-    
-    client.join(payload)
+
+    # Custom signature validation
+    if not validate_signature(payload, signature):
+        response.set_status(401)
+        response.send({'error': 'Invalid signature'})
+        return
+
+    # Process valid webhook
+    if payload.get('event') == 'meeting.rtms_started':
+        client.join(payload.get('payload'))
+
+    response.send({'status': 'ok'})
+```
+
+### Python - Environment Setup
+
+Create a virtual environment and install dependencies:
+
+```bash
+# Create virtual environment
+python3 -m venv .venv
+
+# Activate virtual environment
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
+pip install python-dotenv
+
+# Install RTMS SDK (when published)
+pip install rtms
+```
+
+Create a `.env` file:
+
+```bash
+# Required - Your Zoom OAuth credentials
+ZM_RTMS_CLIENT=your_client_id
+ZM_RTMS_SECRET=your_client_secret
+
+# Optional - Webhook server configuration
+ZM_RTMS_PORT=8080
+ZM_RTMS_PATH=/webhook
+
+# Optional - Logging configuration
+ZM_RTMS_LOG_LEVEL=debug          # error, warn, info, debug, trace
+ZM_RTMS_LOG_FORMAT=progressive    # progressive or json
+ZM_RTMS_LOG_ENABLED=true          # true or false
 ```
 
 ## Building from Source

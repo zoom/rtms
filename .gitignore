@@ -9,7 +9,7 @@ test-results
 claude.md
 
 .env
-.venv/**
+.venv
 .prebuild-installrc
 *.pem
 
@@ -505,3 +505,4 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
+temp_output.html
