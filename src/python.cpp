@@ -350,9 +350,7 @@ PYBIND11_MODULE(_rtms, m) {
     py::class_<PyClient>(m, "Client")
         .def(py::init<>())
         .def_static("initialize", [](const std::string& ca_path, int is_verify_cert = 1, const char* agent = nullptr) {
-            py::print("[DEBUG python.cpp] Client::initialize() called with ca_path:", ca_path.empty() ? "(empty)" : ca_path);
             Client::initialize(ca_path, is_verify_cert, agent);
-            py::print("[DEBUG python.cpp] Client::initialize() completed successfully");
         },
              "Initialize the RTMS SDK",
              py::arg("ca_path"), py::arg("is_verify_cert") = 1, py::arg("agent") = nullptr)

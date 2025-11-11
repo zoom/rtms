@@ -815,7 +815,6 @@ class Client(_ClientBase):
             self._webhook_server = WebhookServer(port, path)
 
         self._webhook_server.start(callback)
-        print(f"🚀 Listening for webhook events at http://localhost:{self._webhook_server.port}{self._webhook_server.path}")
 
 # For backward compatibility, create a global client and expose its methods
 _global_client = None
