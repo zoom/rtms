@@ -102,8 +102,21 @@ if(DEFINED CMAKE_JS_VERSION)
   add_definitions(-DNODE_ADDON_API_CPP_EXCEPTIONS_ALL)
   add_definitions(-DNODE_API_SWALLOW_UNHANDLED_EXCEPTIONS=0)
 
-  # Set NAPI version
-  set(NAPI_VERSION 9)
+  # Set NAPI version - check multiple sources
+  if(DEFINED ENV{npm_config_napi_build_version})
+    # Use the version provided by prebuild via npm config
+    set(NAPI_VERSION $ENV{npm_config_napi_build_version})
+    message(STATUS "Using NAPI version from npm_config_napi_build_version: ${NAPI_VERSION}")
+  elseif(DEFINED napi_build_version)
+    # Use the version provided as a CMake variable
+    set(NAPI_VERSION ${napi_build_version})
+    message(STATUS "Using NAPI version from napi_build_version: ${NAPI_VERSION}")
+  else()
+    # Fall back to a default version
+    set(NAPI_VERSION 10)
+    message(STATUS "Using default NAPI version: ${NAPI_VERSION}")
+  endif()
+
   add_compile_definitions(NAPI_VERSION=${NAPI_VERSION})
 
   # Create Node addon

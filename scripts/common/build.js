@@ -36,7 +36,7 @@ function buildGo() {
   log(PREFIX, `Go module built in ${buildMode} mode`);
 }
 
-const prebuildCmd = "prebuild -r napi \
+const prebuildCmd = "prebuild -r napi --all \
     --include-regex '\.(node|dylib|so.0|tar.gz|ts|js|js.map)$'  \
     --backend cmake-js";
 
