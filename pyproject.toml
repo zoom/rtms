@@ -6,20 +6,67 @@ build-backend = "scikit_build_core.build"
 [project]
 name = "rtms"
 version = "0.0.1"
-description = "Python bindings for the Zoom RTMS C SDK"
+description = "Python bindings for the Zoom RTMS C SDK - Real-Time Media Streaming"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Zoom Communications, Inc."}
+]
+maintainers = [
+    {name = "Max Mansfield", email = "max.mansfield@zoom.us"}
+]
+keywords = [
+    "zoom",
+    "rtms",
+    "realtime",
+    "media",
+    "streaming",
+    "real-time",
+    "sdk"
+]
 classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
     "Programming Language :: C++",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Communications :: Conferencing",
+    "Topic :: Multimedia :: Sound/Audio",
+    "Topic :: Multimedia :: Video",
     "Operating System :: POSIX :: Linux",
-    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS :: MacOS X",
 ]
 
 [project.urls]
 Homepage = "https://github.com/zoom/rtms"
+Documentation = "https://zoom.github.io/rtms/"
+Source = "https://github.com/zoom/rtms"
 Issues = "https://github.com/zoom/rtms/issues"
 
 [tool.scikit-build]
+# Include SDK libraries in source distributions
 sdist.include = [
     "lib/**/*",
 ]
+
+# Wheel configuration
+wheel.packages = ["src/rtms"]
+wheel.install-dir = "."
+
+# Platform-specific settings
+# scikit-build-core will automatically detect platform and set appropriate wheel tags
+minimum-version = "0.4"
+
+[tool.scikit-build.cmake]
+# Pass build type to CMake
+build-type = "Release"
+
+[tool.scikit-build.metadata.version]
+provider = "scikit_build_core.metadata.regex"
+input = "pyproject.toml"

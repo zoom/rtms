@@ -1,13 +1,17 @@
 ### Dev Only
-docs
+docs/*
+!docs/*.md
+!docs/VERSION_REQUIREMENTS.md
 
 ### Build
 dist
 build
 prebuilds
 test-results
+claude.md
 
 .env
+.venv
 .prebuild-installrc
 *.pem
 
@@ -31,8 +35,7 @@ scripts/**/*
 !src/rtms/*.py
 !src/rtms/*.pyi
 
-# allow rollup
-!rollup.config.js
+!tests/**.py
 
 # MacOS
 .DS_Store
@@ -503,3 +506,4 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
+temp_output.html

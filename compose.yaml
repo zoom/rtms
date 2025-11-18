@@ -31,7 +31,7 @@ services:
     build:
       args:
         TARGET: js
-    command: npm run prebuild
+    command: npm run prebuild:js
     
   py: &py
     <<: *base

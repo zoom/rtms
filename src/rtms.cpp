@@ -27,11 +27,26 @@ int Metadata::userId() const {
 }
 
 Session::Session(const session_info& info)
-    : session_id_(info.session_id ? info.session_id : ""),
-      stream_id_(info.stream_id ? info.stream_id : ""),
-      meeting_id_(info.meeting_id[0] != '\0' ? string(info.meeting_id) : ""),
-      stat_time_(info.stat_time),
-      status_(info.status) {}
+    : stat_time_(info.stat_time),
+      status_(info.status) {
+    // Safely handle session_id pointer (can be NULL or invalid)
+    if (info.session_id && (uintptr_t)info.session_id > 0xFFFF) {
+        session_id_ = std::string(info.session_id);
+    } else {
+        session_id_ = "";
+    }
+
+    // Safely handle stream_id pointer (can be NULL or invalid)
+    if (info.stream_id && (uintptr_t)info.stream_id > 0xFFFF) {
+        stream_id_ = std::string(info.stream_id);
+    } else {
+        stream_id_ = "";
+    }
+
+    // Safely handle fixed-size array - may not be null-terminated!
+    // strnlen stops at null OR max length, whichever comes first
+    meeting_id_ = std::string(info.meeting_id, strnlen(info.meeting_id, MAX_MEETING_ID_LEN));
+}
 
 string Session::sessionId() const {
     return session_id_;
