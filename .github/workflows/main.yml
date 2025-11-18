@@ -12,39 +12,124 @@ permissions:
   id-token: write
 
 jobs:
-  # Test Node.js SDK
-  test-nodejs:
-    name: Test Node.js SDK
+  # Test Node.js SDK on Linux
+  test-nodejs-linux:
+    name: Test Node.js SDK on Linux (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['20.3.0', '20.x', '22.x']  # Test minimum (N-API v9), LTS 20, and LTS 22
+      fail-fast: false  # Continue testing other versions if one fails
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
 
     - name: Setup Docker Compose
       uses: docker/setup-compose-action@v1.1.0
 
-    - name: Run Node.js tests
+    - name: Run Node.js tests with Node ${{ matrix.node-version }}
       run: docker compose run --rm test-js
 
-  # Test Python SDK
-  test-python:
-    name: Test Python SDK
-    runs-on: ubuntu-latest
+  # Test Node.js SDK on macOS (darwin-arm64)
+  test-nodejs-macos:
+    name: Test Node.js SDK on macOS (Node 22.x)
+    runs-on: macos-latest  # macOS 14+ provides Apple Silicon runners
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
+    - name: Setup Node.js 22.x
+      uses: actions/setup-node@v4
       with:
-        python-version: '3.9'
+        node-version: '22.x'
 
     - name: Install dependencies
+      run: npm install
+
+    - name: Build Node.js addon
+      run: npm run build:js
+
+    - name: Run Node.js tests
+      run: npm run test:js
+
+  # Test Python SDK on Linux
+  test-python-linux:
+    name: Test Python SDK on Linux (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+      fail-fast: false  # Continue testing other versions if one fails
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential
+
+    - name: Install Python build dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest python-dotenv
+        pip install pytest python-dotenv pybind11 scikit-build-core
+
+    - name: Build Python module
+      run: npm run build:py
+
+    - name: Run Python tests
+      run: pytest tests/test_rtms.py -v
+
+  # Test Python SDK on macOS (darwin-arm64)
+  test-python-macos:
+    name: Test Python SDK on macOS (Python ${{ matrix.python-version }})
+    runs-on: macos-latest  # macOS 14+ provides Apple Silicon runners
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.13']  # Test minimum and latest
+      fail-fast: false
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install system dependencies
+      run: |
+        brew install cmake
+
+    - name: Setup Node.js (for build scripts)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22.x'
+
+    - name: Install Node.js dependencies
+      run: npm install
+
+    - name: Install Python build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest python-dotenv pybind11 scikit-build-core
+
+    - name: Build Python module
+      run: npm run build:py
 
     - name: Run Python tests
       run: pytest tests/test_rtms.py -v
@@ -53,7 +138,7 @@ jobs:
   test-and-build-docs:
     name: Test Application & Build Documentation
     runs-on: ubuntu-latest
-    needs: [test-nodejs, test-python]
+    needs: [test-nodejs-linux, test-nodejs-macos, test-python-linux, test-python-macos]
     # Only run on main/master branches and if tests pass
     if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
 
@@ -87,26 +172,26 @@ jobs:
     needs: [test-and-build-docs]
     # Only deploy from main/master branch
     if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-      
+
     steps:
     - name: Download documentation site artifact
       uses: actions/download-artifact@v4
       with:
         name: documentation-site
         path: ./docs
-        
+
     - name: Setup GitHub Pages
       uses: actions/configure-pages@v5
-      
+
     - name: Upload site to GitHub Pages
       uses: actions/upload-pages-artifact@v3
       with:
         path: './docs'
-        
+
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v4

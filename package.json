@@ -1,25 +1,56 @@
 {
   "name": "@zoom/rtms",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Node.js Wrapper for the Zoom RTMS C SDK",
   "main": "./build/Release/index.js",
   "types": "rtms.d.ts",
   "type": "module",
   "scripts": {
-    "install": "node scripts/rtms.js install || node scripts/rtms.js build js",
+    "install": "node scripts/rtms.js install",
     "// CLI commands": "Use the unified CLI for most operations",
     "rtms": "node scripts/rtms.js",
     "cli": "node scripts/rtms.js",
     "help": "node scripts/rtms.js help",
-    "// Build commands": "Build the project for different languages and modes",
-    "build": "node scripts/rtms.js build all",
+
+    "// Build commands - Node.js": "Build Node.js bindings for specific platforms",
     "build:js": "node scripts/rtms.js build js",
-    "build:py": "node scripts/rtms.js build python",
+    "build:js:linux": "node scripts/rtms.js build js:linux",
+    "build:js:darwin": "node scripts/rtms.js build js:darwin",
+
+    "// Build commands - Python": "Build Python wheels for specific platforms",
+    "build:py": "node scripts/rtms.js build py",
+    "build:py:linux": "node scripts/rtms.js build py:linux",
+    "build:py:darwin": "node scripts/rtms.js build py:darwin",
+
+    "// Build commands - Go": "Build Go bindings for specific platforms",
     "build:go": "node scripts/rtms.js build go",
-    "build:debug": "node scripts/rtms.js build all -- --debug",
-    "build:release": "node scripts/rtms.js build all -- --release",
+    "build:go:linux": "node scripts/rtms.js build go:linux",
+    "build:go:darwin": "node scripts/rtms.js build go:darwin",
+
+    "// Build modes": "Set or build with specific modes",
     "debug": "node scripts/rtms.js mode debug",
     "release": "node scripts/rtms.js mode release",
+
+    "// Prebuild commands - Node.js": "Create Node.js prebuilds for distribution",
+    "prebuild:js": "node scripts/rtms.js build prebuild:js",
+    "prebuild:js:linux": "node scripts/rtms.js build prebuild:js:linux",
+    "prebuild:js:darwin": "node scripts/rtms.js build prebuild:js:darwin",
+
+    "// Upload commands - Node.js": "Upload Node.js prebuilds to GitHub releases",
+    "upload:js": "node scripts/rtms.js build upload:js",
+    "upload:js:linux": "node scripts/rtms.js build upload:js:linux",
+    "upload:js:darwin": "node scripts/rtms.js build upload:js:darwin",
+
+    "// Upload commands - Python (TestPyPI)": "Upload Python wheels to TestPyPI",
+    "upload:py": "node scripts/rtms.js build upload:py",
+    "upload:py:linux": "node scripts/rtms.js build upload:py:linux",
+    "upload:py:darwin": "node scripts/rtms.js build upload:py:darwin",
+
+    "// Upload commands - Python (Production)": "Upload Python wheels to production PyPI",
+    "upload:py:prod": "node scripts/rtms.js build upload:py:prod",
+    "upload:py:prod:linux": "node scripts/rtms.js build upload:py:prod:linux",
+    "upload:py:prod:darwin": "node scripts/rtms.js build upload:py:prod:darwin",
+
     "// Test commands": "Run tests for different languages",
     "test": "node scripts/rtms.js test all",
     "test:js": "node scripts/rtms.js test js",
@@ -27,16 +58,15 @@
     "test:go": "node scripts/rtms.js test go",
     "test:js-manual": "node scripts/rtms.js test js:manual",
     "test:py-manual": "node scripts/rtms.js test py:manual",
+
     "// Documentation commands": "Generate documentation",
     "docs": "node scripts/rtms.js docs all",
     "docs:js": "node scripts/rtms.js docs js",
     "docs:py": "node scripts/rtms.js docs python",
+
     "// Utility commands": "Various helper commands",
     "clean": "node scripts/rtms.js clean",
-    "setup": "npm install && node scripts/rtms.js build all",
-    "prebuild": "node scripts/rtms.js build prebuild",
-    "upload": "node scripts/rtms.js build upload",
-    "upload_linux": "node scripts/rtms.js build upload_linux"
+    "setup": "npm install && node scripts/rtms.js build all"
   },
   "dependencies": {
     "bindings": "^1.5.0",
@@ -108,5 +138,8 @@
     "x64",
     "arm64"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.3.0"
+  }
 }

@@ -171,7 +171,11 @@ function setBuildMode(mode) {
         setBuildMode(target);
         break;
       case 'install':
-        run(`prebuild-install -r napi`, PREFIX);
+        try {
+          run(`prebuild-install -r napi`, PREFIX);
+        } catch (err) {
+          log(PREFIX, 'No prebuilt binaries available, will need to build from source');
+        }
         setupFrameworks();
         break;
       default:

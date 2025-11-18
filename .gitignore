@@ -1,5 +1,7 @@
 ### Dev Only
-docs
+docs/*
+!docs/*.md
+!docs/VERSION_REQUIREMENTS.md
 
 ### Build
 dist
@@ -33,8 +35,7 @@ scripts/**/*
 !src/rtms/*.py
 !src/rtms/*.pyi
 
-# allow rollup
-!rollup.config.js
+!tests/**.py
 
 # MacOS
 .DS_Store

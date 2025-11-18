@@ -15,6 +15,23 @@ Bindings for real-time audio, video, and transcript streams from Zoom Meetings
 
 > We are actively working to expand both language and platform support in future releases.
 
+## Node.js Version Support
+
+| Node.js Version | N-API Version | Status | Notes |
+|-----------------|---------------|--------|-------|
+| 22.x (LTS)      | 10            | ✅ Fully Supported | **Recommended** |
+| 20.3.0+         | 9-10          | ✅ Fully Supported | **Minimum version**, LTS until April 2026 |
+| 20.0.0 - 20.2.x  | 8            | ❌ Not Supported | N-API v9 unavailable |
+| 18.x and older   | 8 or older   | ❌ Not Supported | **EOL April 2025** - No security updates |
+| 16.x and older   | < 9          | ❌ Not Supported | N-API version too old |
+
+**Why the strict requirements?**
+This package requires N-API version 9 or 10. Using older Node.js versions will result in segmentation faults or module loading errors.
+
+**Recommended versions:**
+- **Node.js 22 LTS** (latest, best performance)
+- **Node.js 20 LTS** (stable, long-term support, minimum supported)
+
 ## Overview
 
 The RTMS SDK allows developers to:
@@ -28,16 +45,66 @@ The RTMS SDK allows developers to:
 ## Installation
 
 ### Node.js
+
+**⚠️ Requirements: Node.js >= 20.3.0 (Node.js 20 LTS or 22 LTS)**
+
+The RTMS SDK uses N-API versions 9 and 10, which require Node.js 20.3.0 or higher.
+
 ```bash
+# Check your Node.js version
+node --version
+
+# Install the package
 npm install @zoom/rtms
 ```
+
+**If you're using an older version of Node.js:**
+```bash
+# Using nvm (recommended)
+nvm install 22       # Install Node.js 22 LTS (recommended)
+nvm use 22
+
+# Or install Node.js 20 LTS (minimum)
+nvm install 20
+nvm use 20
+
+# Reinstall the package
+npm install @zoom/rtms
+```
+
+**Download Node.js:** https://nodejs.org/
 
 The Node.js package provides both class-based and singleton APIs for connecting to RTMS streams.
 
 ### Python
+
+**⚠️ Requirements: Python >= 3.10 (Python 3.10, 3.11, 3.12, or 3.13)**
+
+The RTMS SDK requires Python 3.10 or higher.
+
 ```bash
+# Check your Python version
+python3 --version
+
+# Install from TestPyPI (Current)
+pip install -i https://test.pypi.org/simple/ rtms
+
+# Install from PyPI (Coming Soon)
 pip install rtms
 ```
+
+**If you're using an older version of Python:**
+```bash
+# Using pyenv (recommended)
+pyenv install 3.12
+pyenv local 3.12
+
+# Or using your system's package manager
+# Ubuntu/Debian: sudo apt install python3.12
+# macOS: brew install python@3.12
+```
+
+**Download Python:** https://www.python.org/downloads/
 
 The Python package provides a Pythonic decorator-based API with full feature parity to Node.js.
 
@@ -257,8 +324,8 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 # Install dependencies
 pip install python-dotenv
 
-# Install RTMS SDK (when published)
-pip install rtms
+# Install RTMS SDK
+pip install -i https://test.pypi.org/simple/ rtms
 ```
 
 Create a `.env` file:
@@ -305,18 +372,18 @@ cp ../librtmsdk.0.2025xxxx/librtmsdk.dylib lib/darwin-arm64
 cp ../librtmsdk.0.2025xxxx/h/* lib/include
 
 # Build and run using Docker Compose
-docker compose up js  # For Node.js
+docker compose up js  # Create Node.js prebuild for linux-x64
 # or
-docker compose up py  # For Python (experimental)
+docker compose up py  # Create Python wheel for linux-x64
 ```
 
-Docker Compose provides an isolated build environment with all necessary dependencies preconfigured, making it the simplest way to build the SDK.
+Docker Compose creates **distributable packages** for linux-x64 (prebuilds for Node.js, wheels for Python). Use this when developing on macOS to build Linux packages for distribution.
 
 ### Building Locally
 
 #### Prerequisites
-- Node.js (>= 22.14.0)
-- Python 3.8+ with pip (for Python build)
+- Node.js (>= 20.3.0, LTS recommended)
+- Python 3.10+ with pip (for Python build)
 - CMake 3.25+
 - C/C++ build tools
 - Zoom RTMS C SDK files (contact Zoom for access)
@@ -338,42 +405,133 @@ cd rtms
 
 # Install project dependencies and build
 npm install
-npm run build:js  # For Node.js (fully supported)
-# or
-npm run build:py  # For Python (experimental)
+
+# Build for specific language and platform
+npm run build:js          # Build Node.js for current platform
+npm run build:js:linux    # Build Node.js for Linux
+npm run build:js:darwin   # Build Node.js for macOS
+
+npm run build:py          # Build Python for current platform
+npm run build:py:linux    # Build Python wheel for Linux
+npm run build:py:darwin   # Build Python wheel for macOS
 ```
 
 ### Development Commands
 
-The project includes several npm scripts for common development tasks:
+The project uses a unified command structure across all languages: `<action>:<lang>:<platform>`
 
 ```bash
 # Building modules
-npm run build         # Build all modules
-npm run build:js      # Build only Node.js module
-npm run build:py      # Build only Python module (experimental)
+npm run build:js              # Build Node.js for current platform
+npm run build:js:linux        # Build Node.js for Linux
+npm run build:js:darwin       # Build Node.js for macOS
+
+npm run build:py              # Build Python for current platform
+npm run build:py:linux        # Build Python wheel for Linux
+npm run build:py:darwin       # Build Python wheel for macOS
+
+npm run build:go              # Build Go for current platform (coming soon)
+npm run build:go:linux        # Build Go for Linux (coming soon)
+npm run build:go:darwin       # Build Go for macOS (coming soon)
+
+# Creating prebuilds for distribution
+npm run prebuild:js           # Create Node.js prebuilds for all platforms
+npm run prebuild:js:linux     # Create Node.js prebuild for Linux
+npm run prebuild:js:darwin    # Create Node.js prebuild for macOS
+
+npm run prebuild:py           # Create Python wheels (same as build)
+npm run prebuild:py:linux     # Create Python wheel for Linux
+npm run prebuild:py:darwin    # Create Python wheel for macOS
+
+# Uploading to package registries
+npm run upload:js             # Upload Node.js prebuilds to GitHub releases
+npm run upload:js:linux       # Upload Node.js Linux prebuild
+npm run upload:js:darwin      # Upload Node.js macOS prebuild
+
+npm run upload:py             # Upload Python wheels to TestPyPI
+npm run upload:py:linux       # Upload Python Linux wheel to TestPyPI
+npm run upload:py:darwin      # Upload Python macOS wheel to TestPyPI
+
+npm run upload:py:prod        # Upload Python wheels to production PyPI
+npm run upload:py:prod:linux  # Upload Python Linux wheel to PyPI
+npm run upload:py:prod:darwin # Upload Python macOS wheel to PyPI
 
 # Testing
-npm run test          # Run all tests
-npm run test:js       # Run Node.js tests
-npm run test:py       # Run Python tests (experimental)
+npm run test                  # Run all tests
+npm run test:js               # Run Node.js tests
+npm run test:py               # Run Python tests
 
 # Build modes
-npm run debug         # Switch to debug mode
-npm run release       # Switch to release mode (default)
-npm run rtms mode     # Check current build mode
+npm run debug                 # Switch to debug mode
+npm run release               # Switch to release mode (default)
+npm run rtms mode             # Check current build mode
 ```
 
-These commands help you manage different aspects of the build process and testing workflow.
+These commands help you manage different aspects of the build process and testing workflow. The unified structure makes it easy to build, package, and publish for multiple languages and platforms.
 
 ## Troubleshooting
 
 If you encounter issues:
 
-1. **Platform Support**: Verify you're using a supported platform (darwin-arm64 or linux-x64)
-2. **SDK Files**: Ensure RTMS C SDK files are correctly placed in the appropriate lib directory
-3. **Build Mode**: Try both debug and release modes (`npm run debug` or `npm run release`)
-4. **Dependencies**: Verify all prerequisites are installed
+### 1. Segmentation Fault / Crash on Startup
+
+**Symptoms:**
+- Immediate crash when requiring/importing the module
+- Error message: `Segmentation fault (core dumped)`
+- Stack trace shows `napi_module_register_by_symbol`
+
+**Root Cause:** Using Node.js version < 20.3.0
+
+**Solution:**
+```bash
+# 1. Check your Node.js version
+node --version
+
+# 2. If < 20.3.0, upgrade to a supported version
+
+# Using nvm (recommended):
+nvm install 22           # Install Node.js 22 LTS (recommended)
+nvm use 22
+
+# Or install minimum version:
+nvm install 20
+nvm use 20
+
+# Or download from: https://nodejs.org/
+
+# 3. Clear npm cache and reinstall
+npm cache clean --force
+rm -rf node_modules package-lock.json
+npm install
+```
+
+**Prevention:**
+- Always use Node.js 20.3.0 or higher
+- Use recommended version with `.nvmrc`: `nvm use` (Node.js 22)
+- Check version before installing: `node --version`
+
+### 2. Platform Support
+Verify you're using a supported platform (darwin-arm64 or linux-x64)
+
+### 3. SDK Files
+Ensure RTMS C SDK files are correctly placed in the appropriate lib directory
+
+### 4. Build Mode
+Try both debug and release modes (`npm run debug` or `npm run release`)
+
+### 5. Dependencies
+Verify all prerequisites are installed
+
+## For Maintainers
+
+If you're a maintainer looking to build, test, or publish new releases of the RTMS SDK, please refer to [PUBLISHING.md](PUBLISHING.md) for comprehensive documentation on:
+
+- Building platform-specific wheels and prebuilds
+- Publishing to npm and PyPI
+- GitHub Actions CI/CD workflow
+- Testing procedures
+- Troubleshooting common issues
+- Release workflows for Node.js and Python
 
 ## License
 

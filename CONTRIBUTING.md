@@ -23,8 +23,8 @@ This project adheres to the Zoom Open Source Code of Conduct. By participating, 
 
 ### Prerequisites
 
-- **Node.js**: v22.14.1+ (latest LTS release)
-- **Python**: v3.8 or later
+- **Node.js**: v20.3.0+ (LTS versions recommended: 20.x or 22.x)
+- **Python**: v3.10 or later
 - **CMake**: v3.25 or later
 - **C/C++ Build Tools**:
   - Linux: GCC 9+ and make
@@ -115,7 +115,7 @@ Before submitting a PR, ensure that:
 
 - **Python**:
   - Follow PEP 8 style guide
-  - Support Python 3.8+
+  - Support Python 3.10+
   - Use type annotations where appropriate
 
 - **C++**:
