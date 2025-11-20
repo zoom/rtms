@@ -203,6 +203,79 @@ rtms.onWebhookEvent((payload, req, res) => {
 });
 ```
 
+### Node.js - Sharing Ports with Existing Servers
+
+If you need to integrate webhook handling with your existing Express, Fastify, or other HTTP server (useful for Cloud Run, Kubernetes, or any deployment requiring a single port), use `createWebhookHandler`:
+
+```javascript
+import express from 'express';
+import rtms from '@zoom/rtms';
+
+const app = express();
+app.use(express.json());
+
+// Your existing application routes
+app.get('/health', (req, res) => {
+    res.json({ status: 'healthy' });
+});
+
+app.get('/admin', (req, res) => {
+    res.json({ admin: 'panel' });
+});
+
+// Create a webhook handler that can be mounted on your existing server
+const webhookHandler = rtms.createWebhookHandler(
+    (payload) => {
+        console.log(`Received webhook: ${payload.event}`);
+
+        if (payload.event === "meeting.rtms_started") {
+            const client = new rtms.Client();
+            client.onAudioData((data, timestamp, metadata) => {
+                console.log(`Audio from ${metadata.userName}`);
+            });
+            client.join(payload.payload);
+        }
+    },
+    '/zoom/webhook'  // Path to handle
+);
+
+// Mount the webhook handler on your Express app
+app.post('/zoom/webhook', webhookHandler);
+
+// Single port for all routes
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`Webhook endpoint: http://localhost:${PORT}/zoom/webhook`);
+    console.log(`Health check: http://localhost:${PORT}/health`);
+});
+```
+
+You can also use `RawWebhookCallback` with `createWebhookHandler` for custom validation:
+
+```javascript
+const webhookHandler = rtms.createWebhookHandler(
+    (payload, req, res) => {
+        // Custom validation with raw HTTP access
+        const signature = req.headers['x-zoom-signature'];
+
+        if (!validateSignature(payload, signature)) {
+            res.writeHead(401);
+            res.end('Unauthorized');
+            return;
+        }
+
+        // Process webhook...
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'ok' }));
+    },
+    '/zoom/webhook'
+);
+
+app.post('/zoom/webhook', webhookHandler);
+```
+
 ### Node.js - Class-Based Approach
 
 For greater control or connecting to multiple streams simultaneously:

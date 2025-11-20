@@ -851,6 +851,101 @@ export class Client {
 //-----------------------------------------------------------------------------------
 
 /**
+ * Creates a request handler for webhook events that can be mounted on existing HTTP servers
+ *
+ * This function returns a Node.js request handler compatible with Express, Fastify,
+ * and other HTTP frameworks. It allows you to integrate Zoom webhook handling with
+ * your existing application routes on a shared port.
+ *
+ * The handler validates that requests are POST requests to the specified path,
+ * parses JSON payloads, and invokes your callback with the webhook data.
+ *
+ * @param callback Function to call when webhook events are received (WebhookCallback or RawWebhookCallback)
+ * @param path The URL path to listen on (e.g., '/zoom/webhook')
+ * @returns A request handler function compatible with http.Server
+ *
+ * @example
+ * ```typescript
+ * import express from 'express';
+ * import rtms from '@zoom/rtms';
+ *
+ * const app = express();
+ * app.use(express.json());
+ *
+ * // Your application routes
+ * app.get('/health', (req, res) => {
+ *   res.json({ status: 'healthy' });
+ * });
+ *
+ * app.get('/admin', (req, res) => {
+ *   res.json({ admin: 'panel' });
+ * });
+ *
+ * // Mount Zoom webhook handler on the same server
+ * const webhookHandler = rtms.createWebhookHandler(
+ *   (payload) => {
+ *     console.log(`Received webhook: ${payload.event}`);
+ *
+ *     if (payload.event === "meeting.rtms.started") {
+ *       // Join the meeting
+ *       rtms.join({
+ *         joinUrl: payload.join_url,
+ *         accessToken: payload.access_token,
+ *         config: rtms.Config.AUDIO | rtms.Config.VIDEO,
+ *         mediaTypes: rtms.SDK_AUDIO | rtms.SDK_VIDEO
+ *       });
+ *     }
+ *   },
+ *   '/zoom/webhook'
+ * );
+ *
+ * // Mount the handler on your Express app
+ * app.post('/zoom/webhook', webhookHandler);
+ *
+ * // Single port for all routes (Cloud Run, Kubernetes, etc.)
+ * const PORT = process.env.PORT || 8080;
+ * app.listen(PORT, () => {
+ *   console.log(`Server listening on port ${PORT}`);
+ *   console.log(`Webhook: http://localhost:${PORT}/zoom/webhook`);
+ *   console.log(`Health: http://localhost:${PORT}/health`);
+ * });
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Advanced: Using RawWebhookCallback for custom validation
+ * const webhookHandler = rtms.createWebhookHandler(
+ *   (payload, req, res) => {
+ *     // Access raw HTTP request/response for custom logic
+ *     const signature = req.headers['x-zoom-signature'];
+ *
+ *     if (!validateSignature(payload, signature)) {
+ *       res.writeHead(401);
+ *       res.end('Unauthorized');
+ *       return;
+ *     }
+ *
+ *     // Process webhook
+ *     console.log(`Validated webhook: ${payload.event}`);
+ *
+ *     // Custom response
+ *     res.writeHead(200, { 'Content-Type': 'application/json' });
+ *     res.end(JSON.stringify({ status: 'ok' }));
+ *   },
+ *   '/zoom/webhook'
+ * );
+ *
+ * app.post('/zoom/webhook', webhookHandler);
+ * ```
+ *
+ * @category Common Functions
+ */
+export function createWebhookHandler(
+  callback: WebhookCallback | RawWebhookCallback,
+  path: string
+): (req: import('http').IncomingMessage, res: import('http').ServerResponse) => void;
+
+/**
  * Sets up a webhook server to receive events from Zoom
  * 
  * This function creates an HTTP or HTTPS server that listens for webhook events from Zoom.
