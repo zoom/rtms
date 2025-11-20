@@ -103,6 +103,16 @@ private:
 
 class AudioParams : public BaseMediaParams {
 public:
+    /**
+     * Default constructor with sensible defaults:
+     * - contentType: RAW_AUDIO (2)
+     * - codec: OPUS (4)
+     * - sampleRate: SR_48K (3)
+     * - channel: STEREO (2)
+     * - dataOpt: AUDIO_MULTI_STREAMS (2) - enables per-participant audio with userId
+     * - duration: 20 ms
+     * - frameSize: 960 samples (48kHz × 20ms)
+     */
     AudioParams();
     AudioParams(int content_type, int codec, int sample_rate, int channel, int data_opt, int duration, int frame_size);
 
@@ -114,6 +124,12 @@ public:
     int channel() const;
     int duration() const;
     int frameSize() const;
+
+    /**
+     * Validate audio parameters for consistency
+     * Throws std::invalid_argument if parameters are invalid or incompatible
+     */
+    void validate() const;
 
     audio_parameters toNative() const;
 

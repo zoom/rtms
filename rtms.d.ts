@@ -194,24 +194,35 @@ export interface SessionInfo {
 }
 
 /**
- * Configuration parameters for audio streams
- * 
+ * Configuration parameters for audio streams with sensible defaults
+ *
+ * Default values (work out-of-box for per-participant audio):
+ * - contentType: RAW_AUDIO (2)
+ * - codec: OPUS (4)
+ * - sampleRate: SR_48K (3)
+ * - channel: STEREO (2)
+ * - dataOpt: AUDIO_MULTI_STREAMS (2) - enables userId in audio metadata
+ * - duration: 20 ms
+ * - frameSize: 960 samples (48kHz × 20ms)
+ *
+ * Users can omit setAudioParams() entirely or override individual fields.
+ *
  * @category Media Configuration
  */
 export interface AudioParams {
-  /** The type of audio content */
+  /** The type of audio content (default: RAW_AUDIO = 2) */
   contentType?: number;
-  /** The audio codec to use */
+  /** The audio codec to use (default: OPUS = 4) */
   codec?: number;
-  /** The sample rate SR_8K = 0, SR_16K = 1, SR_32K = 2, SR_48K = 3 */
+  /** The sample rate SR_8K = 0, SR_16K = 1, SR_32K = 2, SR_48K = 3 (default: SR_48K = 3) */
   sampleRate?: number;
-  /** The number of audio channels (1=mono, 2=stereo) */
+  /** The number of audio channels (1=mono, 2=stereo) (default: STEREO = 2) */
   channel?: number;
-  /** Additional data options for audio processing */
+  /** Additional data options for audio processing (default: AUDIO_MULTI_STREAMS = 2) */
   dataOpt?: number;
-  /** The duration of each audio frame in milliseconds */
+  /** The duration of each audio frame in milliseconds (default: 20 ms) */
   duration?: number;
-  /** The size of each audio frame in samples */
+  /** The size of each audio frame in samples (default: 960 samples) */
   frameSize?: number;
 }
 
@@ -607,12 +618,25 @@ export class Client {
   streamId(): string;
   
   /**
-   * Sets audio parameters for the client
-   * 
-   * This method configures audio processing parameters.
-   * 
-   * @param params Audio parameters configuration
+   * Sets audio parameters for the client (OPTIONAL)
+   *
+   * This method configures audio processing parameters. AudioParams now has
+   * sensible defaults, so calling this method is optional. Defaults enable
+   * per-participant audio with userId in metadata (dataOpt=AUDIO_MULTI_STREAMS).
+   *
+   * You can override individual fields without setting all parameters:
+   * @example
+   * ```typescript
+   * // Option 1: Use defaults (no call needed)
+   * await client.join(...);
+   *
+   * // Option 2: Override just one field
+   * client.setAudioParams({ channel: rtms.AudioChannel.MONO });
+   * ```
+   *
+   * @param params Audio parameters configuration (merges with defaults)
    * @returns true if the operation succeeds
+   * @throws Error if parameters are invalid or incompatible
    */
   setAudioParams(params: AudioParams): boolean;
   
