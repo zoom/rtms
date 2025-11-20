@@ -2,10 +2,18 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { execSync } from 'child_process';
-import { log, error, success, warning, getProjectRoot } from './utils.js';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
 // Import https for Node.js < 18 fetch support
 import https from 'https';
+
+// Utility: Get project root directory
+function getProjectRoot() {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  return path.join(__dirname, '..');
+}
 
 const PREFIX = "Dependencies";
 
@@ -44,7 +52,7 @@ function detectPlatform() {
 // Check if lib directory is empty or missing required files
 function isLibDirectoryEmpty(libPath) {
   if (!fs.existsSync(libPath)) {
-    log(PREFIX, `Directory does not exist: ${libPath}`);
+    console.log(`[RTMS ${PREFIX}]`, `Directory does not exist: ${libPath}`);
     return true;
   }
   
@@ -52,8 +60,8 @@ function isLibDirectoryEmpty(libPath) {
   // Filter out .gitkeep files
   const relevantFiles = files.filter(file => file !== '.gitkeep');
   
-  log(PREFIX, `Directory ${libPath} contains: [${files.join(', ')}]`);
-  log(PREFIX, `Relevant files (excluding .gitkeep): [${relevantFiles.join(', ')}]`);
+  console.log(`[RTMS ${PREFIX}]`, `Directory ${libPath} contains: [${files.join(', ')}]`);
+  console.log(`[RTMS ${PREFIX}]`, `Relevant files (excluding .gitkeep): [${relevantFiles.join(', ')}]`);
   
   return relevantFiles.length === 0;
 }
@@ -103,7 +111,7 @@ function httpsDownload(url, filePath, maxRedirects = 5) {
       }, (res) => {
         // Handle redirects
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          log(PREFIX, `Following redirect to: ${res.headers.location}`);
+          console.log(`[RTMS ${PREFIX}]`, `Following redirect to: ${res.headers.location}`);
           doDownload(res.headers.location, redirectCount + 1);
           return;
         }
@@ -149,7 +157,7 @@ function httpsDownload(url, filePath, maxRedirects = 5) {
 // Fetch latest release for platform from GitHub
 async function fetchLatestRelease(tagPrefix) {
   try {
-    log(PREFIX, `Fetching latest ${tagPrefix} release from GitHub...`);
+    console.log(`[RTMS ${PREFIX}]`, `Fetching latest ${tagPrefix} release from GitHub...`);
     
     const data = await httpsGet('https://api.github.com/repos/zoom/rtms-sdk-cpp/releases');
     const releases = JSON.parse(data);
@@ -163,7 +171,7 @@ async function fetchLatestRelease(tagPrefix) {
       throw new Error(`No ${tagPrefix} release found`);
     }
     
-    log(PREFIX, `Found release: ${matchingRelease.tag_name}`);
+    console.log(`[RTMS ${PREFIX}]`, `Found release: ${matchingRelease.tag_name}`);
     return matchingRelease;
   } catch (err) {
     throw new Error(`Failed to fetch release information: ${err.message}`);
@@ -186,7 +194,7 @@ function copyDirectoryContents(sourceDir, destDir) {
       copyDirectoryContents(sourcePath, destPath);
     } else {
       fs.copyFileSync(sourcePath, destPath);
-      log(PREFIX, `Copied: ${item}`);
+      console.log(`[RTMS ${PREFIX}]`, `Copied: ${item}`);
     }
   }
 }
@@ -222,7 +230,7 @@ function copyDylibsAndFrameworks(sourceDir, destDir) {
         if (item.endsWith('.framework')) {
           // Copy entire framework directory
           const destPath = path.join(destDir, item);
-          log(PREFIX, `Copying framework: ${item}`);
+          console.log(`[RTMS ${PREFIX}]`, `Copying framework: ${item}`);
           copyDirectoryContents(itemPath, destPath);
         } else {
           // Recursively process subdirectories
@@ -231,7 +239,7 @@ function copyDylibsAndFrameworks(sourceDir, destDir) {
       } else if (item.endsWith('.dylib')) {
         // Copy .dylib file
         const destPath = path.join(destDir, item);
-        log(PREFIX, `Copying dylib: ${item}`);
+        console.log(`[RTMS ${PREFIX}]`, `Copying dylib: ${item}`);
         fs.copyFileSync(itemPath, destPath);
       }
     }
@@ -252,7 +260,7 @@ async function downloadAndExtractRelease(release, rtmsPlatform, rtmsArch) {
       throw new Error('No assets found in release');
     }
     
-    log(PREFIX, `Downloading ${asset.name}...`);
+    console.log(`[RTMS ${PREFIX}]`, `Downloading ${asset.name}...`);
     
     const includeDir = path.join(projectRoot, 'lib', 'include');
     const platformDir = path.join(projectRoot, 'lib', `${rtmsPlatform}-${rtmsArch}`);
@@ -266,7 +274,7 @@ async function downloadAndExtractRelease(release, rtmsPlatform, rtmsArch) {
     const tempFile = path.join(tempDir, asset.name);
     await httpsDownload(asset.browser_download_url, tempFile);
     
-    log(PREFIX, `Downloaded ${asset.name}, extracting...`);
+    console.log(`[RTMS ${PREFIX}]`, `Downloaded ${asset.name}, extracting...`);
     
     // Extract to temporary directory first
     if (asset.name.endsWith('.tar.gz') || asset.name.endsWith('.tgz')) {
@@ -284,11 +292,11 @@ async function downloadAndExtractRelease(release, rtmsPlatform, rtmsArch) {
     // Remove the downloaded archive
     fs.unlinkSync(tempFile);
     
-    log(PREFIX, 'Organizing extracted files...');
+    console.log(`[RTMS ${PREFIX}]`, 'Organizing extracted files...');
     
     // Check what was extracted to the temp directory
     const tempContents = fs.readdirSync(tempDir);
-    log(PREFIX, `Temp directory contents: ${tempContents.join(', ')}`);
+    console.log(`[RTMS ${PREFIX}]`, `Temp directory contents: ${tempContents.join(', ')}`);
     
     // First, check if files were extracted directly to tempDir
     // Look for common indicators that this is the root: h/ directory AND library files
@@ -299,7 +307,7 @@ async function downloadAndExtractRelease(release, rtmsPlatform, rtmsArch) {
     
     if (hasHeaderDir || hasLibFiles || tempContents.length > 3) {
       // Files were likely extracted directly to tempDir
-      log(PREFIX, 'Files extracted directly to temp directory');
+      console.log(`[RTMS ${PREFIX}]`, 'Files extracted directly to temp directory');
       extractedDir = tempDir;
     } else {
       // Look for a single subdirectory that contains everything
@@ -310,34 +318,34 @@ async function downloadAndExtractRelease(release, rtmsPlatform, rtmsArch) {
       
       if (subdirs.length === 1) {
         extractedDir = path.join(tempDir, subdirs[0]);
-        log(PREFIX, `Using subdirectory: ${subdirs[0]}`);
+        console.log(`[RTMS ${PREFIX}]`, `Using subdirectory: ${subdirs[0]}`);
       } else {
         // Fallback to temp directory
-        log(PREFIX, 'Multiple or no subdirectories found, using temp directory');
+        console.log(`[RTMS ${PREFIX}]`, 'Multiple or no subdirectories found, using temp directory');
         extractedDir = tempDir;
       }
     }
     
-    log(PREFIX, `Using extracted directory: ${extractedDir}`);
+    console.log(`[RTMS ${PREFIX}]`, `Using extracted directory: ${extractedDir}`);
     const extractedContents = fs.readdirSync(extractedDir);
-    log(PREFIX, `Contents: ${extractedContents.join(', ')}`);
+    console.log(`[RTMS ${PREFIX}]`, `Contents: ${extractedContents.join(', ')}`);
     
     // Copy header files from h/ folder to lib/include/
     const headerSourceDir = path.join(extractedDir, 'h');
     if (fs.existsSync(headerSourceDir)) {
-      log(PREFIX, 'Copying header files from h/ to lib/include/...');
+      console.log(`[RTMS ${PREFIX}]`, 'Copying header files from h/ to lib/include/...');
       copyDirectoryContents(headerSourceDir, includeDir);
-      success(PREFIX, 'Header files copied successfully');
+      console.log(`[RTMS ${PREFIX} Success]`, 'Header files copied successfully');
     } else {
-      warning(PREFIX, `No h/ directory found in ${extractedDir}`);
-      log(PREFIX, `Available directories: ${extractedContents.filter(item => 
+      console.warn(`[RTMS ${PREFIX} Warning]`, `No h/ directory found in ${extractedDir}`);
+      console.log(`[RTMS ${PREFIX}]`, `Available directories: ${extractedContents.filter(item => 
         fs.statSync(path.join(extractedDir, item)).isDirectory()).join(', ')}`);
     }
     
     // Platform-specific file handling
     if (rtmsPlatform === 'linux') {
       // Copy librtmsdk.so.0 to platform directory
-      log(PREFIX, 'Looking for librtmsdk.so.0...');
+      console.log(`[RTMS ${PREFIX}]`, 'Looking for librtmsdk.so.0...');
       
       // First try to find it directly in the extracted directory
       let soFile = null;
@@ -352,20 +360,20 @@ async function downloadAndExtractRelease(release, rtmsPlatform, rtmsArch) {
       if (soFile) {
         const destPath = path.join(platformDir, 'librtmsdk.so.0');
         fs.copyFileSync(soFile, destPath);
-        success(PREFIX, `Copied librtmsdk.so.0 from ${soFile} to ${platformDir}`);
+        console.log(`[RTMS ${PREFIX} Success]`, `Copied librtmsdk.so.0 from ${soFile} to ${platformDir}`);
       } else {
-        warning(PREFIX, 'librtmsdk.so.0 not found in archive');
+        console.warn(`[RTMS ${PREFIX} Warning]`, 'librtmsdk.so.0 not found in archive');
         // Show what files are available for debugging
-        log(PREFIX, `All files in extracted directory:`);
+        console.log(`[RTMS ${PREFIX}]`, `All files in extracted directory:`);
         function listFiles(dir, prefix = '') {
           const items = fs.readdirSync(dir);
           items.forEach(item => {
             const itemPath = path.join(dir, item);
             if (fs.statSync(itemPath).isDirectory()) {
-              log(PREFIX, `${prefix}${item}/`);
+              console.log(`[RTMS ${PREFIX}]`, `${prefix}${item}/`);
               listFiles(itemPath, prefix + '  ');
             } else {
-              log(PREFIX, `${prefix}${item}`);
+              console.log(`[RTMS ${PREFIX}]`, `${prefix}${item}`);
             }
           });
         }
@@ -373,12 +381,12 @@ async function downloadAndExtractRelease(release, rtmsPlatform, rtmsArch) {
       }
     } else if (rtmsPlatform === 'darwin') {
       // Copy all .dylib files and framework directories
-      log(PREFIX, 'Copying .dylib files and frameworks to platform directory...');
+      console.log(`[RTMS ${PREFIX}]`, 'Copying .dylib files and frameworks to platform directory...');
       copyDylibsAndFrameworks(extractedDir, platformDir);
-      success(PREFIX, 'Darwin-specific files copied successfully');
+      console.log(`[RTMS ${PREFIX} Success]`, 'Darwin-specific files copied successfully');
     }
     
-    success(PREFIX, `Successfully organized files for ${rtmsPlatform}-${rtmsArch}`);
+    console.log(`[RTMS ${PREFIX} Success]`, `Successfully organized files for ${rtmsPlatform}-${rtmsArch}`);
   } catch (err) {
     throw new Error(`Failed to download and extract release: ${err.message}`);
   } finally {
@@ -396,7 +404,7 @@ async function checkSDKLibraries(force = false) {
     const libPath = path.join(getProjectRoot(), 'lib', `${rtmsPlatform}-${rtmsArch}`);
     const includePath = path.join(getProjectRoot(), 'lib', 'include');
     
-    log(PREFIX, `Checking SDK libraries for ${rtmsPlatform}-${rtmsArch}...`);
+    console.log(`[RTMS ${PREFIX}]`, `Checking SDK libraries for ${rtmsPlatform}-${rtmsArch}...`);
     
     // Check if both platform-specific lib and include directories are empty
     const isPlatformLibEmpty = isLibDirectoryEmpty(libPath);
@@ -406,7 +414,7 @@ async function checkSDKLibraries(force = false) {
     
     if (shouldFetchSDK) {
       if (force) {
-        log(PREFIX, `Force reinstalling SDK libraries for ${rtmsPlatform}-${rtmsArch}...`);
+        console.log(`[RTMS ${PREFIX}]`, `Force reinstalling SDK libraries for ${rtmsPlatform}-${rtmsArch}...`);
         // Clean existing files but preserve .gitkeep
         if (fs.existsSync(libPath)) {
           const files = fs.readdirSync(libPath).filter(f => f !== '.gitkeep');
@@ -431,20 +439,20 @@ async function checkSDKLibraries(force = false) {
           });
         }
       } else {
-        log(PREFIX, `SDK libraries missing for ${rtmsPlatform}-${rtmsArch} (platform: ${isPlatformLibEmpty}, include: ${isIncludeEmpty})`);
+        console.log(`[RTMS ${PREFIX}]`, `SDK libraries missing for ${rtmsPlatform}-${rtmsArch} (platform: ${isPlatformLibEmpty}, include: ${isIncludeEmpty})`);
       }
       
-      log(PREFIX, 'Fetching from GitHub...');
+      console.log(`[RTMS ${PREFIX}]`, 'Fetching from GitHub...');
       
       const release = await fetchLatestRelease(tagPrefix);
       await downloadAndExtractRelease(release, rtmsPlatform, rtmsArch);
       
-      success(PREFIX, `SDK libraries installed for ${rtmsPlatform}-${rtmsArch}`);
+      console.log(`[RTMS ${PREFIX} Success]`, `SDK libraries installed for ${rtmsPlatform}-${rtmsArch}`);
     } else {
-      log(PREFIX, `SDK libraries already present for ${rtmsPlatform}-${rtmsArch}`);
+      console.log(`[RTMS ${PREFIX}]`, `SDK libraries already present for ${rtmsPlatform}-${rtmsArch}`);
     }
   } catch (err) {
-    error(PREFIX, `Failed to check/fetch SDK libraries: ${err.message}`);
+    console.error(`[RTMS ${PREFIX} Error]`, `Failed to check/fetch SDK libraries: ${err.message}`);
     return false;
   }
   
@@ -469,10 +477,10 @@ async function checkDeps(options = {}) {
     const shouldInstallNpm = !fs.existsSync(nodeModulesPath) || force;
     
     if (shouldInstallNpm) {
-      log(PREFIX, force ? 'Force reinstalling npm dependencies...' : 'node_modules not found, installing dependencies...');
+      console.log(`[RTMS ${PREFIX}]`, force ? 'Force reinstalling npm dependencies...' : 'node_modules not found, installing dependencies...');
       try {
         if (force && fs.existsSync(nodeModulesPath)) {
-          log(PREFIX, 'Removing existing node_modules...');
+          console.log(`[RTMS ${PREFIX}]`, 'Removing existing node_modules...');
           fs.rmSync(nodeModulesPath, { recursive: true, force: true });
         }
         
@@ -481,14 +489,14 @@ async function checkDeps(options = {}) {
           cwd: getProjectRoot() 
         });
 
-        success(PREFIX, 'Dependencies installed successfully');
+        console.log(`[RTMS ${PREFIX} Success]`, 'Dependencies installed successfully');
         success_count++;
       } catch (err) {
-        error(PREFIX, `Failed to install dependencies: ${err.message}`);
+        console.error(`[RTMS ${PREFIX} Error]`, `Failed to install dependencies: ${err.message}`);
         return false;
       }
     } else {
-      log(PREFIX, 'Node.js dependencies already installed');
+      console.log(`[RTMS ${PREFIX}]`, 'Node.js dependencies already installed');
       success_count++;
     }
   }
@@ -505,9 +513,9 @@ async function checkDeps(options = {}) {
   }
   
   if (success_count >= total_checks && total_checks > 0) {
-    success(PREFIX, `All ${total_checks} dependency check(s) completed successfully`);
+    console.log(`[RTMS ${PREFIX} Success]`, `All ${total_checks} dependency check(s) completed successfully`);
   } else if (total_checks === 0) {
-    log(PREFIX, 'No dependency checks requested');
+    console.log(`[RTMS ${PREFIX}]`, 'No dependency checks requested');
   }
   
   return true;
@@ -523,3 +531,13 @@ async function checkSDKDeps(force = false) {
 }
 
 export { checkDeps, checkNpmDeps, checkSDKDeps };
+
+// Main execution when run directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  checkDeps().then(result => {
+    process.exit(result ? 0 : 1);
+  }).catch(err => {
+    console.error(`[RTMS ${PREFIX} Error]`, err.message);
+    process.exit(1);
+  });
+}

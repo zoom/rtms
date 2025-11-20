@@ -55,13 +55,16 @@ sdist.include = [
     "lib/**/*",
 ]
 
-# Wheel configuration
-wheel.packages = ["src/rtms"]
-wheel.install-dir = "."
-
 # Platform-specific settings
 # scikit-build-core will automatically detect platform and set appropriate wheel tags
 minimum-version = "0.4"
+
+# Wheel configuration
+[tool.scikit-build.wheel]
+packages = ["src/rtms"]
+install-dir = "."
+# Set platform tags for Linux to manylinux (ensures PyPI accepts our wheels)
+platlib = true
 
 [tool.scikit-build.cmake]
 # Pass build type to CMake

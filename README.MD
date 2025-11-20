@@ -3,6 +3,8 @@
 Bindings for real-time audio, video, and transcript streams from Zoom Meetings
 
 [![npm](https://img.shields.io/npm/v/@zoom/rtms)](https://www.npmjs.com/package/@zoom/rtms)
+[![PyPI](https://img.shields.io/pypi/v/rtms)](https://pypi.org/project/rtms/)
+[![TestPyPI](https://img.shields.io/badge/testpypi-v0.0.1-blue)](https://test.pypi.org/project/rtms/)
 [![docs](https://img.shields.io/badge/docs-online-blue)](https://zoom.github.io/rtms/js/)
 
 ## Platform Support Status
@@ -14,23 +16,6 @@ Bindings for real-time audio, video, and transcript streams from Zoom Meetings
 | Go | 📅 Planned | - |
 
 > We are actively working to expand both language and platform support in future releases.
-
-## Node.js Version Support
-
-| Node.js Version | N-API Version | Status | Notes |
-|-----------------|---------------|--------|-------|
-| 22.x (LTS)      | 10            | ✅ Fully Supported | **Recommended** |
-| 20.3.0+         | 9-10          | ✅ Fully Supported | **Minimum version**, LTS until April 2026 |
-| 20.0.0 - 20.2.x  | 8            | ❌ Not Supported | N-API v9 unavailable |
-| 18.x and older   | 8 or older   | ❌ Not Supported | **EOL April 2025** - No security updates |
-| 16.x and older   | < 9          | ❌ Not Supported | N-API version too old |
-
-**Why the strict requirements?**
-This package requires N-API version 9 or 10. Using older Node.js versions will result in segmentation faults or module loading errors.
-
-**Recommended versions:**
-- **Node.js 22 LTS** (latest, best performance)
-- **Node.js 20 LTS** (stable, long-term support, minimum supported)
 
 ## Overview
 
@@ -46,7 +31,7 @@ The RTMS SDK allows developers to:
 
 ### Node.js
 
-**⚠️ Requirements: Node.js >= 20.3.0 (Node.js 20 LTS or 22 LTS)**
+**⚠️ Requirements: Node.js >= 20.3.0 (Node.js 24 LTS recommended)**
 
 The RTMS SDK uses N-API versions 9 and 10, which require Node.js 20.3.0 or higher.
 
@@ -61,8 +46,8 @@ npm install @zoom/rtms
 **If you're using an older version of Node.js:**
 ```bash
 # Using nvm (recommended)
-nvm install 22       # Install Node.js 22 LTS (recommended)
-nvm use 22
+nvm install 24       # Install Node.js 24 LTS (recommended)
+nvm use 24
 
 # Or install Node.js 20 LTS (minimum)
 nvm install 20
@@ -107,6 +92,46 @@ pyenv local 3.12
 **Download Python:** https://www.python.org/downloads/
 
 The Python package provides a Pythonic decorator-based API with full feature parity to Node.js.
+
+## For Contributors
+
+**This project uses [Task](https://taskfile.dev) (go-task) for development builds and testing.**
+
+If you're an **end user** installing via npm or pip, you don't need Task - the installation will work automatically using prebuilt binaries.
+
+If you're a **contributor** building from source, you'll need to install Task:
+
+**macOS:**
+```bash
+brew install go-task
+```
+
+**Linux:**
+```bash
+sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b ~/.local/bin
+```
+
+**Quick Start for Contributors:**
+```bash
+# Verify your environment meets requirements
+task doctor
+
+# Setup the project (fetch SDK, install dependencies)
+task setup
+
+# Build for your platform
+task build:js          # Build Node.js bindings
+task build:py          # Build Python bindings
+
+# Run tests
+task test:js           # Test Node.js
+task test:py           # Test Python
+
+# See all available commands
+task --list
+```
+
+For detailed contribution guidelines, build instructions, and troubleshooting, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Usage
 
@@ -354,6 +379,7 @@ The RTMS SDK can be built from source using either Docker (recommended) or local
 #### Prerequisites
 - Docker and Docker Compose
 - Zoom RTMS C SDK files (contact Zoom for access)
+- Task installed (or use Docker's Task installation)
 
 #### Steps
 ```bash
@@ -371,10 +397,13 @@ cp ../librtmsdk.0.2025xxxx/librtmsdk.dylib lib/darwin-arm64
 # Place the include files in the proper directory
 cp ../librtmsdk.0.2025xxxx/h/* lib/include
 
-# Build and run using Docker Compose
-docker compose up js  # Create Node.js prebuild for linux-x64
-# or
-docker compose up py  # Create Python wheel for linux-x64
+# Build using Docker Compose with Task
+docker compose run --rm build task build:js    # Build Node.js for linux-x64
+docker compose run --rm build task build:py    # Build Python wheel for linux-x64
+
+# Or use convenience services
+docker compose run --rm test-js                # Build and test Node.js
+docker compose run --rm test-py                # Build and test Python
 ```
 
 Docker Compose creates **distributable packages** for linux-x64 (prebuilds for Node.js, wheels for Python). Use this when developing on macOS to build Linux packages for distribution.
@@ -386,15 +415,19 @@ Docker Compose creates **distributable packages** for linux-x64 (prebuilds for N
 - Python 3.10+ with pip (for Python build)
 - CMake 3.25+
 - C/C++ build tools
+- Task (go-task) - https://taskfile.dev/installation/
 - Zoom RTMS C SDK files (contact Zoom for access)
 
 #### Steps
 ```bash
 # Install system dependencies
+## macOS
+brew install cmake go-task python@3.13 node@24
+
+## Linux
 sudo apt update
-sudo apt install -y cmake python3-full python3-pip pipx npm
-npm install -g prebuild
-pip install "pybind11[global]" python-dotenv pdoc3
+sudo apt install -y cmake python3-full python3-pip npm
+sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b ~/.local/bin
 
 # Clone and set up the repository
 git clone https://github.com/zoom/rtms.git
@@ -403,69 +436,91 @@ cd rtms
 # Place SDK files in the appropriate lib directory
 # lib/linux-x64/ or lib/darwin-arm64/
 
-# Install project dependencies and build
-npm install
+# Verify your environment meets requirements
+task doctor
+
+# Setup project (fetches SDK if not present, installs dependencies)
+task setup
 
 # Build for specific language and platform
-npm run build:js          # Build Node.js for current platform
-npm run build:js:linux    # Build Node.js for Linux
-npm run build:js:darwin   # Build Node.js for macOS
+task build:js             # Build Node.js for current platform
+task build:js:linux       # Build Node.js for Linux (via Docker)
+task build:js:darwin      # Build Node.js for macOS
 
-npm run build:py          # Build Python for current platform
-npm run build:py:linux    # Build Python wheel for Linux
-npm run build:py:darwin   # Build Python wheel for macOS
+task build:py             # Build Python for current platform
+task build:py:linux       # Build Python wheel for Linux (via Docker)
+task build:py:darwin      # Build Python wheel for macOS
 ```
 
 ### Development Commands
 
-The project uses a unified command structure across all languages: `<action>:<lang>:<platform>`
+The project uses Task (go-task) for build orchestration. Commands follow the pattern: `task <action>:<lang>:<platform>`
 
 ```bash
+# See all available commands
+task --list
+
+# Verify environment
+task doctor                   # Check Node, Python, CMake, Docker versions
+
+# Setup project
+task setup                    # Fetch SDK and install dependencies
+
 # Building modules
-npm run build:js              # Build Node.js for current platform
-npm run build:js:linux        # Build Node.js for Linux
-npm run build:js:darwin       # Build Node.js for macOS
+task build:js                 # Build Node.js for current platform
+task build:js:linux           # Build Node.js for Linux (via Docker)
+task build:js:darwin          # Build Node.js for macOS
 
-npm run build:py              # Build Python for current platform
-npm run build:py:linux        # Build Python wheel for Linux
-npm run build:py:darwin       # Build Python wheel for macOS
+task build:py                 # Build Python for current platform
+task build:py:linux           # Build Python wheel for Linux (via Docker)
+task build:py:darwin          # Build Python wheel for macOS
 
-npm run build:go              # Build Go for current platform (coming soon)
-npm run build:go:linux        # Build Go for Linux (coming soon)
-npm run build:go:darwin       # Build Go for macOS (coming soon)
+task build:local              # Build all bindings for local platform
+task build:linux              # Build all bindings for Linux (via Docker)
+task build:all                # Build everything for all platforms
 
 # Creating prebuilds for distribution
-npm run prebuild:js           # Create Node.js prebuilds for all platforms
-npm run prebuild:js:linux     # Create Node.js prebuild for Linux
-npm run prebuild:js:darwin    # Create Node.js prebuild for macOS
-
-npm run prebuild:py           # Create Python wheels (same as build)
-npm run prebuild:py:linux     # Create Python wheel for Linux
-npm run prebuild:py:darwin    # Create Python wheel for macOS
-
-# Uploading to package registries
-npm run upload:js             # Upload Node.js prebuilds to GitHub releases
-npm run upload:js:linux       # Upload Node.js Linux prebuild
-npm run upload:js:darwin      # Upload Node.js macOS prebuild
-
-npm run upload:py             # Upload Python wheels to TestPyPI
-npm run upload:py:linux       # Upload Python Linux wheel to TestPyPI
-npm run upload:py:darwin      # Upload Python macOS wheel to TestPyPI
-
-npm run upload:py:prod        # Upload Python wheels to production PyPI
-npm run upload:py:prod:linux  # Upload Python Linux wheel to PyPI
-npm run upload:py:prod:darwin # Upload Python macOS wheel to PyPI
+task prebuild:js              # Create Node.js prebuilds for all platforms
+task prebuild:js:linux        # Create Node.js prebuild for Linux only
+task prebuild:js:darwin       # Create Node.js prebuild for macOS only
 
 # Testing
-npm run test                  # Run all tests
-npm run test:js               # Run Node.js tests
-npm run test:py               # Run Python tests
+task test:js                  # Run Node.js tests (local)
+task test:js:linux            # Run Node.js tests in Linux Docker
+task test:py                  # Run Python tests (local)
+task test:py:linux            # Run Python tests in Linux Docker
+task test:local               # Run all tests locally
+task test:linux               # Run all tests in Linux Docker
+task test:all                 # Run tests on all platforms
+
+# Manual/Interactive testing
+task manual:js                # Run interactive Node.js test
+task manual:py                # Run interactive Python test
+
+# Publishing to registries
+task publish:js               # Upload Node.js prebuilds to GitHub releases
+task publish:py               # Upload Python wheels to production PyPI
+task publish:py:test          # Upload Python wheels to TestPyPI
+
+# Documentation
+task docs:js                  # Generate Node.js API documentation
+task docs:py                  # Generate Python API documentation
+task docs:all                 # Generate all documentation
+
+# Utility commands
+task clean                    # Remove all build artifacts
+task clean:build              # Remove only build outputs (keep dependencies)
 
 # Build modes
-npm run debug                 # Switch to debug mode
-npm run release               # Switch to release mode (default)
-npm run rtms mode             # Check current build mode
+BUILD_TYPE=Debug task build:js    # Build in debug mode
+BUILD_TYPE=Release task build:js  # Build in release mode (default)
 ```
+
+**Task Features:**
+- **Smart caching**: Skips unchanged builds (checksum-based)
+- **Parallel execution**: Runs independent tasks concurrently
+- **Environment checks**: Validates versions before building
+- **Cross-platform**: Works on macOS, Linux, Windows
 
 These commands help you manage different aspects of the build process and testing workflow. The unified structure makes it easy to build, package, and publish for multiple languages and platforms.
 
@@ -490,8 +545,8 @@ node --version
 # 2. If < 20.3.0, upgrade to a supported version
 
 # Using nvm (recommended):
-nvm install 22           # Install Node.js 22 LTS (recommended)
-nvm use 22
+nvm install 24           # Install Node.js 24 LTS (recommended)
+nvm use 24
 
 # Or install minimum version:
 nvm install 20
@@ -507,7 +562,7 @@ npm install
 
 **Prevention:**
 - Always use Node.js 20.3.0 or higher
-- Use recommended version with `.nvmrc`: `nvm use` (Node.js 22)
+- Use recommended version with `.nvmrc`: `nvm use` (Node.js 24 LTS)
 - Check version before installing: `node --version`
 
 ### 2. Platform Support

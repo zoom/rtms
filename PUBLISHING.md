@@ -9,10 +9,24 @@ The RTMS SDK supports multiple languages with **independent versioning**:
 - **Python**: Published to PyPI as `rtms` (current version: see pyproject.toml)
 - **Go**: Planned (will have independent versioning)
 
-The project uses a **unified command structure** across all languages:
+### Build System
+
+The project uses **[Task (go-task)](https://taskfile.dev/)** for build orchestration. Task provides:
+- **Smart caching**: Skips unchanged builds (checksum-based)
+- **Parallel execution**: Runs independent tasks concurrently
+- **Environment validation**: Checks tool versions before building
+- **Cross-platform**: Works on macOS, Linux, Windows
+
+**Command structure:**
 ```
-<action>:<lang>:<platform>
+task <action>:<lang>:<platform>
 ```
+
+**Examples:**
+- `task build:js` - Build Node.js for local platform
+- `task build:py:linux` - Build Python wheel for Linux
+- `task publish:js` - Upload Node.js prebuilds to GitHub
+- `task doctor` - Verify environment meets requirements
 
 **Supported Platforms:**
 - `darwin-arm64` (macOS Apple Silicon)
@@ -22,9 +36,16 @@ The project uses a **unified command structure** across all languages:
 
 ### Required Tools
 
-- **Node.js** >= 20.3.0 (Node.js 20 LTS or 22 LTS)
+**Verify your environment with `task doctor` before starting!**
+
+- **Task** (go-task) 3.0+
+  - Build orchestration tool
+  - Install: `brew install go-task` (macOS) or see https://taskfile.dev/installation/
+  - Check version: `task --version`
+- **Node.js** >= 20.3.0 (Node.js 24 LTS recommended)
   - Minimum: 20.3.0 (for N-API v9 support, EOL April 2026)
-  - Recommended: 22.x LTS (latest features and performance)
+  - Recommended: 24.x LTS (current LTS, Krypton)
+  - Also supported: 22.x LTS (previous LTS, Jod)
   - Note: Node.js 18.x is EOL (April 2025) and no longer supported
   - Check version: `node --version`
 - **Python** 3.10+ with pip
@@ -32,8 +53,10 @@ The project uses a **unified command structure** across all languages:
   - Recommended: 3.12 or 3.13 (latest stable versions)
   - Check version: `python3 --version`
 - **CMake** 3.25+
+  - Check version: `cmake --version`
 - **C/C++ build tools** (GCC 9+ or Clang)
 - **Docker** and Docker Compose (recommended for consistent builds)
+  - Check version: `docker --version`
 - **Zoom RTMS C SDK files** (proprietary, contact Zoom for access)
 
 ### Python Build Tools
@@ -263,17 +286,17 @@ Before publishing any release, ensure:
 - [ ] Documentation builds successfully
 - [ ] Changelog/release notes prepared
 - [ ] SDK library files present in lib/ directories
-- [ ] Clean build directories: `npm run clean`
+- [ ] Clean build directories: `task clean`
 
 ### Node.js Specific
 - [ ] Version bumped in `package.json`
-- [ ] Tests pass: `npm run test:js`
+- [ ] Tests pass: `task test:js`
 - [ ] Prebuilds created for both platforms
 - [ ] GitHub token configured: `GITHUB_TOKEN`
 
 ### Python Specific
 - [ ] Version bumped in `pyproject.toml`
-- [ ] Tests pass: `npm run test:py`
+- [ ] Tests pass: `task test:py`
 - [ ] Wheels built for both platforms
 - [ ] Twine credentials configured: `TWINE_USERNAME`, `TWINE_PASSWORD`
 - [ ] Tested install: `import rtms` works
@@ -284,50 +307,61 @@ Before publishing any release, ensure:
 
 ```bash
 # On macOS
-npm run build:js:darwin
+task build:js:darwin
 
 # On Linux (or using Docker)
-npm run build:js:linux
+task build:js:linux
 
 # Or build for current platform
-npm run build:js
+task build:js
 ```
 
 ### Step 2: Create Prebuilds
 
-Prebuilds are platform-specific binary packages for faster installation.
+Prebuilds are platform-specific binary packages for faster installation. The build process creates multiple prebuilds for **N-API version compatibility**.
+
+**N-API Matrix:**
+- **N-API versions:** 9 and 10 (defined in `package.json` binary.napi_versions)
+- **Platforms:** darwin-arm64, linux-x64
+- **Total prebuilds:** 4 (2 platforms × 2 N-API versions)
 
 ```bash
-# Create prebuild for specific platform
-npm run prebuild:js:darwin   # macOS
-npm run prebuild:js:linux    # Linux
+# Create prebuild for specific platform (builds for N-API 9 and 10)
+task prebuild:js:darwin   # macOS arm64 (N-API 9 + 10)
+task prebuild:js:linux    # Linux x64 (N-API 9 + 10)
 
 # Or create prebuilds for all platforms
-npm run prebuild:js
+task prebuild:js          # All 4 combinations
 ```
 
-**Output:** Prebuilds are created in `build/` directory
+**Output:** Prebuilds are created in `prebuilds/` directory with names like:
+- `rtms-v0.0.5-napi-v9-darwin-arm64.tar.gz`
+- `rtms-v0.0.5-napi-v10-darwin-arm64.tar.gz`
+- `rtms-v0.0.5-napi-v9-linux-x64.tar.gz`
+- `rtms-v0.0.5-napi-v10-linux-x64.tar.gz`
 
 ### Step 3: Upload Prebuilds to GitHub Releases
 
-Prebuilds must be uploaded to GitHub releases before publishing to npm.
+Prebuilds must be uploaded to GitHub releases before publishing to npm. The upload process **automatically loops through all N-API versions and platforms**.
 
 ```bash
 # Set GitHub token
 export GITHUB_TOKEN="ghp_your_token_here"
 
-# Upload platform-specific prebuilds
-npm run upload:js:darwin
-npm run upload:js:linux
+# Upload all prebuilds (all platforms + N-API versions)
+task publish:js
 
-# Or upload all at once
-npm run upload:js
+# Or upload for specific platform only (but all N-API versions)
+task publish:js:darwin    # Uploads N-API 9 + 10 for darwin-arm64
+task publish:js:linux     # Uploads N-API 9 + 10 for linux-x64
 ```
 
 **What this does:**
-- Creates a GitHub release (if not exists)
-- Uploads `.tar.gz` prebuild files
-- Users will download prebuilds during `npm install`
+- Loops through each platform/N-API combination
+- Creates a GitHub release (if not exists) tagged with package version
+- Uploads all 4 `.tar.gz` prebuild files to the release
+- When users run `npm install @zoom/rtms`, the install script downloads the appropriate prebuild for their platform and Node.js version
+- Node.js 20.x uses N-API v9, Node.js 22.x and 24.x use N-API v10
 
 ### Step 4: Publish to npm
 
@@ -365,18 +399,31 @@ After publishing, verify documentation is updated:
 
 ### Step 1: Build Wheels
 
+Python wheels are platform-specific binary distributions. Linux wheels require **manylinux tagging** for PyPI compliance.
+
 ```bash
 # Build for specific platform
-npm run build:py:darwin    # On macOS
-npm run build:py:linux     # On Linux or Docker
+task build:py:darwin    # macOS (darwin-arm64)
+task build:py:linux     # Linux (linux-x64) - automatically repairs with auditwheel
 
 # Or build for current platform
-npm run build:py
+task build:py
 ```
 
+**Linux Wheel Repair Process:**
+When building for Linux (`task build:py:linux`), the wheel undergoes automatic repair:
+1. Initial build creates wheel with `linux_x86_64` tag
+2. `auditwheel repair` converts to proper `manylinux_*` tag (e.g., `manylinux_2_17_x86_64`)
+3. Excludes `librtmsdk.so.0` (already bundled in wheel) from repair
+4. Auto-detects appropriate manylinux version based on system libraries
+5. Removes original non-compliant wheel
+
+**Why manylinux?**
+PyPI requires Linux wheels to use `manylinux` tags to ensure compatibility across different Linux distributions. The manylinux standard limits which system libraries can be dynamically linked.
+
 **Output:** Wheels are created in `dist/py/` directory
-- macOS: `rtms-X.Y.Z-cp38-abi3-macosx_11_0_arm64.whl`
-- Linux: `rtms-X.Y.Z-cp38-abi3-manylinux_2_17_x86_64.whl`
+- macOS: `rtms-X.Y.Z-cp310-abi3-macosx_11_0_arm64.whl`
+- Linux: `rtms-X.Y.Z-cp310-abi3-manylinux_2_17_x86_64.whl` (after auditwheel repair)
 
 ### Step 2: Test on TestPyPI
 
@@ -388,11 +435,11 @@ export TWINE_USERNAME="__token__"
 export TWINE_PASSWORD="pypi-your-testpypi-token"
 
 # Upload to TestPyPI
-npm run upload:py:darwin     # Upload macOS wheel
-npm run upload:py:linux      # Upload Linux wheel
+task publish:py --platform=darwin     # Upload macOS wheel
+task publish:py --platform=linux      # Upload Linux wheel
 
 # Or upload all wheels
-npm run upload:py
+task publish:py:test
 ```
 
 **Test installation from TestPyPI:**
@@ -425,11 +472,11 @@ export TWINE_USERNAME="__token__"
 export TWINE_PASSWORD="pypi-your-production-token"
 
 # Upload to production PyPI
-npm run upload:py:prod:darwin
-npm run upload:py:prod:linux
+task publish:py --platform=darwin
+task publish:py --platform=linux
 
 # Or upload all wheels
-npm run upload:py:prod
+task publish:py
 ```
 
 **Verify:**
@@ -460,8 +507,8 @@ After publishing, verify documentation is updated:
 
 **Build:**
 ```bash
-npm run build:py:darwin
-npm run build:js:darwin
+task build:py:darwin
+task build:js:darwin
 ```
 
 **Notes:**
@@ -478,8 +525,8 @@ npm run build:js:darwin
 
 **Build natively:**
 ```bash
-npm run build:py:linux
-npm run build:js:linux
+task build:py:linux
+task build:js:linux
 ```
 
 **Build with Docker (recommended for cross-platform):**
@@ -504,7 +551,7 @@ docker compose up test-js # Test Node.js on Linux
 1. **Pre-release checks:**
    - ✅ Check CI: All tests passing in Actions tab
    - ✅ Check docs: https://zoom.github.io/rtms/js/ is up to date
-   - ✅ Test locally: `npm run test:js`
+   - ✅ Test locally: `task test:js`
 
 2. **Update version in package.json:**
    ```json
@@ -526,16 +573,16 @@ docker compose up test-js # Test Node.js on Linux
 
 5. **Clean and build:**
    ```bash
-   npm run clean
-   npm run prebuild:js:darwin  # On macOS
-   npm run prebuild:js:linux   # On Linux or Docker
+   task clean
+   task prebuild:js:darwin  # On macOS
+   task prebuild:js:linux   # On Linux or Docker
    ```
 
 6. **Upload prebuilds:**
    ```bash
    export GITHUB_TOKEN="your-token"
-   npm run upload:js:darwin
-   npm run upload:js:linux
+   task publish:js:darwin
+   task publish:js:linux
    ```
 
 7. **Publish to npm:**
@@ -567,7 +614,7 @@ docker compose up test-js # Test Node.js on Linux
 1. **Pre-release checks:**
    - ✅ Check CI: Python tests passing in Actions tab
    - ✅ Check docs: https://zoom.github.io/rtms/py/ is up to date
-   - ✅ Test locally: `npm run test:py`
+   - ✅ Test locally: `task test:py`
 
 2. **Update version in pyproject.toml:**
    ```toml
@@ -589,9 +636,9 @@ docker compose up test-js # Test Node.js on Linux
 
 5. **Clean and build wheels:**
    ```bash
-   npm run clean
-   npm run build:py:darwin  # On macOS
-   npm run build:py:linux   # On Linux or Docker
+   task clean
+   task build:py:darwin  # On macOS
+   task build:py:linux   # On Linux or Docker
    ```
 
 6. **Test on TestPyPI:**
@@ -599,7 +646,7 @@ docker compose up test-js # Test Node.js on Linux
    export TWINE_USERNAME="__token__"
    export TWINE_PASSWORD="your-testpypi-token"
 
-   npm run upload:py
+   task publish:py:test
 
    # Test installation
    pip install -i https://test.pypi.org/simple/ rtms
@@ -609,7 +656,7 @@ docker compose up test-js # Test Node.js on Linux
 7. **If tests pass, upload to production PyPI:**
    ```bash
    export TWINE_PASSWORD="your-production-pypi-token"
-   npm run upload:py:prod
+   task publish:py
    ```
 
 8. **Create GitHub release:**
@@ -676,8 +723,8 @@ Program terminated with signal SIGSEGV, Segmentation fault.
 node --version
 
 # Upgrade to supported version
-nvm install 22         # Recommended: Node.js 22 LTS
-nvm use 22
+nvm install 24         # Recommended: Node.js 24 LTS
+nvm use 24
 
 # Or minimum version
 nvm install 20
@@ -707,7 +754,7 @@ npm install
    ```bash
    # Use Node.js 20.3.0+ for building
    node --version  # Should show 20.3.0+
-   npm run prebuild:js
+   task prebuild:js
    ```
 
 4. **Test on minimum version before publishing:**
@@ -731,11 +778,11 @@ npm install
 1. Check Actions → "Test Application & Build Documentation" job
 2. Verify TypeScript types are valid:
    ```bash
-   npm run build:js
+   task build:js
    ```
 3. Verify Python docstrings are valid:
    ```bash
-   npm run docs:py
+   task docs:py
    ```
 4. Check if typedoc or pdoc3 dependency failed
 5. Look for syntax errors in .ts or .py files
@@ -772,15 +819,15 @@ npm install
 **"No files found"**
 - Wheels weren't built
 - Check dist/py/ directory exists
-- Run: `npm run build:py:darwin` or `npm run build:py:linux`
+- Run: `task build:py:darwin` or `task build:py:linux`
 
 **"Invalid distribution file"**
 - Wheel is corrupted
-- Clean and rebuild: `npm run clean && npm run build:py`
+- Clean and rebuild: `task clean && task build:py`
 
 ### GitHub Release Upload Fails
 
-**Symptoms:** `npm run upload:js:darwin` fails
+**Symptoms:** `task publish:js:darwin` fails
 
 **Solutions:**
 1. Verify GITHUB_TOKEN is set and valid:
