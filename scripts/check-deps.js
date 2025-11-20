@@ -459,78 +459,12 @@ async function checkSDKLibraries(force = false) {
   return true;
 }
 
-// Main dependency check function with selective options
-async function checkDeps(options = {}) {
-  const {
-    npm = true,      // Check npm dependencies
-    sdk = true,      // Check SDK libraries
-    force = false    // Force reinstall even if present
-  } = options;
-  
-  let success_count = 0;
-  let total_checks = 0;
-  
-  // Check for Node.js dependencies
-  if (npm) {
-    total_checks++;
-    const nodeModulesPath = path.join(getProjectRoot(), 'node_modules');
-    const shouldInstallNpm = !fs.existsSync(nodeModulesPath) || force;
-    
-    if (shouldInstallNpm) {
-      console.log(`[RTMS ${PREFIX}]`, force ? 'Force reinstalling npm dependencies...' : 'node_modules not found, installing dependencies...');
-      try {
-        if (force && fs.existsSync(nodeModulesPath)) {
-          console.log(`[RTMS ${PREFIX}]`, 'Removing existing node_modules...');
-          fs.rmSync(nodeModulesPath, { recursive: true, force: true });
-        }
-        
-        execSync('npm install', { 
-          stdio: 'inherit', 
-          cwd: getProjectRoot() 
-        });
-
-        console.log(`[RTMS ${PREFIX} Success]`, 'Dependencies installed successfully');
-        success_count++;
-      } catch (err) {
-        console.error(`[RTMS ${PREFIX} Error]`, `Failed to install dependencies: ${err.message}`);
-        return false;
-      }
-    } else {
-      console.log(`[RTMS ${PREFIX}]`, 'Node.js dependencies already installed');
-      success_count++;
-    }
-  }
-  
-  // Check for SDK libraries
-  if (sdk) {
-    total_checks++;
-    const sdkResult = await checkSDKLibraries(force);
-    if (sdkResult) {
-      success_count++;
-    } else {
-      return false;
-    }
-  }
-  
-  if (success_count >= total_checks && total_checks > 0) {
-    console.log(`[RTMS ${PREFIX} Success]`, `All ${total_checks} dependency check(s) completed successfully`);
-  } else if (total_checks === 0) {
-    console.log(`[RTMS ${PREFIX}]`, 'No dependency checks requested');
-  }
-  
-  return true;
+// Main function - only checks/downloads SDK
+async function checkDeps(force = false) {
+  return await checkSDKLibraries(force);
 }
 
-// Convenience functions for specific dependency types
-async function checkNpmDeps(force = false) {
-  return await checkDeps({ npm: true, sdk: false, force });
-}
-
-async function checkSDKDeps(force = false) {
-  return await checkDeps({ npm: false, sdk: true, force });
-}
-
-export { checkDeps, checkNpmDeps, checkSDKDeps };
+export { checkDeps, checkSDKLibraries as checkSDKDeps };
 
 // Main execution when run directly
 if (import.meta.url === `file://${process.argv[1]}`) {

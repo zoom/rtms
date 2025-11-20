@@ -20,6 +20,7 @@ tasks:
     desc: "Initialize project (fetch SDK, install dependencies)"
     cmds:
       - node scripts/check-deps.js
+      - npm install
     sources:
       - package.json
       - package-lock.json

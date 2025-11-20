@@ -15,8 +15,8 @@ import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const projectRoot = join(__dirname, '..');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const colors = {
   reset: '\x1b[0m',
@@ -25,9 +25,6 @@ const colors = {
   yellow: '\x1b[33m',
   dim: '\x1b[2m'
 };
-
-// Detect if we're in development mode (git repo exists)
-const isDevelopment = existsSync(join(projectRoot, '.git'));
 
 function log(message) {
   console.log(`${colors.cyan}[RTMS Install]${colors.reset} ${message}`);
@@ -46,23 +43,15 @@ function warning(message) {
  */
 function installPrebuild() {
   try {
-    if (!isDevelopment) {
-      log('Attempting to download prebuilt binary...');
-    }
+    log('Attempting to download prebuilt binary...');
 
     // Use prebuild-install to download from GitHub releases
-    // Suppress deprecation warnings from prebuild-install
     execSync('prebuild-install -r napi', {
-      stdio: isDevelopment ? 'pipe' : 'inherit',
-      env: {
-        ...process.env,
-        NODE_NO_WARNINGS: '1'
-      }
+      stdio: 'inherit',
+      env: process.env
     });
 
-    if (!isDevelopment) {
-      success('Prebuilt binary installed successfully!');
-    }
+    success('Prebuilt binary installed successfully!');
     return true;
   } catch (err) {
     // Prebuild not available - this is OK
@@ -74,13 +63,14 @@ function installPrebuild() {
  * Main install function
  */
 function main() {
-  // In development mode, be quiet - developers use `task build`
+  // Detect development mode (git repo exists)
+  const isDevelopment = existsSync(join(__dirname, '..', '.git'));
+
   if (isDevelopment) {
-    installPrebuild();
-    return;
+    // In dev mode, skip prebuild - developers use `task build`
+    process.exit(0);
   }
 
-  // For end users, show helpful messages
   log('Starting installation...');
 
   const prebuildInstalled = installPrebuild();
