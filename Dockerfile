@@ -13,6 +13,7 @@ RUN apt update && apt install -y \
     git \
     tini \
     ca-certificates \
+    patchelf \
     libssl-dev \
     zlib1g-dev \
     libbz2-dev \
