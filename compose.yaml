@@ -58,6 +58,8 @@ services:
       context: .
       args:
         TARGET: py
+    ports:
+      - "8080:8080"
     command: sh -c "task build:py && echo 'Python tests not yet implemented'"
 
   # =============================================================================
