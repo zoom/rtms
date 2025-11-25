@@ -45,16 +45,29 @@ class Metadata:
 # ============================================================================
 
 class AudioParams:
-    """Audio streaming parameters"""
+    """
+    Audio streaming parameters with sensible defaults.
+
+    Default values (work out-of-box for per-participant audio):
+    - content_type: RAW_AUDIO (2)
+    - codec: OPUS (4)
+    - sample_rate: SR_48K (3)
+    - channel: STEREO (2)
+    - data_opt: AUDIO_MULTI_STREAMS (2) - enables userId in audio metadata
+    - duration: 20 ms
+    - frame_size: 960 samples (48kHz × 20ms)
+
+    Users can omit setAudioParams() entirely or override individual fields.
+    """
     def __init__(
         self,
-        content_type: int = 0,
-        codec: int = 0,
-        sample_rate: int = 0,
-        channel: int = 0,
-        data_opt: int = 0,
-        duration: int = 0,
-        frame_size: int = 0
+        content_type: int = 2,
+        codec: int = 4,
+        sample_rate: int = 3,
+        channel: int = 2,
+        data_opt: int = 2,
+        duration: int = 20,
+        frame_size: int = 960
     ) -> None: ...
 
     @property

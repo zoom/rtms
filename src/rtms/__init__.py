@@ -342,11 +342,37 @@ class WebhookServer:
 
 # Parameter validation functions
 def _validate_audio_params(params):
-    """Validate audio parameters and provide helpful error messages"""
+    """
+    Validate audio parameters and provide helpful error messages
+
+    Note: AudioParams now has sensible defaults, so users can omit setAudioParams()
+    or change individual values without setting all fields.
+    """
     if not hasattr(params, '__dict__'):
         return  # Not a parameter object
 
     errors = []
+
+    # Check required fields are set (non-zero)
+    if hasattr(params, 'contentType') and params.contentType == 0:
+        errors.append(
+            "AudioParams: contentType must be set (e.g., rtms.AudioContentType.RAW_AUDIO)"
+        )
+
+    if hasattr(params, 'codec') and params.codec == 0:
+        errors.append(
+            "AudioParams: codec must be set (e.g., rtms.AudioCodec.OPUS)"
+        )
+
+    if hasattr(params, 'channel') and params.channel == 0:
+        errors.append(
+            "AudioParams: channel must be set (e.g., rtms.AudioChannel.STEREO)"
+        )
+
+    if hasattr(params, 'dataOpt') and params.dataOpt == 0:
+        errors.append(
+            "AudioParams: dataOpt must be set (e.g., rtms.AudioDataOption.AUDIO_MULTI_STREAMS)"
+        )
 
     # Check codec
     if hasattr(params, 'codec') and params.codec is not None:
@@ -390,8 +416,37 @@ def _validate_audio_params(params):
         if params.dataOpt not in valid_opts:
             errors.append(
                 f"Invalid audio dataOpt: {params.dataOpt}. "
-                f"Use rtms.AudioDataOption constants (e.g., rtms.AudioDataOption.AUDIO_MIXED_STREAM)"
+                f"Use rtms.AudioDataOption constants (e.g., rtms.AudioDataOption.AUDIO_MULTI_STREAMS)"
             )
+
+    # Validate codec-specific requirements
+    if hasattr(params, 'codec') and params.codec == AudioCodec.OPUS:
+        if hasattr(params, 'sampleRate') and params.sampleRate != AudioSampleRate.SR_48K:
+            errors.append(
+                f"AudioParams: OPUS codec requires 48kHz sample rate (rtms.AudioSampleRate.SR_48K). "
+                f"Current value: {params.sampleRate}"
+            )
+
+    # Validate frame size matches sample rate and duration
+    if hasattr(params, 'duration') and hasattr(params, 'frameSize'):
+        if params.duration > 0 and params.frameSize > 0:
+            # Calculate expected frame size based on sample rate
+            sample_rate_map = {
+                AudioSampleRate.SR_8K: 8000,
+                AudioSampleRate.SR_16K: 16000,
+                AudioSampleRate.SR_32K: 32000,
+                AudioSampleRate.SR_48K: 48000,
+            }
+
+            if hasattr(params, 'sampleRate') and params.sampleRate in sample_rate_map:
+                sample_rate_hz = sample_rate_map[params.sampleRate]
+                expected_frame_size = sample_rate_hz * params.duration // 1000
+
+                if params.frameSize != expected_frame_size:
+                    errors.append(
+                        f"AudioParams: frameSize ({params.frameSize}) does not match sampleRate and duration "
+                        f"(expected {expected_frame_size} for {params.duration}ms)"
+                    )
 
     if errors:
         raise ValueError("\n".join(errors))

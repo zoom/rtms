@@ -365,14 +365,47 @@ function isRawWebhookCallback(callback: WebhookCallbackUnion): callback is RawWe
 }
 
 /**
- * Creates a request handler for webhook events
- * 
- * @private
- * @param callback The webhook callback function
- * @param path The URL path to listen on
- * @returns A request handler function
+ * Creates a request handler for webhook events that can be mounted on existing HTTP servers
+ *
+ * This function returns a Node.js request handler compatible with Express, Fastify,
+ * and other HTTP frameworks. It allows you to integrate Zoom webhook handling with
+ * your existing application routes on a shared port.
+ *
+ * The handler validates that requests are POST requests to the specified path,
+ * parses JSON payloads, and invokes your callback with the webhook data.
+ *
+ * @param callback Function to call when webhook events are received
+ * @param path The URL path to listen on (e.g., '/zoom/webhook')
+ * @returns A request handler function compatible with http.Server
+ *
+ * @example
+ * ```typescript
+ * import express from 'express';
+ * import rtms from '@zoom/rtms';
+ *
+ * const app = express();
+ *
+ * // Your application routes
+ * app.get('/health', (req, res) => res.json({ status: 'ok' }));
+ *
+ * // Mount Zoom webhook handler on the same server
+ * const webhookHandler = rtms.createWebhookHandler(
+ *   (payload) => {
+ *     console.log(`Received: ${payload.event}`);
+ *   },
+ *   '/zoom/webhook'
+ * );
+ *
+ * // Use the handler directly with Express
+ * app.post('/zoom/webhook', webhookHandler);
+ *
+ * // Single port for all routes
+ * app.listen(8080);
+ * ```
+ *
+ * @category Common Functions
  */
-function createWebhookHandler(callback: WebhookCallbackUnion, path: string) {
+export function createWebhookHandler(callback: WebhookCallbackUnion, path: string) {
   return (req: IncomingMessage, res: ServerResponse) => {
     const headers = { 'Content-Type': 'application/json' };
 

@@ -1,7 +1,9 @@
+### orchestration
+.task
+
 ### Dev Only
 docs/*
 !docs/*.md
-!docs/VERSION_REQUIREMENTS.md
 
 ### Build
 dist

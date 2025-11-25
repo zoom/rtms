@@ -194,24 +194,35 @@ export interface SessionInfo {
 }
 
 /**
- * Configuration parameters for audio streams
- * 
+ * Configuration parameters for audio streams with sensible defaults
+ *
+ * Default values (work out-of-box for per-participant audio):
+ * - contentType: RAW_AUDIO (2)
+ * - codec: OPUS (4)
+ * - sampleRate: SR_48K (3)
+ * - channel: STEREO (2)
+ * - dataOpt: AUDIO_MULTI_STREAMS (2) - enables userId in audio metadata
+ * - duration: 20 ms
+ * - frameSize: 960 samples (48kHz × 20ms)
+ *
+ * Users can omit setAudioParams() entirely or override individual fields.
+ *
  * @category Media Configuration
  */
 export interface AudioParams {
-  /** The type of audio content */
+  /** The type of audio content (default: RAW_AUDIO = 2) */
   contentType?: number;
-  /** The audio codec to use */
+  /** The audio codec to use (default: OPUS = 4) */
   codec?: number;
-  /** The sample rate SR_8K = 0, SR_16K = 1, SR_32K = 2, SR_48K = 3 */
+  /** The sample rate SR_8K = 0, SR_16K = 1, SR_32K = 2, SR_48K = 3 (default: SR_48K = 3) */
   sampleRate?: number;
-  /** The number of audio channels (1=mono, 2=stereo) */
+  /** The number of audio channels (1=mono, 2=stereo) (default: STEREO = 2) */
   channel?: number;
-  /** Additional data options for audio processing */
+  /** Additional data options for audio processing (default: AUDIO_MULTI_STREAMS = 2) */
   dataOpt?: number;
-  /** The duration of each audio frame in milliseconds */
+  /** The duration of each audio frame in milliseconds (default: 20 ms) */
   duration?: number;
-  /** The size of each audio frame in samples */
+  /** The size of each audio frame in samples (default: 960 samples) */
   frameSize?: number;
 }
 
@@ -607,12 +618,25 @@ export class Client {
   streamId(): string;
   
   /**
-   * Sets audio parameters for the client
-   * 
-   * This method configures audio processing parameters.
-   * 
-   * @param params Audio parameters configuration
+   * Sets audio parameters for the client (OPTIONAL)
+   *
+   * This method configures audio processing parameters. AudioParams now has
+   * sensible defaults, so calling this method is optional. Defaults enable
+   * per-participant audio with userId in metadata (dataOpt=AUDIO_MULTI_STREAMS).
+   *
+   * You can override individual fields without setting all parameters:
+   * @example
+   * ```typescript
+   * // Option 1: Use defaults (no call needed)
+   * await client.join(...);
+   *
+   * // Option 2: Override just one field
+   * client.setAudioParams({ channel: rtms.AudioChannel.MONO });
+   * ```
+   *
+   * @param params Audio parameters configuration (merges with defaults)
    * @returns true if the operation succeeds
+   * @throws Error if parameters are invalid or incompatible
    */
   setAudioParams(params: AudioParams): boolean;
   
@@ -825,6 +849,101 @@ export class Client {
 //-----------------------------------------------------------------------------------
 // Singleton (global) functions
 //-----------------------------------------------------------------------------------
+
+/**
+ * Creates a request handler for webhook events that can be mounted on existing HTTP servers
+ *
+ * This function returns a Node.js request handler compatible with Express, Fastify,
+ * and other HTTP frameworks. It allows you to integrate Zoom webhook handling with
+ * your existing application routes on a shared port.
+ *
+ * The handler validates that requests are POST requests to the specified path,
+ * parses JSON payloads, and invokes your callback with the webhook data.
+ *
+ * @param callback Function to call when webhook events are received (WebhookCallback or RawWebhookCallback)
+ * @param path The URL path to listen on (e.g., '/zoom/webhook')
+ * @returns A request handler function compatible with http.Server
+ *
+ * @example
+ * ```typescript
+ * import express from 'express';
+ * import rtms from '@zoom/rtms';
+ *
+ * const app = express();
+ * app.use(express.json());
+ *
+ * // Your application routes
+ * app.get('/health', (req, res) => {
+ *   res.json({ status: 'healthy' });
+ * });
+ *
+ * app.get('/admin', (req, res) => {
+ *   res.json({ admin: 'panel' });
+ * });
+ *
+ * // Mount Zoom webhook handler on the same server
+ * const webhookHandler = rtms.createWebhookHandler(
+ *   (payload) => {
+ *     console.log(`Received webhook: ${payload.event}`);
+ *
+ *     if (payload.event === "meeting.rtms.started") {
+ *       // Join the meeting
+ *       rtms.join({
+ *         joinUrl: payload.join_url,
+ *         accessToken: payload.access_token,
+ *         config: rtms.Config.AUDIO | rtms.Config.VIDEO,
+ *         mediaTypes: rtms.SDK_AUDIO | rtms.SDK_VIDEO
+ *       });
+ *     }
+ *   },
+ *   '/zoom/webhook'
+ * );
+ *
+ * // Mount the handler on your Express app
+ * app.post('/zoom/webhook', webhookHandler);
+ *
+ * // Single port for all routes (Cloud Run, Kubernetes, etc.)
+ * const PORT = process.env.PORT || 8080;
+ * app.listen(PORT, () => {
+ *   console.log(`Server listening on port ${PORT}`);
+ *   console.log(`Webhook: http://localhost:${PORT}/zoom/webhook`);
+ *   console.log(`Health: http://localhost:${PORT}/health`);
+ * });
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Advanced: Using RawWebhookCallback for custom validation
+ * const webhookHandler = rtms.createWebhookHandler(
+ *   (payload, req, res) => {
+ *     // Access raw HTTP request/response for custom logic
+ *     const signature = req.headers['x-zoom-signature'];
+ *
+ *     if (!validateSignature(payload, signature)) {
+ *       res.writeHead(401);
+ *       res.end('Unauthorized');
+ *       return;
+ *     }
+ *
+ *     // Process webhook
+ *     console.log(`Validated webhook: ${payload.event}`);
+ *
+ *     // Custom response
+ *     res.writeHead(200, { 'Content-Type': 'application/json' });
+ *     res.end(JSON.stringify({ status: 'ok' }));
+ *   },
+ *   '/zoom/webhook'
+ * );
+ *
+ * app.post('/zoom/webhook', webhookHandler);
+ * ```
+ *
+ * @category Common Functions
+ */
+export function createWebhookHandler(
+  callback: WebhookCallback | RawWebhookCallback,
+  path: string
+): (req: import('http').IncomingMessage, res: import('http').ServerResponse) => void;
 
 /**
  * Sets up a webhook server to receive events from Zoom

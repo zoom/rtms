@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: ['20.3.0', '20.x', '22.x']  # Test minimum (N-API v9), LTS 20, and LTS 22
+        node-version: ['20.3.0', '20.x', '24.x']  # Test minimum (N-API v9), LTS 20, and current LTS 24
       fail-fast: false  # Continue testing other versions if one fails
 
     steps:
@@ -38,26 +38,29 @@ jobs:
 
   # Test Node.js SDK on macOS (darwin-arm64)
   test-nodejs-macos:
-    name: Test Node.js SDK on macOS (Node 22.x)
+    name: Test Node.js SDK on macOS (Node 24.x)
     runs-on: macos-latest  # macOS 14+ provides Apple Silicon runners
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Node.js 22.x
+    - name: Setup Node.js 24.x
       uses: actions/setup-node@v4
       with:
-        node-version: '22.x'
+        node-version: '24.x'
 
-    - name: Install dependencies
-      run: npm install
+    - name: Install Task
+      run: brew install go-task
+
+    - name: Setup project
+      run: task setup
 
     - name: Build Node.js addon
-      run: npm run build:js
+      run: task build:js
 
     - name: Run Node.js tests
-      run: npm run test:js
+      run: task test:js
 
   # Test Python SDK on Linux
   test-python-linux:
@@ -77,6 +80,14 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
+    - name: Setup Node.js (for Task setup)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24.x'
+
+    - name: Install Task
+      run: sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b ~/.local/bin && echo "$HOME/.local/bin" >> $GITHUB_PATH
+
     - name: Install system dependencies
       run: |
         sudo apt-get update
@@ -87,8 +98,11 @@ jobs:
         python -m pip install --upgrade pip
         pip install pytest python-dotenv pybind11 scikit-build-core
 
+    - name: Setup SDK
+      run: task setup
+
     - name: Build Python module
-      run: npm run build:py
+      run: task build:py
 
     - name: Run Python tests
       run: pytest tests/test_rtms.py -v
@@ -113,23 +127,23 @@ jobs:
 
     - name: Install system dependencies
       run: |
-        brew install cmake
+        brew install cmake go-task
 
-    - name: Setup Node.js (for build scripts)
+    - name: Setup Node.js (for Task setup)
       uses: actions/setup-node@v4
       with:
-        node-version: '22.x'
-
-    - name: Install Node.js dependencies
-      run: npm install
+        node-version: '24.x'
 
     - name: Install Python build dependencies
       run: |
         python -m pip install --upgrade pip
         pip install pytest python-dotenv pybind11 scikit-build-core
 
+    - name: Setup project
+      run: task setup
+
     - name: Build Python module
-      run: npm run build:py
+      run: task build:py
 
     - name: Run Python tests
       run: pytest tests/test_rtms.py -v
@@ -149,14 +163,8 @@ jobs:
     - name: Setup Docker Compose
       uses: docker/setup-compose-action@v1.1.0
 
-    - name: Test JS build and generate JS docs
-      run: docker compose run --rm docs-js
-
-    - name: Generate Python docs
-      run: |
-        python -m pip install --upgrade pip
-        pip install pdoc3
-        pdoc --html --output-dir docs/py --force src/rtms
+    - name: Generate all documentation via Docker
+      run: docker compose run --rm docs
 
     - name: Upload documentation artifact
       uses: actions/upload-artifact@v4

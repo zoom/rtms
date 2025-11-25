@@ -116,8 +116,14 @@ int BaseMediaParams::dataOpt() const {
 }
 
 AudioParams::AudioParams()
-    : BaseMediaParams(), sample_rate_(0), channel_(0),
-      duration_(0), frame_size_(0) {}
+    : BaseMediaParams(), sample_rate_(3), channel_(2),
+      duration_(20), frame_size_(960) {
+    // Set sensible defaults for audio streaming
+    // These values work out-of-box and allow per-participant audio identification
+    setContentType(2);  // RAW_AUDIO
+    setCodec(4);        // OPUS
+    setDataOpt(2);      // AUDIO_MULTI_STREAMS - enables per-participant audio with userId
+}
 
 AudioParams::AudioParams(int content_type, int codec, int sample_rate, 
                                int channel, int data_opt, int duration, int frame_size)
@@ -170,6 +176,51 @@ audio_parameters AudioParams::toNative() const {
     params.duration = duration_;
     params.frame_size = frame_size_;
     return params;
+}
+
+void AudioParams::validate() const {
+    // Validate required fields are set (non-zero)
+    if (contentType() == 0) {
+        throw std::invalid_argument("AudioParams: contentType must be set (e.g., RAW_AUDIO=2)");
+    }
+    if (codec() == 0) {
+        throw std::invalid_argument("AudioParams: codec must be set (e.g., OPUS=4)");
+    }
+    if (channel_ == 0) {
+        throw std::invalid_argument("AudioParams: channel must be set (e.g., STEREO=2)");
+    }
+    if (dataOpt() == 0) {
+        throw std::invalid_argument("AudioParams: dataOpt must be set (e.g., AUDIO_MULTI_STREAMS=2)");
+    }
+
+    // Validate codec-specific requirements
+    if (codec() == 4) { // OPUS
+        if (sample_rate_ != 3) { // SR_48K
+            throw std::invalid_argument("AudioParams: OPUS codec requires 48kHz sample rate (sampleRate=3)");
+        }
+    }
+
+    // Validate frame size matches sample rate and duration if both are set
+    if (duration_ > 0 && frame_size_ > 0) {
+        // Expected frame size calculation based on sample rate
+        int expected_frame_size = 0;
+        switch (sample_rate_) {
+            case 0: expected_frame_size = 8000 * duration_ / 1000; break;   // SR_8K
+            case 1: expected_frame_size = 16000 * duration_ / 1000; break;  // SR_16K
+            case 2: expected_frame_size = 32000 * duration_ / 1000; break;  // SR_32K
+            case 3: expected_frame_size = 48000 * duration_ / 1000; break;  // SR_48K
+            default:
+                throw std::invalid_argument("AudioParams: invalid sample rate value");
+        }
+
+        if (frame_size_ != expected_frame_size) {
+            throw std::invalid_argument(
+                "AudioParams: frameSize (" + std::to_string(frame_size_) +
+                ") does not match sampleRate and duration (expected " +
+                std::to_string(expected_frame_size) + " for " + std::to_string(duration_) + "ms)"
+            );
+        }
+    }
 }
 
 VideoParams::VideoParams()

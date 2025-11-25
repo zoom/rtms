@@ -1,0 +1,403 @@
+version: '3'
+
+# Global variables
+vars:
+  BUILD_TYPE: '{{.BUILD_TYPE | default "Release"}}'
+  NODE_VERSION: "22"
+  PYTHON_VERSION: "3.13"
+  CMAKE_VERSION: "3.25"
+
+# Environment variables for all tasks
+env:
+  CMAKE_BUILD_TYPE: '{{.BUILD_TYPE}}'
+
+tasks:
+  # =============================================================================
+  # Setup & Verification
+  # =============================================================================
+
+  setup:
+    desc: "Initialize project (fetch SDK, install dependencies)"
+    cmds:
+      - node scripts/check-deps.js
+      - npm install
+    sources:
+      - package.json
+      - package-lock.json
+    generates:
+      - node_modules/.package-lock.json
+
+  doctor:
+    desc: "Verify system meets minimum requirements"
+    cmds:
+      - node scripts/doctor.js
+
+  # =============================================================================
+  # Node.js Build Tasks
+  # =============================================================================
+
+  build:js:
+    desc: "Build Node.js bindings (local platform)"
+    deps: [doctor]
+    cmds:
+      - npx cmake-js compile --CDCMAKE_BUILD_TYPE={{.BUILD_TYPE}}
+    sources:
+      - src/**/*.cpp
+      - src/**/*.h
+      - lib/include/**/*.h
+      - CMakeLists.txt
+      - package.json
+    generates:
+      - build/{{.BUILD_TYPE}}/rtms.node
+      - build/{{.BUILD_TYPE}}/index.js
+
+  build:js:linux:
+    desc: "Build Node.js bindings for Linux (via Docker)"
+    cmds:
+      - docker compose run --rm build task build:js BUILD_TYPE={{.BUILD_TYPE}}
+
+  build:js:darwin:
+    desc: "Build Node.js bindings for macOS"
+    cmds:
+      - task: build:js
+
+  # =============================================================================
+  # Python Build Tasks
+  # =============================================================================
+
+  build:py:
+    desc: "Build Python wheel (local platform)"
+    deps: [doctor]
+    cmds:
+      - python3 -m build --wheel -Ccmake.build-type={{.BUILD_TYPE}} --outdir dist/py
+    sources:
+      - src/**/*.cpp
+      - src/**/*.h
+      - src/**/*.py
+      - lib/include/**/*.h
+      - CMakeLists.txt
+      - pyproject.toml
+    generates:
+      - dist/py/*.whl
+
+  build:py:linux:
+    desc: "Build Python wheel for Linux (via Docker)"
+    cmds:
+      - docker compose run --rm build task build:py BUILD_TYPE={{.BUILD_TYPE}}
+      - docker compose run --rm build task repair:py
+
+  build:py:darwin:
+    desc: "Build Python wheel for macOS"
+    cmds:
+      - task: build:py
+
+  repair:py:
+    desc: "Repair Linux Python wheels with auditwheel (converts to manylinux)"
+    cmds:
+      - |
+        if [ "{{OS}}" = "linux" ] && ls dist/py/*linux*.whl 1> /dev/null 2>&1; then
+          echo "Repairing Linux wheels with auditwheel..."
+          for wheel in dist/py/*linux_x86_64*.whl; do
+            if [ -f "$wheel" ]; then
+              echo "Repairing: $wheel"
+              auditwheel repair "$wheel" --exclude librtmsdk.so.0 -w dist/py
+              rm "$wheel"
+              echo "Wheel repaired successfully"
+            fi
+          done
+        else
+          echo "Skipping wheel repair (not Linux or no Linux wheels found)"
+        fi
+
+  # =============================================================================
+  # Go Build Tasks (Placeholder)
+  # =============================================================================
+
+  build:go:
+    desc: "Build Go bindings (placeholder)"
+    deps: [doctor]
+    cmds:
+      - echo "Go bindings not yet implemented"
+      - cmake-js configure --CDCMAKE_BUILD_TYPE={{.BUILD_TYPE}} --CDGO=true
+
+  build:go:linux:
+    desc: "Build Go bindings for Linux (placeholder)"
+    cmds:
+      - task: build:go
+
+  build:go:darwin:
+    desc: "Build Go bindings for macOS (placeholder)"
+    cmds:
+      - task: build:go
+
+  # =============================================================================
+  # Multi-Language Build Tasks
+  # =============================================================================
+
+  build:local:
+    desc: "Build all bindings for local platform"
+    cmds:
+      - task: build:js
+      - task: build:py
+
+  build:linux:
+    desc: "Build all bindings for Linux (via Docker)"
+    cmds:
+      - task: build:js:linux
+      - task: build:py:linux
+
+  build:all:
+    desc: "Build all bindings for all platforms"
+    cmds:
+      - task: build:local
+      - task: build:linux
+
+  # =============================================================================
+  # Prebuild & Packaging Tasks
+  # =============================================================================
+
+  prebuild:js:
+    desc: "Create Node.js prebuilds for all platforms"
+    deps: [build:js, build:js:linux]
+    cmds:
+      - node scripts/prebuild.js
+
+  prebuild:js:linux:
+    desc: "Create Node.js prebuilds for Linux only"
+    deps: [build:js:linux]
+    cmds:
+      - node scripts/prebuild.js --platform linux
+
+  prebuild:js:darwin:
+    desc: "Create Node.js prebuilds for macOS only"
+    deps: [build:js]
+    cmds:
+      - node scripts/prebuild.js --platform darwin
+
+  package:py:
+    desc: "Build Python sdist + wheels"
+    cmds:
+      - python3 -m build --outdir dist/py
+
+  # =============================================================================
+  # Testing Tasks
+  # =============================================================================
+
+  test:js:
+    desc: "Run Node.js tests (local)"
+    deps: [build:js]
+    cmds:
+      - npx jest tests/
+
+  test:js:linux:
+    desc: "Run Node.js tests in Linux Docker"
+    cmds:
+      - docker compose run --rm test-js
+
+  test:py:
+    desc: "Run Python tests (local)"
+    deps: [build:py]
+    cmds:
+      - echo "Python tests not yet implemented"
+      # - python3 -m pytest tests/
+
+  test:py:linux:
+    desc: "Run Python tests in Linux Docker"
+    cmds:
+      - docker compose run --rm test-py
+
+  test:local:
+    desc: "Run all tests locally"
+    cmds:
+      - task: test:js
+      - task: test:py
+
+  test:linux:
+    desc: "Run all tests in Linux Docker"
+    cmds:
+      - task: test:js:linux
+      - task: test:py:linux
+
+  test:all:
+    desc: "Run tests on all platforms (local + Docker)"
+    cmds:
+      - task: test:local
+      - task: test:linux
+
+  # =============================================================================
+  # Manual Testing Tasks
+  # =============================================================================
+
+  manual:js:
+    desc: "Run interactive Node.js manual test"
+    deps: [build:js]
+    cmds:
+      - NODE_ENV=test node --trace-deprecation --force-node-api-uncaught-exceptions-policy=true --env-file=.env test.js
+
+  manual:py:
+    desc: "Run interactive Python manual test"
+    deps: [build:py]
+    cmds:
+      - python3 -m pip install --force dist/py/*.whl
+      - python3 test.py
+
+  manual:js:linux:
+    desc: "Run interactive Node.js manual test in Linux Docker"
+    cmds:
+      - docker compose run --rm -it test-js sh -c "npm run test:js-manual"
+
+  manual:py:linux:
+    desc: "Run interactive Python manual test in Linux Docker"
+    cmds:
+      - docker compose run --rm -it test-py sh -c "npm run test:py-manual"
+
+  # =============================================================================
+  # Documentation Tasks
+  # =============================================================================
+
+  docs:js:
+    desc: "Generate Node.js API documentation"
+    cmds:
+      - mkdir -p docs
+      - cp .github/docs-template/index.html docs/
+      - npx --yes typedoc rtms.d.ts --highlightLanguages py --highlightLanguages js --highlightLanguages sh --highlightLanguages ts --plugin typedoc-plugin-missing-exports --out docs/js
+    sources:
+      - rtms.d.ts
+      - src/**/*.cpp
+    generates:
+      - docs/js/index.html
+
+  docs:py:
+    desc: "Generate Python API documentation"
+    cmds:
+      - mkdir -p docs
+      - pdoc3 -o docs/py/ --force --html rtms
+    sources:
+      - src/**/*.py
+      - src/**/*.pyi
+    generates:
+      - docs/py/index.html
+
+  docs:all:
+    desc: "Generate all documentation"
+    cmds:
+      - task: docs:js
+      - task: docs:py
+
+  docs:serve:
+    desc: "Serve documentation locally (port 8000)"
+    deps: [docs:all]
+    cmds:
+      - python3 -m http.server 8000 --directory docs
+
+  # =============================================================================
+  # Publishing Tasks
+  # =============================================================================
+
+  publish:js:
+    desc: "Upload Node.js prebuilds to GitHub Releases"
+    deps: [prebuild:js]
+    cmds:
+      - node scripts/publish.js --node
+
+  publish:js:linux:
+    desc: "Upload Node.js prebuilds for Linux to GitHub Releases"
+    deps: [prebuild:js:linux]
+    cmds:
+      - node scripts/publish.js --node --platform linux
+
+  publish:js:darwin:
+    desc: "Upload Node.js prebuilds for macOS to GitHub Releases"
+    deps: [prebuild:js:darwin]
+    cmds:
+      - node scripts/publish.js --node --platform darwin
+
+  publish:py:
+    desc: "Upload Python wheels to PyPI"
+    deps: [build:py, build:py:linux]
+    cmds:
+      - node scripts/publish.js --python --prod
+
+  publish:py:test:
+    desc: "Upload Python wheels to TestPyPI"
+    deps: [build:py, build:py:linux]
+    cmds:
+      - node scripts/publish.js --python --test
+
+  # =============================================================================
+  # Utility Tasks
+  # =============================================================================
+
+  clean:
+    desc: "Remove all build artifacts"
+    cmds:
+      - rm -rf build dist docs prebuilds node_modules
+      - rm -rf **/__pycache__ **/*.egg-info
+      - rm -rf .pytest_cache .coverage htmlcov
+      - echo "Clean completed successfully"
+
+  clean:build:
+    desc: "Remove only build outputs (keep dependencies)"
+    cmds:
+      - rm -rf build dist docs prebuilds
+      - rm -rf **/__pycache__ **/*.egg-info
+
+  format:
+    desc: "Format code (placeholder)"
+    cmds:
+      - echo "Code formatting not yet configured"
+
+  lint:
+    desc: "Lint code (placeholder)"
+    cmds:
+      - echo "Code linting not yet configured"
+
+  # =============================================================================
+  # CI/CD Helper Tasks
+  # =============================================================================
+
+  ci:test:
+    desc: "Run CI test matrix"
+    cmds:
+      - task: test:all
+
+  ci:build:
+    desc: "Build for CI (all platforms)"
+    cmds:
+      - task: build:all
+
+  ci:docs:
+    desc: "Generate and verify documentation"
+    cmds:
+      - task: docs:all
+      - echo "Documentation generated successfully"
+
+  # =============================================================================
+  # Development Helper Tasks
+  # =============================================================================
+
+  dev:watch:
+    desc: "Watch for changes and rebuild (requires watchexec)"
+    cmds:
+      - watchexec -w src -w lib/include -e cpp,h -- task build:js
+
+  dev:shell:
+    desc: "Open interactive shell in Docker build environment"
+    cmds:
+      - docker compose run --rm -it build bash
+
+  # =============================================================================
+  # Legacy Compatibility (optional, for transition period)
+  # =============================================================================
+
+  npm:install:
+    desc: "npm install compatibility (calls setup)"
+    cmds:
+      - task: setup
+
+  # Default task - show help
+  default:
+    desc: "Show available tasks"
+    cmds:
+      - task --list
+    silent: true

@@ -1,10 +1,9 @@
 name: rtms
 
+# Base configuration for all services
 x-base: &base
   build:
     context: .
-    args:
-      TARGET: all  # Default to all dependencies
   platform: linux/amd64
   cap_add:
     - SYS_PTRACE
@@ -14,11 +13,12 @@ x-base: &base
     - .:/tmp/rtms
     - ./logs:/tmp/rtms/logs
     - ./test-results:/tmp/rtms/test-results
+  working_dir: /tmp/rtms
   develop:
     watch:
       - action: rebuild
         path: ./
-        ignore: 
+        ignore:
           - dist
           - logs
           - node_modules
@@ -26,97 +26,52 @@ x-base: &base
         target: /tmp/rtms
 
 services:
-  js: &js
+  # =============================================================================
+  # Build Service - Universal build environment with Task installed
+  # =============================================================================
+  build:
     <<: *base
     build:
+      context: .
       args:
-        TARGET: js
-    command: npm run prebuild:js
-    
-  py: &py
-    <<: *base
-    build:
-      args:
-        TARGET: py
-    command: npm run build:py
-    
+        TARGET: all  # Install all dependencies
+    # Default command: run bash (for interactive use)
+    # Override with: docker compose run build task <command>
+    command: /bin/bash
+
+  # =============================================================================
+  # Test Services - Pre-configured for running tests
+  # =============================================================================
   test-js:
     <<: *base
     build:
+      context: .
       args:
         TARGET: js
-    depends_on:
-      js:
-        condition: service_completed_successfully
-    command: >
-      sh -c "
-        echo 'Running JavaScript tests...' &&
-        npm run test:js &&
-        echo 'JavaScript tests completed successfully!'
-      "
-      
+    ports:
+      - "8080:8080"
+    command: sh -c "task build:js && task manual:js"
+
   test-py:
     <<: *base
     build:
+      context: .
       args:
         TARGET: py
-    depends_on:
-      py:
-        condition: service_completed_successfully
-    command: >
-      sh -c "
-        echo 'Running Python tests...' &&
-        npm run test:py &&
-        echo 'Python tests completed successfully!'
-      "
-      
-  # Test both languages together
-  test-all:
+    ports:
+      - "8080:8080"
+    command: sh -c "task build:py && echo 'Python tests not yet implemented'"
+
+  # =============================================================================
+  # Docs Service - Documentation generation
+  # =============================================================================
+  docs:
     <<: *base
     build:
+      context: .
       args:
         TARGET: all
-    depends_on:
-      - js
-      - py
-    command: >
-      sh -c "
-        echo 'Running all tests...' &&
-        npm run test &&
-        echo 'All tests completed successfully!'
-      "
-
-  docs-js:
-    <<: *base
-    build:
-      args:
-        TARGET: js
-    command: npm run docs:js
-    volumes:
-      - .:/tmp/rtms
-      - ./docs:/tmp/rtms/docs
-  docs-py:
-    <<: *base
-    build:
-      args:
-        TARGET: py
-    command: npm run docs:py
-    volumes:
-      - .:/tmp/rtms
-      - ./docs:/tmp/rtms/docs
-
-  docs-all:
-    <<: *base
-    build:
-      args:
-        TARGET: all
-    # Only build docs if tests pass
-    depends_on:
-      test-js:
-        condition: service_completed_successfully
-      test-py:
-        condition: service_completed_successfully
-    command: npm run docs
+    command: sh -c "task docs:all"
     volumes:
       - .:/tmp/rtms
       - ./docs:/tmp/rtms/docs

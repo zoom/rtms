@@ -167,32 +167,34 @@ Napi::Value NodeClient::setDeskshareParams(const Napi::CallbackInfo& info)
 }
 
 rtms::AudioParams readAudioParams(const Napi::Object& params) {
+    // Start with sensible defaults (contentType=RAW_AUDIO, codec=OPUS, etc.)
+    // Users can override any individual field without setting all fields
     rtms::AudioParams audio_params;
 
     if (params.Has("contentType") && params.Get("contentType").IsNumber()) {
         audio_params.setContentType(params.Get("contentType").As<Napi::Number>().Int32Value());
     }
-    
+
     if (params.Has("codec") && params.Get("codec").IsNumber()) {
         audio_params.setCodec(params.Get("codec").As<Napi::Number>().Int32Value());
     }
-    
+
     if (params.Has("sampleRate") && params.Get("sampleRate").IsNumber()) {
         audio_params.setSampleRate(params.Get("sampleRate").As<Napi::Number>().Int32Value());
     }
-    
+
     if (params.Has("channel") && params.Get("channel").IsNumber()) {
         audio_params.setChannel(params.Get("channel").As<Napi::Number>().Int32Value());
     }
-    
+
     if (params.Has("dataOpt") && params.Get("dataOpt").IsNumber()) {
         audio_params.setDataOpt(params.Get("dataOpt").As<Napi::Number>().Int32Value());
     }
-    
+
     if (params.Has("duration") && params.Get("duration").IsNumber()) {
         audio_params.setDuration(params.Get("duration").As<Napi::Number>().Int32Value());
     }
-    
+
     if (params.Has("frameSize") && params.Get("frameSize").IsNumber()) {
         audio_params.setFrameSize(params.Get("frameSize").As<Napi::Number>().Int32Value());
     }
@@ -212,8 +214,17 @@ Napi::Value NodeClient::setAudioParams(const Napi::CallbackInfo& info)
 
     Napi::Object params = info[0].As<Napi::Object>();
     auto audio_params = readAudioParams(params);
+
+    // Validate parameters before setting
+    try {
+        audio_params.validate();
+    } catch (const std::invalid_argument& e) {
+        Napi::Error::New(env, e.what()).ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
     client_->setAudioParams(audio_params);
-    
+
     return Napi::Boolean::New(env, true);
 }
 
