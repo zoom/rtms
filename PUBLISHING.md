@@ -86,8 +86,23 @@ export NPM_TOKEN="your-npm-token"
 
 **GitHub Releases** (for prebuilds):
 ```bash
-export GITHUB_TOKEN="your-github-personal-access-token"
+export GITHUB_TOKEN="github_pat_yourFineGrainedTokenHere"
 ```
+
+**How to create a fine-grained GitHub token:**
+1. Go to [GitHub Settings → Developer settings → Personal access tokens → Fine-grained tokens](https://github.com/settings/tokens?type=beta)
+2. Click "Generate new token"
+3. Configure the token:
+   - **Token name**: `RTMS Publishing` (or similar)
+   - **Expiration**: Choose an appropriate timeframe
+   - **Repository access**: Select "Only select repositories" → Choose `zoom/rtms`
+   - **Permissions** → Repository permissions:
+     - **Contents**: Read and write access (required to upload release assets)
+4. Click "Generate token" at the bottom
+5. Copy the token immediately (starts with `github_pat_...`)
+6. Export it in your shell: `export GITHUB_TOKEN="github_pat_..."`
+
+**Note:** The token must have **Contents: Read and write** permission for the `zoom/rtms` repository to upload assets to GitHub Releases.
 
 ### Python Publishing
 
@@ -345,8 +360,8 @@ task prebuild:js          # All 4 combinations
 Prebuilds must be uploaded to GitHub releases before publishing to npm. The upload process **automatically loops through all N-API versions and platforms**.
 
 ```bash
-# Set GitHub token
-export GITHUB_TOKEN="ghp_your_token_here"
+# Set GitHub token (fine-grained token)
+export GITHUB_TOKEN="github_pat_yourTokenHere"
 
 # Upload all prebuilds (all platforms + N-API versions)
 task publish:js
@@ -580,7 +595,7 @@ docker compose up test-js # Test Node.js on Linux
 
 6. **Upload prebuilds:**
    ```bash
-   export GITHUB_TOKEN="your-token"
+   export GITHUB_TOKEN="github_pat_yourTokenHere"
    task publish:js:darwin
    task publish:js:linux
    ```

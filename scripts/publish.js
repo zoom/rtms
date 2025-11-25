@@ -15,38 +15,31 @@ import fs from 'fs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { parsePlatformArg, colors, log as logUtil, success as successUtil, error as errorUtil, warning as warningUtil } from './common.js';
 
 // Get project root
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const PROJECT_ROOT = join(__dirname, '..');
 
-// Color codes for output
-const colors = {
-  reset: '\x1b[0m',
-  cyan: '\x1b[36m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  red: '\x1b[31m',
-  dim: '\x1b[2m',
-  bold: '\x1b[1m'
-};
+// Wrapper functions for logging
+const PREFIX = 'Publish';
 
 function log(message) {
-  console.log(`${colors.cyan}[Publish]${colors.reset} ${message}`);
+  logUtil(PREFIX, message);
 }
 
 function success(message) {
-  console.log(`${colors.green}[Publish Success]${colors.reset} ${message}`);
+  successUtil(PREFIX, message);
 }
 
 function error(message) {
-  console.error(`${colors.red}[Publish Error]${colors.reset} ${message}`);
+  errorUtil(PREFIX, message);
   process.exit(1);
 }
 
 function warning(message) {
-  console.log(`${colors.yellow}[Publish Warning]${colors.reset} ${message}`);
+  warningUtil(PREFIX, message);
 }
 
 /**
@@ -126,6 +119,7 @@ function uploadNodeJS(platform = null) {
     for (const napiVersion of napiVersions) {
       log(`Uploading ${plat}-${arch}, N-API v${napiVersion}...`);
 
+      // Use shell variable expansion to avoid printing token in logs
       const uploadCmd = `${prebuildCmdBase} --arch ${arch} --platform ${plat} --target ${napiVersion} -u "$GITHUB_TOKEN"`;
       const success = run(uploadCmd, { allowFailure: true });
 
@@ -142,7 +136,7 @@ function uploadNodeJS(platform = null) {
     success(`All prebuilds uploaded successfully (${successful}/${total})`);
   } else {
     const failed = total - successful;
-    warning(`Some uploads may have failed: ${successful}/${total} succeeded`);
+    warning(`Some uploads may have failed: ${successful}/${total} succeeded, ${failed} failed`);
   }
 }
 
@@ -211,14 +205,8 @@ function parseArgs() {
     python: args.includes('--python'),
     test: args.includes('--test'),
     prod: args.includes('--prod'),
-    platform: null
+    platform: parsePlatformArg(args)
   };
-
-  // Extract platform
-  const platformArg = args.find(arg => arg.startsWith('--platform='));
-  if (platformArg) {
-    options.platform = platformArg.split('=')[1];
-  }
 
   return options;
 }

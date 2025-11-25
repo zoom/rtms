@@ -173,6 +173,17 @@ function getUpgradeInstructions(tool) {
 }
 
 /**
+ * Check if we're running inside a Docker container
+ */
+function isInsideDocker() {
+  try {
+    return fs.existsSync('/.dockerenv');
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Check for Zoom RTMS SDK
  */
 function checkSDK() {
@@ -236,9 +247,19 @@ function main() {
   console.log(`\n${colors.bold}${colors.cyan}RTMS SDK System Requirements Check${colors.reset}\n`);
 
   const results = [];
+  const insideDocker = isInsideDocker();
+
+  if (insideDocker) {
+    console.log(`${colors.cyan}ℹ${colors.reset} ${colors.dim}Running inside Docker container${colors.reset}\n`);
+  }
 
   // Check all requirements
   for (const [name, config] of Object.entries(REQUIREMENTS)) {
+    // Skip docker check if we're inside Docker
+    if (name === 'docker' && insideDocker) {
+      console.log(`${colors.dim}⊘ ${colors.bold}docker${colors.reset} ${colors.dim}(skipped - running inside container)${colors.reset}`);
+      continue;
+    }
     results.push(checkRequirement(name, config));
   }
 

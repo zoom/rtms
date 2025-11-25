@@ -4,7 +4,7 @@ Bindings for real-time audio, video, and transcript streams from Zoom Meetings
 
 [![npm](https://img.shields.io/npm/v/@zoom/rtms)](https://www.npmjs.com/package/@zoom/rtms)
 [![PyPI](https://img.shields.io/pypi/v/rtms)](https://pypi.org/project/rtms/)
-[![TestPyPI](https://img.shields.io/badge/testpypi-v0.0.1-blue)](https://test.pypi.org/project/rtms/)
+[![TestPyPI](https://img.shields.io/badge/testpypi-v0.0.2-blue)](https://test.pypi.org/project/rtms/)
 [![docs](https://img.shields.io/badge/docs-online-blue)](https://zoom.github.io/rtms/js/)
 
 ## Platform Support Status

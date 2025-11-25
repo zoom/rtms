@@ -166,7 +166,7 @@ tasks:
     desc: "Create Node.js prebuilds for Linux only"
     deps: [build:js:linux]
     cmds:
-      - node scripts/prebuild.js --platform linux
+      - docker compose run --rm build node scripts/prebuild.js --platform linux
 
   prebuild:js:darwin:
     desc: "Create Node.js prebuilds for macOS only"

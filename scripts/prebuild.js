@@ -15,37 +15,31 @@ import fs from 'fs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { parsePlatformArg, colors, log as logUtil, success as successUtil, error as errorUtil, warning as warningUtil } from './common.js';
 
 // Get project root
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const PROJECT_ROOT = join(__dirname, '..');
 
-// Color codes for output
-const colors = {
-  reset: '\x1b[0m',
-  cyan: '\x1b[36m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  red: '\x1b[31m',
-  dim: '\x1b[2m'
-};
+// Wrapper functions for logging
+const PREFIX = 'Prebuild';
 
 function log(message) {
-  console.log(`${colors.cyan}[Prebuild]${colors.reset} ${message}`);
+  logUtil(PREFIX, message);
 }
 
 function success(message) {
-  console.log(`${colors.green}[Prebuild Success]${colors.reset} ${message}`);
+  successUtil(PREFIX, message);
 }
 
 function error(message) {
-  console.error(`${colors.red}[Prebuild Error]${colors.reset} ${message}`);
+  errorUtil(PREFIX, message);
   process.exit(1);
 }
 
 function warning(message) {
-  console.log(`${colors.yellow}[Prebuild Warning]${colors.reset} ${message}`);
+  warningUtil(PREFIX, message);
 }
 
 /**
@@ -98,7 +92,7 @@ function createPrebuild(platform, arch, napiVersion) {
  * Verify prebuild was created
  */
 function verifyPrebuild(platform, arch, napiVersion) {
-  const prebuildDir = join(PROJECT_ROOT, 'prebuilds');
+  const prebuildDir = join(PROJECT_ROOT, 'prebuilds', '@zoom');
   const expectedPattern = `${platform}-${arch}`;
 
   if (!fs.existsSync(prebuildDir)) {
@@ -124,7 +118,7 @@ function verifyPrebuild(platform, arch, napiVersion) {
 function main() {
   // Parse command line arguments
   const args = process.argv.slice(2);
-  const platformArg = args.find(arg => arg.startsWith('--platform='))?.split('=')[1];
+  const platformArg = parsePlatformArg(args);
 
   // Platform configurations
   const platforms = [

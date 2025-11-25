@@ -199,7 +199,7 @@ if(DEFINED CMAKE_JS_VERSION)
     
   add_custom_command(
     TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND tsc --outDir ${RTMS_OUTPUT_DIR}
+    COMMAND npx tsc --outDir ${RTMS_OUTPUT_DIR}
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Compiling TypeScript files"
   )

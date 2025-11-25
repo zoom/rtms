@@ -11,7 +11,7 @@
  */
 
 import { execSync } from 'child_process';
-import { existsSync } from 'fs';
+import { existsSync, readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -39,6 +39,43 @@ function warning(message) {
 }
 
 /**
+ * Extract framework tar.gz files after prebuild installation
+ */
+function extractFrameworks() {
+  try {
+    const buildDir = join(__dirname, '..', 'build', 'Release');
+
+    if (!existsSync(buildDir)) {
+      return;
+    }
+
+    log('Extracting framework bundles...');
+
+    // Find all .framework.tar.gz files
+    const files = readdirSync(buildDir);
+    const frameworkTars = files.filter(f => f.endsWith('.framework.tar.gz'));
+
+    for (const tarFile of frameworkTars) {
+      const tarPath = join(buildDir, tarFile);
+      log(`Extracting ${tarFile}...`);
+
+      // Extract using tar command
+      execSync(`tar -xzf "${tarPath}"`, {
+        cwd: buildDir,
+        stdio: 'inherit'
+      });
+    }
+
+    if (frameworkTars.length > 0) {
+      success(`Extracted ${frameworkTars.length} framework bundle(s)`);
+    }
+  } catch (err) {
+    warning(`Failed to extract frameworks: ${err.message}`);
+    // Don't fail installation if extraction fails
+  }
+}
+
+/**
  * Try to install prebuilt binary
  */
 function installPrebuild() {
@@ -52,6 +89,10 @@ function installPrebuild() {
     });
 
     success('Prebuilt binary installed successfully!');
+
+    // Extract framework tarballs after prebuild installation
+    extractFrameworks();
+
     return true;
   } catch (err) {
     // Prebuild not available - this is OK

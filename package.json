@@ -1,6 +1,6 @@
 {
   "name": "@zoom/rtms",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Node.js Wrapper for the Zoom RTMS C SDK",
   "main": "./build/Release/index.js",
   "types": "rtms.d.ts",
@@ -41,7 +41,6 @@
     "scripts",
     "src/{node,rtms}.cpp",
     "src/rtms.h",
-    "tests",
     "tsconfig.json"
   ],
   "repository": {
