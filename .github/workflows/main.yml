@@ -52,6 +52,8 @@ jobs:
       uses: docker/setup-compose-action@v1.1.0
 
     - name: Run Node.js tests with Node ${{ matrix.node-version }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: docker compose run --rm test-js
 
   # Test Node.js SDK on macOS (darwin-arm64)
@@ -76,6 +78,8 @@ jobs:
       run: brew install go-task
 
     - name: Setup project
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: task setup
 
     - name: Build Node.js addon
@@ -125,6 +129,8 @@ jobs:
         pip install build pytest python-dotenv pybind11 scikit-build-core
 
     - name: Setup SDK
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: task setup
 
     - name: Build Python module
@@ -170,6 +176,8 @@ jobs:
         pip install build pytest python-dotenv pybind11 scikit-build-core
 
     - name: Setup project
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: task setup
 
     - name: Build Python module

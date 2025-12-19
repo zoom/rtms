@@ -48,6 +48,8 @@ services:
       context: .
       args:
         TARGET: js
+    environment:
+      - GITHUB_TOKEN
     ports:
       - "8080:8080"
     command: sh -c "task build:js && task manual:js"

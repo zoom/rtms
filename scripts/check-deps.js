@@ -69,11 +69,16 @@ function isLibDirectoryEmpty(libPath) {
 // Simple fetch implementation using https module for better compatibility
 function httpsGet(url) {
   return new Promise((resolve, reject) => {
-    https.get(url, {
-      headers: {
-        'User-Agent': 'rtms-build-script'
-      }
-    }, (res) => {
+    const headers = {
+      'User-Agent': 'rtms-build-script'
+    };
+
+    // Use GitHub token if available (for CI/CD to avoid rate limits)
+    if (process.env.GITHUB_TOKEN) {
+      headers['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`;
+    }
+
+    https.get(url, { headers }, (res) => {
       let data = '';
       
       res.on('data', (chunk) => {
