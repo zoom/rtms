@@ -133,6 +133,17 @@ task --list
 
 For detailed contribution guidelines, build instructions, and troubleshooting, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Examples by Product
+
+**Choose your Zoom product to get started:**
+
+- **Zoom Meetings** - Real-time streams from Zoom Meetings
+  - [Node.js Quick Start](examples/meetings.md)
+- **[Zoom Webinars](examples/webinars.md)** - Broadcast-quality webinar streams
+- **[Zoom Video SDK](examples/videosdk.md)** - Custom video experiences with RTMS access
+
+See [examples/](examples/) for complete documentation and use cases.
+
 ## Usage
 
 ### Node.js - Webhook Integration
