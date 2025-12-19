@@ -7,6 +7,16 @@ Bindings for real-time audio, video, and transcript streams from Zoom Meetings
 [![TestPyPI](https://img.shields.io/badge/testpypi-v0.0.1-blue)](https://test.pypi.org/project/rtms/)
 [![docs](https://img.shields.io/badge/docs-online-blue)](https://zoom.github.io/rtms/js/)
 
+## Supported Products
+
+The RTMS SDK works with multiple Zoom products:
+
+- **[Zoom Meetings](examples/meetings.md)** - Real-time streams from Zoom Meetings
+- **[Zoom Webinars](examples/webinars.md)** - Broadcast-quality streams from Zoom Webinars
+- **[Zoom Video SDK](examples/videosdk.md)** - Custom video experiences with RTMS access
+
+See [examples/](examples/) for complete guides and code samples.
+
 ## Platform Support Status
 
 | Language | Status | Supported Platforms |
@@ -132,17 +142,6 @@ task --list
 ```
 
 For detailed contribution guidelines, build instructions, and troubleshooting, see [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Examples by Product
-
-**Choose your Zoom product to get started:**
-
-- **Zoom Meetings** - Real-time streams from Zoom Meetings
-  - [Node.js Quick Start](examples/meetings.md)
-- **[Zoom Webinars](examples/webinars.md)** - Broadcast-quality webinar streams
-- **[Zoom Video SDK](examples/videosdk.md)** - Custom video experiences with RTMS access
-
-See [examples/](examples/) for complete documentation and use cases.
 
 ## Usage
 
