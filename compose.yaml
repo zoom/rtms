@@ -52,7 +52,7 @@ services:
       - GITHUB_TOKEN
     ports:
       - "8080:8080"
-    command: sh -c "task build:js && task manual:js"
+    command: sh -c "task setup && task build:js && task manual:js"
 
   test-py:
     <<: *base
