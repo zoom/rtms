@@ -2,9 +2,9 @@ name: Test, Build & Deploy Documentation
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches: [ "main", "dev", "feat/release-infra" ]
   pull_request:
-    branches: [ "main", "dev" ]
+    branches: [ "main", "dev", "feat/release-infra" ]
   workflow_dispatch:  # Manual trigger for testing
     inputs:
       run_tests:
