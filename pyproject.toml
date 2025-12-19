@@ -73,3 +73,33 @@ build-type = "Release"
 [tool.scikit-build.metadata.version]
 provider = "scikit_build_core.metadata.regex"
 input = "pyproject.toml"
+
+# cibuildwheel configuration for multi-version Python wheel building
+[tool.cibuildwheel]
+# Build for Python 3.10, 3.11, 3.12, 3.13 on supported platforms
+build = "cp310-* cp311-* cp312-* cp313-*"
+
+# Skip 32-bit builds and musllinux (we only support glibc)
+skip = "*-win32 *-manylinux_i686 *-musllinux_*"
+
+# Platform-specific settings for macOS
+[tool.cibuildwheel.macos]
+archs = ["arm64"]  # Only Apple Silicon for macOS
+repair-wheel-command = ""  # Disable delocate (SDK already bundled)
+
+# Platform-specific settings for Linux
+[tool.cibuildwheel.linux]
+archs = ["x86_64"]
+repair-wheel-command = "auditwheel repair --exclude librtmsdk.so.0 -w {dest_dir} {wheel}"
+manylinux-x86_64-image = "manylinux_2_17"  # CentOS 8 equivalent
+
+# Environment variables during build
+[tool.cibuildwheel.environment]
+CMAKE_BUILD_TYPE = "Release"
+
+# Test command (run after each wheel build)
+test-command = "python -c 'import rtms; print(rtms.__version__)'"
+test-requires = ["pytest", "python-dotenv"]
+
+# Before build: ensure SDK files are present
+before-build = "ls -la {project}/lib/linux-x64/ || ls -la {project}/lib/darwin-arm64/ || echo 'SDK files must be present'"

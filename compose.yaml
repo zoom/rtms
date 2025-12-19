@@ -75,3 +75,17 @@ services:
     volumes:
       - .:/tmp/rtms
       - ./docs:/tmp/rtms/docs
+
+  # =============================================================================
+  # cibuildwheel Service - Multi-version Python wheel building
+  # =============================================================================
+  cibuild-py:
+    <<: *base
+    build:
+      context: .
+      args:
+        TARGET: py-cibuild
+    command: sh -c "pip install cibuildwheel && cibuildwheel --platform linux --output-dir dist/py"
+    volumes:
+      - .:/tmp/rtms
+      - ./dist:/tmp/rtms/dist

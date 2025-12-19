@@ -109,6 +109,26 @@ tasks:
           echo "Skipping wheel repair (not Linux or no Linux wheels found)"
         fi
 
+  # cibuildwheel tasks for multi-version Python wheel building
+  build:py:cibuildwheel:
+    desc: "Build Python wheels for all versions using cibuildwheel (auto-detect platform)"
+    deps: [doctor]
+    cmds:
+      - pip install cibuildwheel
+      - cibuildwheel --platform auto --output-dir dist/py
+
+  build:py:cibuildwheel:linux:
+    desc: "Build Python wheels for Linux (all versions via Docker)"
+    cmds:
+      - docker compose run --rm cibuild-py
+
+  build:py:cibuildwheel:darwin:
+    desc: "Build Python wheels for macOS (all versions)"
+    deps: [doctor]
+    cmds:
+      - pip install cibuildwheel
+      - cibuildwheel --platform macos --output-dir dist/py
+
   # =============================================================================
   # Go Build Tasks (Placeholder)
   # =============================================================================
