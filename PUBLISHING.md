@@ -272,9 +272,430 @@ git tag js-vX.Y.Z
 git push origin js-vX.Y.Z
 
 # Python releases
-git tag python-vX.Y.Z
-git push origin python-vX.Y.Z
+git tag py-vX.Y.Z
+git push origin py-vX.Y.Z
 ```
+
+## Git Tag-Based Publishing (Recommended)
+
+### Overview
+
+Publishing is now **automated via git tags with manual approval**. When you push a tag matching `js-v*` or `py-v*`, CI/CD automatically builds all artifacts, then **pauses for human approval** before publishing to npm/PyPI.
+
+### Prerequisites
+
+Before creating a git tag, ensure:
+
+1. **Version bumped** in package.json or pyproject.toml
+2. **Changes committed and pushed** to main branch
+3. **All CI tests passing** (check Actions tab)
+4. **CHANGELOG.md updated** with release notes
+5. **Git tag does not already exist**
+6. **GitHub Environment configured** (one-time setup, see below)
+7. **GitHub secrets configured**: `NPM_TOKEN`, `PYPI_TOKEN`, `TESTPYPI_TOKEN`
+
+### Tag Naming Convention
+
+Use language-prefixed semantic version tags:
+
+- **Node.js releases**: `js-v{version}` (e.g., `js-v0.0.7`)
+- **Python releases**: `py-v{version}` (e.g., `py-v0.0.3`)
+
+**Rationale:**
+- Language prefix enables independent versioning
+- Clear distinction between language releases
+- Easy filtering in GitHub Releases UI
+- Prevents version conflicts between languages
+
+### GitHub Environment Setup (One-Time)
+
+The publish workflow requires a "production" GitHub Environment with manual approval.
+
+**Setup Steps:**
+
+1. Go to repository **Settings** → **Environments**
+2. Click **"New environment"**
+3. Name: `production`
+4. Check **"Required reviewers"**
+5. Add reviewers: Max Mansfield (and other release managers)
+6. **Optional settings:**
+   - **Wait timer**: 10 minutes (forces minimum review time)
+   - **Deployment branches**: Only main/master (recommended)
+7. Click **"Save protection rules"**
+
+**Cost:** GitHub Environments are **free** on public repositories. Only GitHub Actions minutes are counted (same as before).
+
+### Node.js Release with Git Tags
+
+**Step 1: Update version in package.json**
+
+```bash
+vim package.json  # Change "version" to "0.0.7"
+```
+
+**Step 2: Update CHANGELOG.md**
+
+Add release notes:
+
+```markdown
+## [0.0.7] - 2025-12-XX
+
+### Changed
+- Updated to latest Zoom RTMS C SDK
+- Improved performance for high-throughput streams
+
+### Fixed
+- Fixed memory leak in video frame processing
+```
+
+**Step 3: Commit version bump**
+
+```bash
+git add package.json CHANGELOG.md
+git commit -m "chore(js): bump version to 0.0.7"
+git push origin main
+```
+
+**Step 4: Wait for tests to pass**
+
+Check the Actions tab to ensure all CI tests complete successfully.
+
+**Step 5: Create and push git tag**
+
+```bash
+git tag js-v0.0.7
+git push origin js-v0.0.7
+```
+
+**Step 6: Monitor CI/CD workflow**
+
+1. Go to **Actions** tab → **"Publish Packages"** workflow
+2. Workflow automatically:
+   - Detects language (node) and version (0.0.7)
+   - Validates version matches package.json
+   - Builds prebuilds for darwin-arm64 and linux-x64
+   - Builds for N-API v9 and v10 (4 total prebuilds)
+   - Uploads artifacts for review
+
+**Step 7: Review and approve**
+
+1. You'll receive email: **"Approval needed for rtms deployment"**
+2. Click **"View workflow"** in email or Actions tab
+3. Review:
+   - ✅ All test results green
+   - ✅ Build artifacts (download and inspect if needed)
+   - ✅ Version numbers correct
+   - ✅ CHANGELOG accurate
+4. Click **"Review deployments"** button
+5. Select **"production"** environment
+6. Click **"Approve and deploy"**
+
+**Step 8: Automatic publishing**
+
+After approval, workflow automatically:
+- Uploads prebuilds to GitHub Releases
+- Publishes to npm registry
+- Creates GitHub Release with changelog
+
+**Step 9: Verify deployment**
+
+```bash
+# Check npm
+npm view @zoom/rtms
+
+# Test installation
+npm install @zoom/rtms
+
+# Check GitHub Release
+# Visit: https://github.com/zoom/rtms/releases
+```
+
+**Total time:** ~30-45 minutes (including ~20-30 min build + human approval)
+
+### Python Release with Git Tags
+
+**Step 1: Update version in pyproject.toml**
+
+```bash
+vim pyproject.toml  # Change "version" to "0.0.3"
+```
+
+**Step 2: Update CHANGELOG.md**
+
+```markdown
+## [0.0.3] - 2025-12-XX
+
+### Changed
+- Build wheels for Python 3.10-3.13 using cibuildwheel
+- Support darwin-arm64 and linux-x64
+
+### Fixed
+- Improved session constructor null pointer handling
+```
+
+**Step 3: Commit version bump**
+
+```bash
+git add pyproject.toml CHANGELOG.md
+git commit -m "chore(py): bump version to 0.0.3"
+git push origin main
+```
+
+**Step 4: Wait for tests to pass**
+
+Check Actions tab for successful test completion.
+
+**Step 5: Create and push git tag**
+
+```bash
+git tag py-v0.0.3
+git push origin py-v0.0.3
+```
+
+**Step 6: Monitor CI/CD workflow**
+
+Workflow automatically:
+- Detects language (python) and version (0.0.3)
+- Validates version matches pyproject.toml
+- Builds wheels for Python 3.10, 3.11, 3.12, 3.13
+- Builds for darwin-arm64 and linux-x64 (**8 total wheels**)
+- Runs `import rtms` test for each wheel
+- Applies auditwheel repair for Linux wheels
+
+**Step 7: Review and approve**
+
+Same approval process as Node.js (see above).
+
+**Step 8: Automatic publishing**
+
+After approval:
+- Publishes all 8 wheels to PyPI
+- Creates GitHub Release
+
+**Step 9: Verify deployment**
+
+```bash
+# Check PyPI
+pip search rtms
+# Or visit: https://pypi.org/project/rtms/
+
+# Test installation (try different Python versions)
+python3.10 -m pip install rtms
+python3.11 -m pip install rtms
+python3.12 -m pip install rtms
+python3.13 -m pip install rtms
+
+# Test import
+python -c "import rtms; print(rtms.__version__)"
+```
+
+### Testing Before Publishing (Dry-Run Mode)
+
+Use `workflow_dispatch` to test the publish workflow **without actually publishing**:
+
+**Step 1: Go to Actions → Publish Packages workflow**
+
+**Step 2: Click "Run workflow"**
+
+**Step 3: Configure dry-run:**
+
+- **Branch**: Select `main` or your feature branch
+- **Language**: `node` or `python`
+- **Version**: e.g., `0.0.7`
+- **Dry run**: ✅ **true** (important!)
+- **Target** (Python only): `test` (for TestPyPI)
+
+**Step 4: Click "Run workflow"**
+
+**Step 5: Monitor execution**
+
+Workflow will:
+- Build all artifacts
+- Run validation checks
+- Upload artifacts for download
+- **NOT publish** to npm/PyPI (dry-run mode)
+
+**Step 6: Download and inspect artifacts**
+
+Click on workflow run → Artifacts section → Download prebuilds/wheels
+
+This lets you verify builds work correctly before creating a real git tag.
+
+### Automated Validation
+
+The publish workflow automatically validates:
+
+1. **Version matching**: Tag version must match package.json/pyproject.toml
+2. **Build success**: All platforms must build without errors
+3. **Artifact validation**: Files exist, correctly named, proper platform tags
+4. **Test execution**: Import tests pass for all wheels
+
+If any validation fails, the workflow stops and sends an error notification.
+
+### Manual Approval Benefits
+
+**Why manual approval is required:**
+
+- ✅ **Human verification** before npm/PyPI publish
+- ✅ **Catch last-minute issues** (wrong version, missing files, broken builds)
+- ✅ **Audit trail** (who approved, when, from where)
+- ✅ **Can reject and fix** without publishing bad package
+- ✅ **Compliance-friendly** for enterprise/production SDKs
+- ✅ **Artifacts available for review** before publish
+- ✅ **Peace of mind** - nothing published until you explicitly approve
+
+**Without manual approval:**
+- Builds run automatically
+- Publishes to npm/PyPI immediately
+- ❌ **Cannot undo** - only deprecate/yank (see Rollback below)
+- ❌ Users may download bad version before you notice
+
+### Rollback Procedures
+
+#### Before Publishing (During Approval)
+
+**If you spot an issue while reviewing artifacts:**
+
+1. Click **"Reject deployment"** in GitHub Actions approval UI
+2. Workflow stops immediately (nothing published)
+3. Fix the issue in code
+4. Delete and recreate git tag:
+
+```bash
+# Delete tag locally and remotely
+git tag -d js-v0.0.7
+git push origin :refs/tags/js-v0.0.7
+
+# Fix issue, commit changes
+git add .
+git commit -m "fix: resolve issue found during release"
+git push origin main
+
+# Recreate tag
+git tag js-v0.0.7
+git push origin js-v0.0.7
+```
+
+5. Workflow runs again with fresh artifacts
+6. Review and approve
+
+**This is the preferred approach** - catch issues before publish!
+
+#### After Publishing (If Bad Package Escapes)
+
+**Important:** npm and PyPI do **NOT** allow deleting published versions. You can only deprecate/yank.
+
+**Node.js - npm deprecate:**
+
+```bash
+# Mark version as deprecated (users see warning)
+npm deprecate @zoom/rtms@0.0.7 "Critical bug - use 0.0.8 instead"
+
+# What this does:
+# - npm install @zoom/rtms will skip 0.0.7
+# - Users see deprecation warning when installing 0.0.7 specifically
+# - Existing installs keep working
+# - Package is NOT deleted, just discouraged
+```
+
+**Python - PyPI yank:**
+
+```bash
+# Yank the release (hides from default pip install)
+twine yank rtms 0.0.7 -r pypi --reason "Critical bug - use 0.0.8"
+
+# What this does:
+# - pip install rtms will skip 0.0.7
+# - Can still install via: pip install rtms==0.0.7 (if explicitly requested)
+# - Existing installs keep working
+# - Package is NOT deleted, just hidden from default installs
+```
+
+**GitHub Release:**
+
+```bash
+# Can delete GitHub release (does not affect npm/PyPI)
+gh release delete js-v0.0.7
+
+# Or edit release to add warning
+gh release edit js-v0.0.7 --notes "⚠️ **Do not use** - critical bugs. Use v0.0.8 instead."
+```
+
+**Then publish fixed version:**
+
+```bash
+# Bump to 0.0.8 in package.json/pyproject.toml
+vim package.json  # or pyproject.toml
+
+# Commit
+git add package.json CHANGELOG.md
+git commit -m "chore(js): bump version to 0.0.8 (hotfix)"
+git push origin main
+
+# Create new tag
+git tag js-v0.0.8
+git push origin js-v0.0.8
+
+# Approve when workflow pauses
+# New version becomes latest
+```
+
+### Troubleshooting
+
+#### "Version mismatch" error
+
+**Error:** Tag version doesn't match package.json/pyproject.toml
+
+**Solution:**
+- Check version in package file
+- Delete tag, fix version, recreate tag
+
+#### Approval never arrives
+
+**Check:**
+- GitHub Environment "production" exists
+- You are listed as a required reviewer
+- Email notifications enabled in GitHub settings
+- Check spam folder
+
+**Workaround:**
+- Go directly to Actions tab → Workflow run → Review button
+
+#### Workflow stuck at approval
+
+**If workflow has been waiting >24 hours:**
+
+GitHub automatically cancels after timeout. You can:
+1. Delete the tag
+2. Recreate the tag (workflow restarts)
+3. Approve within reasonable time
+
+#### Build fails on one platform
+
+**Workflow will stop** before approval stage.
+
+**Fix:**
+1. Check workflow logs for error
+2. Fix issue in code
+3. Delete and recreate tag
+4. Workflow rebuilds everything
+
+### Comparison: Manual vs Git Tag Publishing
+
+| Aspect | Manual (Legacy) | Git Tag (Recommended) |
+|--------|-----------------|----------------------|
+| **Trigger** | Run `task publish:js` | Push git tag |
+| **Build artifacts** | Manual `task prebuild:js` | Automatic (CI builds all) |
+| **Multi-platform** | Run on each platform | Automatic (matrix build) |
+| **Python versions** | One at a time | All 8 wheels at once |
+| **Validation** | Manual checks | Automatic validation |
+| **Approval** | None | Manual approval gate |
+| **Rollback** | No safety net | Reject before publish |
+| **Audit trail** | None | GitHub records |
+| **Time** | Variable | Consistent ~30-45 min |
+| **Best for** | Testing, development | Production releases |
+
+**Recommendation:** Use git tags for all production releases. Keep manual commands for local testing and development.
 
 ## Pre-Release Checklist
 
