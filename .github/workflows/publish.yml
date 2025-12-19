@@ -1,0 +1,286 @@
+name: Publish Packages
+
+on:
+  push:
+    tags:
+      - "js-v*"     # Node.js releases: js-v0.0.7
+      - "py-v*"     # Python releases: py-v0.0.3
+  workflow_dispatch:  # Manual trigger for testing
+    inputs:
+      language:
+        description: "Language to publish"
+        required: true
+        type: choice
+        options:
+          - node
+          - python
+      version:
+        description: "Version (e.g., 0.0.7)"
+        required: true
+        type: string
+      dry_run:
+        description: "Dry run (don't actually publish)"
+        required: false
+        default: true
+        type: boolean
+      target:
+        description: "Target (for Python: test or prod)"
+        required: false
+        default: "test"
+        type: choice
+        options:
+          - test
+          - prod
+
+jobs:
+  # Job 1: Detect what to publish
+  detect-release:
+    name: Detect Release Type
+    runs-on: ubuntu-latest
+    outputs:
+      language: ${{ steps.detect.outputs.language }}
+      version: ${{ steps.detect.outputs.version }}
+      should_publish: ${{ steps.detect.outputs.should_publish }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Detect language and version from tag
+        id: detect
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "language=${{ github.event.inputs.language }}" >> $GITHUB_OUTPUT
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+            echo "should_publish=${{ github.event.inputs.dry_run == 'false' }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/tags/js-v* ]]; then
+            echo "language=node" >> $GITHUB_OUTPUT
+            VERSION="${GITHUB_REF#refs/tags/js-v}"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "should_publish=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/tags/py-v* ]]; then
+            echo "language=python" >> $GITHUB_OUTPUT
+            VERSION="${GITHUB_REF#refs/tags/py-v}"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "should_publish=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_publish=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate version matches package
+        if: steps.detect.outputs.should_publish == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          if [[ "${{ steps.detect.outputs.language }}" == "node" ]]; then
+            PKG_VERSION=$(node -p "require('./package.json').version")
+            if [[ "$PKG_VERSION" != "${{ steps.detect.outputs.version }}" ]]; then
+              echo "Error: Tag version ${{ steps.detect.outputs.version }} doesn't match package.json version $PKG_VERSION"
+              exit 1
+            fi
+            echo "✓ Version validated: $PKG_VERSION"
+          elif [[ "${{ steps.detect.outputs.language }}" == "python" ]]; then
+            PKG_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
+            if [[ "$PKG_VERSION" != "${{ steps.detect.outputs.version }}" ]]; then
+              echo "Error: Tag version ${{ steps.detect.outputs.version }} doesn't match pyproject.toml version $PKG_VERSION"
+              exit 1
+            fi
+            echo "✓ Version validated: $PKG_VERSION"
+          fi
+
+  # Job 2: Build Node.js prebuilds (all platforms)
+  build-node-prebuilds:
+    name: Build Node.js Prebuilds
+    needs: detect-release
+    if: needs.detect-release.outputs.language == 'node'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: macos-latest
+            platform: darwin
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+
+      - name: Install Task (Linux)
+        if: runner.os == 'Linux'
+        run: sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b ~/.local/bin && echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install Task (macOS)
+        if: runner.os == 'macOS'
+        run: brew install go-task
+
+      - name: Setup project
+        run: task setup
+
+      - name: Build prebuilds
+        run: task prebuild:js:${{ matrix.platform }}
+
+      - name: Upload prebuild artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: prebuilds-${{ matrix.platform }}
+          path: prebuilds/*.tar.gz
+          retention-days: 7
+
+  # Job 3: Build Python wheels (all versions, all platforms)
+  build-python-wheels:
+    name: Build Python Wheels
+    needs: detect-release
+    if: needs.detect-release.outputs.language == 'python'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: macos-latest
+            platform: darwin
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install cibuildwheel
+        run: pip install cibuildwheel
+
+      - name: Build wheels with cibuildwheel
+        run: cibuildwheel --platform ${{ matrix.platform == 'darwin' && 'macos' || 'linux' }} --output-dir dist/py
+
+      - name: Upload wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.platform }}
+          path: dist/py/*.whl
+          retention-days: 7
+
+  # Job 4: Publish Node.js to GitHub Releases + npm
+  publish-node:
+    name: Publish Node.js Prebuilds
+    needs: [detect-release, build-node-prebuilds]
+    if: |
+      needs.detect-release.outputs.language == 'node' &&
+      (needs.detect-release.outputs.should_publish == 'true' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    environment:
+      name: production  # Triggers manual approval
+      url: https://www.npmjs.com/package/@zoom/rtms
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all prebuild artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: prebuilds-*
+          path: prebuilds/
+          merge-multiple: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Upload prebuilds to GitHub Releases
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Install Task
+          sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b ~/.local/bin
+          export PATH="$HOME/.local/bin:$PATH"
+
+          # Upload prebuilds
+          task publish:js
+
+      - name: Publish to npm
+        if: needs.detect-release.outputs.should_publish == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish
+
+  # Job 5: Publish Python to PyPI
+  publish-python:
+    name: Publish Python Wheels
+    needs: [detect-release, build-python-wheels]
+    if: |
+      needs.detect-release.outputs.language == 'python' &&
+      (needs.detect-release.outputs.should_publish == 'true' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    environment:
+      name: production  # Triggers manual approval
+      url: https://pypi.org/project/rtms/
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: dist/py/
+          merge-multiple: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install twine
+        run: pip install twine
+
+      - name: Publish to TestPyPI (if workflow_dispatch with target=test)
+        if: |
+          github.event_name == 'workflow_dispatch' &&
+          github.event.inputs.target == 'test'
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.TESTPYPI_TOKEN }}
+        run: twine upload --repository-url https://test.pypi.org/legacy/ dist/py/*.whl
+
+      - name: Publish to PyPI (if tag push or workflow_dispatch with target=prod)
+        if: |
+          needs.detect-release.outputs.should_publish == 'true' ||
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'prod')
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: twine upload dist/py/*.whl
+
+  # Job 6: Create GitHub Release
+  create-release:
+    name: Create GitHub Release
+    needs: [detect-release, publish-node, publish-python]
+    if: |
+      always() &&
+      needs.detect-release.outputs.should_publish == 'true' &&
+      (needs.publish-node.result == 'success' || needs.publish-python.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: |
+            ${{ needs.detect-release.outputs.language == 'node' && 'Node.js' || 'Python' }} v${{ needs.detect-release.outputs.version }}
+          draft: false
+          prerelease: false
+          body: |
+            Release ${{ needs.detect-release.outputs.language == 'node' && 'Node.js' || 'Python' }} v${{ needs.detect-release.outputs.version }}
+
+            See [CHANGELOG.md](https://github.com/zoom/rtms/blob/main/CHANGELOG.md) for details.

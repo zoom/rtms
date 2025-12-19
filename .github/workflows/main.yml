@@ -5,6 +5,20 @@ on:
     branches: [ "main", "dev" ]
   pull_request:
     branches: [ "main", "dev" ]
+  workflow_dispatch:  # Manual trigger for testing
+    inputs:
+      run_tests:
+        description: "Run test jobs"
+        type: boolean
+        default: true
+      build_docs:
+        description: "Build documentation"
+        type: boolean
+        default: false
+      deploy_docs:
+        description: "Deploy docs (only works on main branch)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -16,6 +30,10 @@ jobs:
   test-nodejs-linux:
     name: Test Node.js SDK on Linux (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_tests == 'true')
     strategy:
       matrix:
         node-version: ['20.3.0', '20.x', '24.x']  # Test minimum (N-API v9), LTS 20, and current LTS 24
@@ -40,6 +58,10 @@ jobs:
   test-nodejs-macos:
     name: Test Node.js SDK on macOS (Node 24.x)
     runs-on: macos-latest  # macOS 14+ provides Apple Silicon runners
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_tests == 'true')
 
     steps:
     - name: Checkout code
@@ -66,6 +88,10 @@ jobs:
   test-python-linux:
     name: Test Python SDK on Linux (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_tests == 'true')
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12', '3.13']
@@ -111,6 +137,10 @@ jobs:
   test-python-macos:
     name: Test Python SDK on macOS (Python ${{ matrix.python-version }})
     runs-on: macos-latest  # macOS 14+ provides Apple Silicon runners
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_tests == 'true')
     strategy:
       matrix:
         python-version: ['3.10', '3.13']  # Test minimum and latest
@@ -153,8 +183,13 @@ jobs:
     name: Test Application & Build Documentation
     runs-on: ubuntu-latest
     needs: [test-nodejs-linux, test-nodejs-macos, test-python-linux, test-python-macos]
-    # Only run on main/master branches and if tests pass
-    if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    # Only run on main/master branches and if tests pass, or via workflow_dispatch
+    if: |
+      success() &&
+      (
+        (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.build_docs == 'true')
+      )
 
     steps:
     - name: Checkout code
@@ -179,7 +214,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test-and-build-docs]
     # Only deploy from main/master branch
-    if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: |
+      success() &&
+      (
+        (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) ||
+        (github.event_name == 'workflow_dispatch' &&
+         github.event.inputs.deploy_docs == 'true' &&
+         (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
+      )
 
     environment:
       name: github-pages
