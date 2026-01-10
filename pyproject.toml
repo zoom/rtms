@@ -50,9 +50,10 @@ Source = "https://github.com/zoom/rtms"
 Issues = "https://github.com/zoom/rtms/issues"
 
 [tool.scikit-build]
-# Include SDK libraries in source distributions
+# Include SDK libraries and README in source distributions
 sdist.include = [
     "lib/**/*",
+    "README.md",
 ]
 
 # Platform-specific settings

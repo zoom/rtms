@@ -38,7 +38,6 @@ tasks:
 
   build:js:
     desc: "Build Node.js bindings (local platform)"
-    deps: [doctor]
     cmds:
       - npx cmake-js compile --CDCMAKE_BUILD_TYPE={{.BUILD_TYPE}}
     sources:
@@ -67,7 +66,6 @@ tasks:
 
   build:py:
     desc: "Build Python wheel (local platform)"
-    deps: [doctor]
     cmds:
       - python3 -m build --wheel -Ccmake.build-type={{.BUILD_TYPE}} --outdir dist/py
     sources:

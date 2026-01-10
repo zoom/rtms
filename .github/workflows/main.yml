@@ -136,6 +136,9 @@ jobs:
     - name: Build Python module
       run: task build:py
 
+    - name: Install Python module for testing
+      run: python -m pip install --find-links=dist/py rtms
+
     - name: Run Python tests
       run: pytest tests/test_rtms.py -v
 
@@ -182,6 +185,9 @@ jobs:
 
     - name: Build Python module
       run: task build:py
+
+    - name: Install Python module for testing
+      run: python -m pip install --find-links=dist/py rtms
 
     - name: Run Python tests
       run: pytest tests/test_rtms.py -v
