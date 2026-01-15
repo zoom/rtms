@@ -76,12 +76,20 @@ The SDK library files must be placed in:
 
 ## Authentication & Credentials
 
-### Node.js Publishing
+### Node.js Publishing (Trusted Publishing / OIDC)
 
-**npm Registry:**
+The CI/CD pipeline uses **npm Trusted Publishing** (OIDC) for Node.js releases. This is more secure than stored tokens because:
+- No long-lived secrets to manage or rotate
+- Authentication tied to specific GitHub repository and workflow
+- Automatic provenance attestation for supply chain security
+- Compliant with npm's security best practices
+
+**For CI/CD:** No manual token setup required - OIDC handles authentication automatically.
+
+**For local development/manual publishing:**
 ```bash
-export NPM_TOKEN="your-npm-token"
-# Or use: npm login
+npm login  # Interactive login
+npm publish --access public
 ```
 
 **GitHub Releases** (for prebuilds):
@@ -89,20 +97,25 @@ export NPM_TOKEN="your-npm-token"
 export GITHUB_TOKEN="your-github-personal-access-token"
 ```
 
-### Python Publishing
+### Python Publishing (Trusted Publishing / OIDC)
 
-**PyPI & TestPyPI:**
+The CI/CD pipeline uses **PyPI Trusted Publishing** (OIDC) for Python releases. This is more secure than stored tokens because:
+- No long-lived secrets to manage or rotate
+- Authentication tied to specific GitHub repository and workflow
+- Supports both PyPI and TestPyPI
+- Compliant with PyPI's security best practices
+
+**For CI/CD:** No manual token setup required - OIDC handles authentication automatically.
+
+**For local development/manual publishing:**
 ```bash
-# Use API tokens (recommended)
+# Use API tokens
 export TWINE_USERNAME="__token__"
 export TWINE_PASSWORD="pypi-your-api-token-here"
-
-# Or use username/password
-export TWINE_USERNAME="your-pypi-username"
-export TWINE_PASSWORD="your-pypi-password"
+twine upload dist/py/*.whl
 ```
 
-**How to get PyPI tokens:**
+**How to get PyPI tokens (for local use only):**
 1. Create account on [PyPI](https://pypi.org/) and [TestPyPI](https://test.pypi.org/)
 2. Go to Account Settings → API tokens
 3. Create token with "Upload packages" scope
@@ -110,97 +123,118 @@ export TWINE_PASSWORD="your-pypi-password"
 
 ## GitHub Actions CI/CD Workflow
 
-The repository uses GitHub Actions for automated testing and documentation deployment.
+The repository uses GitHub Actions for automated testing, building, and publishing.
+
+### Workflow Overview
+
+There are two main workflows:
+
+1. **`main.yml`** - Test, Build & Deploy Documentation
+   - Builds artifacts (wheels, prebuilds) first
+   - Tests against pre-built artifacts
+   - Detects version changes on main branch
+   - Triggers publish workflow when version bumped
+   - Deploys documentation to GitHub Pages
+
+2. **`publish.yml`** - Publish Packages
+   - Triggered by git tags (`js-v*`, `py-v*`) or workflow_call from main.yml
+   - Builds artifacts (if not provided)
+   - Publishes to npm/PyPI with manual approval gate
 
 ### Workflow Triggers
 
-The main workflow (`.github/workflows/main.yml`) runs on:
-- **Push** to `main` or `dev` branches
-- **Pull Requests** targeting `main` or `dev` branches
+**main.yml runs on:**
+- **Push** to `main`, `dev`, or `feat/release-infra` branches
+- **Pull Requests** targeting those branches
+- **Manual trigger** via workflow_dispatch
 
-### Workflow Jobs
+**publish.yml runs on:**
+- **Git tags**: `js-v*` (Node.js) or `py-v*` (Python)
+- **workflow_call**: Called from main.yml after version change detected
+- **Manual trigger** via workflow_dispatch
 
-#### 1. Test Node.js SDK (`test-nodejs`)
+### Build-First Architecture
 
-- **Runs on:** ubuntu-latest
-- **Purpose:** Validate Node.js bindings
-- **Steps:**
-  1. Checkout code
-  2. Setup Docker Compose
-  3. Run tests: `docker compose run --rm test-js`
-- **Runs on:** Every push and PR
+The CI/CD uses a "build once, test many times" architecture:
 
-#### 2. Test Python SDK (`test-python`)
-
-- **Runs on:** ubuntu-latest with Python 3.10-3.13 matrix
-- **Purpose:** Validate Python bindings
-- **Steps:**
-  1. Checkout code
-  2. Setup Python environment
-  3. Install dependencies: `pip install pytest python-dotenv`
-  4. Run tests: `pytest tests/test_rtms.py -v`
-- **Runs on:** Every push and PR
-
-#### 3. Build Documentation (`test-and-build-docs`)
-
-- **Runs on:** ubuntu-latest
-- **Requires:** Both test jobs must pass
-- **Only runs on:** `main` or `master` branches
-- **Purpose:** Generate API documentation
-- **Steps:**
-  1. Checkout code
-  2. Build JavaScript docs: `docker compose run --rm docs-js`
-     - Uses TypeDoc to generate docs from TypeScript definitions
-     - Output: `docs/js/`
-  3. Build Python docs: `pdoc --html --output-dir docs/py --force src/rtms`
-     - Uses pdoc3 to generate docs from Python docstrings
-     - Output: `docs/py/`
-  4. Upload documentation artifact (retained for 30 days)
-
-#### 4. Deploy Documentation (`deploy-documentation`)
-
-- **Runs on:** ubuntu-latest
-- **Requires:** Documentation build must succeed
-- **Only runs on:** `main` or `master` branches
-- **Purpose:** Publish docs to GitHub Pages
-- **Steps:**
-  1. Download documentation artifact
-  2. Configure GitHub Pages
-  3. Upload site to GitHub Pages
-  4. Deploy to https://zoom.github.io/rtms/
-- **Result:** Documentation available at:
-  - JavaScript: https://zoom.github.io/rtms/js/
-  - Python: https://zoom.github.io/rtms/py/
-
-### Monitoring Workflow Runs
-
-**View workflow runs:**
-1. Go to repository: https://github.com/zoom/rtms
-2. Click "Actions" tab
-3. See all workflow runs with status indicators
-4. Click on any run to see detailed logs
-
-**Workflow status badges** (can add to README):
-```markdown
-![Tests](https://github.com/zoom/rtms/workflows/Test,%20Build%20&%20Deploy%20Documentation/badge.svg)
 ```
+BUILD PHASE (parallel)
+├── build-python-wheels-linux   → wheels-linux artifact
+├── build-python-wheels-macos   → wheels-darwin artifact
+├── build-nodejs-linux          → prebuilds-linux artifact
+└── build-nodejs-macos          → prebuilds-darwin artifact
+                                     ↓
+TEST PHASE (parallel, uses artifacts)
+├── test-python-linux (3.10, 3.11, 3.12, 3.13)
+├── test-python-macos (3.10, 3.13)
+├── test-nodejs-linux (20.3.0, 24.x)
+└── test-nodejs-macos (24.x)
+                                     ↓
+VERSION CHECK (on main branch only)
+└── check-version-change
+    ├── Compares package versions to existing git tags
+    ├── Outputs: node_changed, python_changed
+    └── Triggers publish if version is new
+                                     ↓
+PUBLISH PHASE (if version changed)
+├── trigger-publish-python → publish.yml (workflow_call)
+└── trigger-publish-node   → publish.yml (workflow_call)
+```
+
+**Benefits:**
+- Artifacts are built once and reused for testing and publishing
+- Reduces CI time and ensures consistency
+- Same wheels/prebuilds tested are the ones published
+
+### Workflow Jobs Detail
+
+#### Build Jobs (run first, in parallel)
+
+| Job | Platform | Output |
+|-----|----------|--------|
+| `build-python-wheels-linux` | ubuntu-latest | `wheels-linux` (4 wheels for Python 3.10-3.13) |
+| `build-python-wheels-macos` | macos-latest | `wheels-darwin` (4 wheels for Python 3.10-3.13) |
+| `build-nodejs-linux` | ubuntu-latest | `prebuilds-linux` (prebuilds for N-API 9+10) |
+| `build-nodejs-macos` | macos-latest | `prebuilds-darwin` (prebuilds for N-API 9+10) |
+
+#### Test Jobs (run after build, download artifacts)
+
+| Job | Matrix | Description |
+|-----|--------|-------------|
+| `test-python-linux` | Python 3.10, 3.11, 3.12, 3.13 | Tests pre-built Linux wheels |
+| `test-python-macos` | Python 3.10, 3.13 | Tests pre-built macOS wheels |
+| `test-nodejs-linux` | Node 20.3.0, 24.x | Tests pre-built Linux prebuilds |
+| `test-nodejs-macos` | Node 24.x | Tests pre-built macOS prebuilds |
+
+#### Version Check Job (main branch only)
+
+- Runs after all tests pass
+- Compares versions in `package.json` and `pyproject.toml` to existing git tags
+- Sets outputs: `node_changed`, `python_changed`, `node_version`, `python_version`
+- Only triggers publish if version is NEW (no matching tag exists)
+
+#### Publish Trigger Jobs
+
+- `trigger-publish-python`: Calls publish.yml with `use_existing_artifacts: true`
+- `trigger-publish-node`: Calls publish.yml with `use_existing_artifacts: true`
+- Passes pre-built artifacts to avoid rebuilding
 
 ### What's Automated vs. Manual
 
-**Automated (GitHub Actions):**
-- ✅ Running tests on every commit/PR
-- ✅ Building documentation on main branch
+**Fully Automated:**
+- ✅ Building wheels and prebuilds on every push/PR
+- ✅ Running tests against pre-built artifacts
+- ✅ Detecting version changes on main branch
+- ✅ Triggering publish workflow when version bumped
+- ✅ Building documentation
 - ✅ Deploying docs to GitHub Pages
-- ✅ Validating code quality
+- ✅ Creating git tags for releases
+- ✅ Creating GitHub Releases
 
-**Manual (Maintainer must do):**
-- ❌ Version bumping (package.json, pyproject.toml)
-- ❌ Building platform-specific wheels/prebuilds
-- ❌ Uploading to npm registry
-- ❌ Uploading to PyPI/TestPyPI
-- ❌ Creating GitHub releases
+**Requires Manual Action:**
+- ❌ Version bumping (edit package.json or pyproject.toml)
+- ❌ Approving publish (click "Approve" in GitHub Actions)
 - ❌ Writing changelogs
-- ❌ Tagging releases
 
 ### Local Testing Before Push
 
@@ -292,7 +326,8 @@ Before creating a git tag, ensure:
 4. **CHANGELOG.md updated** with release notes
 5. **Git tag does not already exist**
 6. **GitHub Environment configured** (one-time setup, see below)
-7. **GitHub secrets configured**: `NPM_TOKEN`, `PYPI_TOKEN`, `TESTPYPI_TOKEN`
+7. **npm Trusted Publishing configured** (one-time setup for Node.js, see below)
+8. **PyPI Trusted Publishing configured** (one-time setup for Python, see below)
 
 ### Tag Naming Convention
 
@@ -324,6 +359,86 @@ The publish workflow requires a "production" GitHub Environment with manual appr
 7. Click **"Save protection rules"**
 
 **Cost:** GitHub Environments are **free** on public repositories. Only GitHub Actions minutes are counted (same as before).
+
+### npm Trusted Publishing Setup (One-Time)
+
+npm Trusted Publishing uses OIDC (OpenID Connect) to authenticate GitHub Actions workflows without storing long-lived tokens. This is the most secure method for automated publishing.
+
+**Setup Steps:**
+
+1. Go to **[npmjs.com](https://www.npmjs.com/)** and log in
+2. Navigate to your package: **Packages** → **@zoom/rtms** (or create if first publish)
+3. Go to package **Settings** → **Publishing access**
+4. Under **"Configure trusted publishers"**, click **"Add a publisher"**
+5. Fill in the form:
+   - **Type**: GitHub Actions
+   - **Repository owner**: `zoom`
+   - **Repository name**: `rtms`
+   - **Workflow file name**: `publish.yml`
+   - **Environment name**: `production` (must match GitHub Environment name)
+6. Click **"Add publisher"**
+
+**Verification:**
+- After setup, publishing will only work from:
+  - The `zoom/rtms` GitHub repository
+  - The `publish.yml` workflow file
+  - The `production` environment (requires approval)
+- Any attempt to publish from other sources will be rejected
+
+**Benefits:**
+- ✅ No NPM_TOKEN secret to manage or rotate
+- ✅ Publishing is cryptographically tied to your repository
+- ✅ Automatic provenance attestation (supply chain security)
+- ✅ Works with npm's new package provenance feature
+- ✅ Follows npm security best practices
+
+**Note:** First-time package creation still requires manual `npm publish` from a logged-in account. After the package exists, Trusted Publishing handles all subsequent releases.
+
+### PyPI Trusted Publishing Setup (One-Time)
+
+PyPI Trusted Publishing uses OIDC (OpenID Connect) to authenticate GitHub Actions workflows without storing API tokens. This works for both PyPI (production) and TestPyPI.
+
+**Setup Steps for PyPI (Production):**
+
+1. Go to **[pypi.org](https://pypi.org/)** and log in
+2. Navigate to your package: **Your projects** → **rtms** (or create if first publish)
+3. Go to package **Settings** → **Publishing**
+4. Under **"Trusted publishing"**, click **"Add a new publisher"**
+5. Fill in the form:
+   - **Owner**: `zoom`
+   - **Repository name**: `rtms`
+   - **Workflow name**: `publish.yml`
+   - **Environment name**: `production` (must match GitHub Environment name)
+6. Click **"Add"**
+
+**Setup Steps for TestPyPI:**
+
+1. Go to **[test.pypi.org](https://test.pypi.org/)** and log in (separate account from PyPI)
+2. Navigate to your package: **Your projects** → **rtms**
+3. Go to package **Settings** → **Publishing**
+4. Under **"Trusted publishing"**, click **"Add a new publisher"**
+5. Fill in the same form as above:
+   - **Owner**: `zoom`
+   - **Repository name**: `rtms`
+   - **Workflow name**: `publish.yml`
+   - **Environment name**: `production`
+6. Click **"Add"**
+
+**Verification:**
+- After setup, publishing will only work from:
+  - The `zoom/rtms` GitHub repository
+  - The `publish.yml` workflow file
+  - The `production` environment (requires approval)
+- Any attempt to publish from other sources will be rejected
+
+**Benefits:**
+- ✅ No PYPI_TOKEN or TESTPYPI_TOKEN secrets to manage
+- ✅ Publishing is cryptographically tied to your repository
+- ✅ Works with both PyPI and TestPyPI
+- ✅ Follows PyPI security best practices
+- ✅ Uses official `pypa/gh-action-pypi-publish` action
+
+**Note:** First-time package creation can be done via Trusted Publishing using a "pending publisher". Go to PyPI → Your account → Publishing → "Add a new pending publisher" and fill in the details before the first publish.
 
 ### Node.js Release with Git Tags
 
@@ -1356,34 +1471,123 @@ twine yank rtms X.Y.Z -r pypi --reason "Reason for yanking"
    git push origin :refs/tags/js-vX.Y.Z
    ```
 
+## Automatic Publishing (Recommended)
+
+The easiest way to publish is to simply bump the version and push to main:
+
+### Quick Publishing Guide
+
+**Step 1: Bump version**
+```bash
+# For Python
+vim pyproject.toml  # Change version = "X.Y.Z"
+
+# For Node.js
+vim package.json    # Change "version": "X.Y.Z"
+```
+
+**Step 2: Commit and push**
+```bash
+git add pyproject.toml  # or package.json
+git commit -m "chore: bump version to X.Y.Z"
+git push origin main
+```
+
+**Step 3: Wait for CI**
+- Tests run automatically
+- Version check detects new version
+- Publish workflow triggers automatically
+
+**Step 4: Approve publish**
+- You'll receive email notification
+- Go to Actions → Review deployment → Approve
+
+**Step 5: Done!**
+- Package published to PyPI/npm
+- Git tag created automatically
+- GitHub Release created
+
+### Dry-Run Mode
+
+To test publishing without actually publishing:
+
+**Via workflow_dispatch (Publish Packages workflow):**
+1. Go to Actions → "Publish Packages"
+2. Click "Run workflow"
+3. Select language and version
+4. Check "Dry run" ✅
+5. Click "Run workflow"
+
+This will:
+- Build all artifacts
+- Run validation checks
+- Show what would be published
+- NOT actually publish anything
+
+### Publishing to TestPyPI
+
+To test Python publishing on TestPyPI first:
+
+1. Go to Actions → "Publish Packages"
+2. Click "Run workflow"
+3. Language: `python`
+4. Version: e.g., `0.0.3`
+5. Dry run: `false`
+6. Target: `test`
+7. Run workflow
+
+This publishes to test.pypi.org instead of pypi.org.
+
+### Manual Tag-Based Publishing
+
+You can also trigger publishing by pushing a git tag:
+
+```bash
+# For Python
+git tag py-v0.0.3
+git push origin py-v0.0.3
+
+# For Node.js
+git tag js-v0.0.7
+git push origin js-v0.0.7
+```
+
+This triggers publish.yml directly, which will:
+1. Build artifacts from scratch (not from main.yml)
+2. Validate version matches package file
+3. Pause for manual approval
+4. Publish after approval
+
+**Note:** The automatic flow (bump version → push to main) is preferred because it reuses the already-tested artifacts.
+
 ## Future CI/CD Enhancements
 
-Consider automating these manual steps:
+Most CI/CD automation is now implemented. Remaining enhancements to consider:
 
-### Automated Publishing on Tags
-- Trigger npm/PyPI publish when version tags pushed
-- Use GitHub Actions workflows
-- Example: Tag `python-v0.0.2` → auto-publish to PyPI
+### ✅ Implemented
+- ✅ Automated publishing on version bump (via workflow_call)
+- ✅ Multi-platform builds in CI (matrix builds for Linux + macOS)
+- ✅ Version validation (tag vs package file)
+- ✅ Manual approval gate before publishing
+- ✅ Dry-run mode for testing
+- ✅ Artifact reuse (build once, test many times)
+- ✅ Automatic git tag creation
 
-### Multi-Platform Builds in CI
-- Build wheels for both darwin-arm64 and linux-x64 in GitHub Actions
-- Use matrix builds or cross-compilation
-- Upload artifacts for easy downloading
+### Still To Consider
 
 ### Release Notes Generation
 - Auto-generate changelogs from commit messages
 - Use conventional commits
 - Tools: conventional-changelog, release-please
 
-### Version Validation
-- Check if version was bumped before allowing merge
-- Prevent publishing same version twice
-- Use pre-commit hooks or GitHub Actions
-
 ### Security Scanning
 - Add vulnerability scanning for dependencies
 - Use: Dependabot, Snyk, npm audit, safety
 - Block PRs with high-severity vulnerabilities
+
+### Slack/Email Notifications
+- Notify team when publish completes
+- Alert on build failures
 
 ## Resources
 

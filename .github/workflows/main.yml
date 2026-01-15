@@ -19,6 +19,10 @@ on:
         description: "Deploy docs (only works on main branch)"
         type: boolean
         default: false
+      dry_run_publish:
+        description: "Dry-run publish (validates but doesn't publish)"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -26,40 +30,136 @@ permissions:
   id-token: write
 
 jobs:
-  # Test Node.js SDK on Linux
-  test-nodejs-linux:
-    name: Test Node.js SDK on Linux (Node ${{ matrix.node-version }})
+  # ============================================================================
+  # BUILD JOBS - Build artifacts first, then test against them
+  # ============================================================================
+
+  # Build Python wheels for Linux (all Python versions via cibuildwheel)
+  build-python-wheels-linux:
+    name: Build Python Wheels (Linux)
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request' ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.run_tests == 'true')
-    strategy:
-      matrix:
-        node-version: ['20.3.0', '24.x']  # Test minimum (N-API v9) and latest LTS
-      fail-fast: false  # Continue testing other versions if one fails
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Node.js ${{ matrix.node-version }}
+    - name: Setup Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Setup Node.js (for Task setup)
       uses: actions/setup-node@v4
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: '24.x'
 
-    - name: Setup Docker Compose
-      uses: docker/setup-compose-action@v1.1.0
+    - name: Install Task
+      run: sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b ~/.local/bin && echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-    - name: Run Node.js tests with Node ${{ matrix.node-version }}
+    - name: Setup SDK
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: docker compose run --rm test-js
+      run: task setup
 
-  # Test Node.js SDK on macOS (darwin-arm64)
-  test-nodejs-macos:
-    name: Test Node.js SDK on macOS (Node 24.x)
-    runs-on: macos-latest  # macOS 14+ provides Apple Silicon runners
+    - name: Build wheels with cibuildwheel
+      run: |
+        pip install cibuildwheel
+        cibuildwheel --platform linux --output-dir dist/py
+
+    - name: Upload wheel artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: wheels-linux
+        path: dist/py/*.whl
+        retention-days: 7
+
+  # Build Python wheels for macOS (all Python versions via cibuildwheel)
+  build-python-wheels-macos:
+    name: Build Python Wheels (macOS)
+    runs-on: macos-latest
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_tests == 'true')
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install Task
+      run: brew install go-task
+
+    - name: Setup Node.js (for Task setup)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24.x'
+
+    - name: Setup SDK
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: task setup
+
+    - name: Build wheels with cibuildwheel
+      run: |
+        pip install cibuildwheel
+        cibuildwheel --platform macos --output-dir dist/py
+
+    - name: Upload wheel artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: wheels-darwin
+        path: dist/py/*.whl
+        retention-days: 7
+
+  # Build Node.js prebuilds for Linux
+  build-nodejs-linux:
+    name: Build Node.js Prebuilds (Linux)
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_tests == 'true')
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js 24.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24.x'
+
+    - name: Install Task
+      run: sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b ~/.local/bin && echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Setup project
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: task setup
+
+    - name: Build prebuilds
+      run: task prebuild:js:linux
+
+    - name: Upload prebuild artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: prebuilds-linux
+        path: prebuilds/*.tar.gz
+        retention-days: 7
+
+  # Build Node.js prebuilds for macOS
+  build-nodejs-macos:
+    name: Build Node.js Prebuilds (macOS)
+    runs-on: macos-latest
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request' ||
@@ -82,20 +182,83 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: task setup
 
-    - name: Build Node.js addon
-      run: task build:js
+    - name: Build prebuilds
+      run: task prebuild:js:darwin
+
+    - name: Upload prebuild artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: prebuilds-darwin
+        path: prebuilds/*.tar.gz
+        retention-days: 7
+
+  # ============================================================================
+  # TEST JOBS - Test against pre-built artifacts
+  # ============================================================================
+
+  # Test Node.js SDK on Linux using pre-built prebuilds
+  test-nodejs-linux:
+    name: Test Node.js SDK on Linux (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    needs: [build-nodejs-linux]
+    strategy:
+      matrix:
+        node-version: ['20.3.0', '24.x']  # Test minimum (N-API v9) and latest LTS
+      fail-fast: false  # Continue testing other versions if one fails
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+
+    - name: Download prebuilds
+      uses: actions/download-artifact@v4
+      with:
+        name: prebuilds-linux
+        path: prebuilds/
+
+    - name: Install dependencies
+      run: npm install
 
     - name: Run Node.js tests
-      run: task test:js
+      run: npx jest tests/
 
-  # Test Python SDK on Linux
+  # Test Node.js SDK on macOS using pre-built prebuilds
+  test-nodejs-macos:
+    name: Test Node.js SDK on macOS (Node 24.x)
+    runs-on: macos-latest
+    needs: [build-nodejs-macos]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js 24.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24.x'
+
+    - name: Download prebuilds
+      uses: actions/download-artifact@v4
+      with:
+        name: prebuilds-darwin
+        path: prebuilds/
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Run Node.js tests
+      run: npx jest tests/
+
+  # Test Python SDK on Linux using pre-built wheels
   test-python-linux:
     name: Test Python SDK on Linux (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'push' ||
-      github.event_name == 'pull_request' ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_tests == 'true')
+    needs: [build-python-wheels-linux]
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12', '3.13']
@@ -110,46 +273,36 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Setup Node.js (for Task setup)
-      uses: actions/setup-node@v4
+    - name: Download wheels
+      uses: actions/download-artifact@v4
       with:
-        node-version: '24.x'
+        name: wheels-linux
+        path: dist/py/
 
-    - name: Install Task
-      run: sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b ~/.local/bin && echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-    - name: Install system dependencies
+    - name: Install wheel for this Python version
       run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake build-essential
+        # Convert Python version to wheel format (3.10 -> cp310)
+        PY_TAG="cp$(echo '${{ matrix.python-version }}' | tr -d '.')"
+        WHEEL=$(ls dist/py/*${PY_TAG}*manylinux*.whl 2>/dev/null | head -1)
+        if [ -z "$WHEEL" ]; then
+          echo "Error: No wheel found for Python ${{ matrix.python-version }}"
+          ls -la dist/py/
+          exit 1
+        fi
+        echo "Installing wheel: $WHEEL"
+        pip install "$WHEEL"
 
-    - name: Install Python build dependencies
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install build pytest python-dotenv pybind11 scikit-build-core
-
-    - name: Setup SDK
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: task setup
-
-    - name: Build Python module
-      run: task build:py
-
-    - name: Install Python module for testing
-      run: python -m pip install --find-links=dist/py rtms
+    - name: Install test dependencies
+      run: pip install pytest python-dotenv
 
     - name: Run Python tests
       run: pytest tests/test_rtms.py -v
 
-  # Test Python SDK on macOS (darwin-arm64)
+  # Test Python SDK on macOS using pre-built wheels
   test-python-macos:
     name: Test Python SDK on macOS (Python ${{ matrix.python-version }})
-    runs-on: macos-latest  # macOS 14+ provides Apple Silicon runners
-    if: |
-      github.event_name == 'push' ||
-      github.event_name == 'pull_request' ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_tests == 'true')
+    runs-on: macos-latest
+    needs: [build-python-wheels-macos]
     strategy:
       matrix:
         python-version: ['3.10', '3.13']  # Test minimum and latest
@@ -164,33 +317,124 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install system dependencies
-      run: |
-        brew install cmake go-task
+    - name: Download wheels
+      uses: actions/download-artifact@v4
+      with:
+        name: wheels-darwin
+        path: dist/py/
 
-    - name: Setup Node.js (for Task setup)
+    - name: Install wheel for this Python version
+      run: |
+        # Convert Python version to wheel format (3.10 -> cp310)
+        PY_TAG="cp$(echo '${{ matrix.python-version }}' | tr -d '.')"
+        WHEEL=$(ls dist/py/*${PY_TAG}*macosx*.whl 2>/dev/null | head -1)
+        if [ -z "$WHEEL" ]; then
+          echo "Error: No wheel found for Python ${{ matrix.python-version }}"
+          ls -la dist/py/
+          exit 1
+        fi
+        echo "Installing wheel: $WHEEL"
+        pip install "$WHEEL"
+
+    - name: Install test dependencies
+      run: pip install pytest python-dotenv
+
+    - name: Run Python tests
+      run: pytest tests/test_rtms.py -v
+
+  # ============================================================================
+  # VERSION CHECK & PUBLISH TRIGGERS
+  # ============================================================================
+
+  # Check if versions have changed (only on main branch after tests pass)
+  check-version-change:
+    name: Check for Version Changes
+    runs-on: ubuntu-latest
+    needs: [test-nodejs-linux, test-nodejs-macos, test-python-linux, test-python-macos]
+    if: |
+      success() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main'
+    outputs:
+      node_changed: ${{ steps.check.outputs.node_changed }}
+      python_changed: ${{ steps.check.outputs.python_changed }}
+      node_version: ${{ steps.check.outputs.node_version }}
+      python_version: ${{ steps.check.outputs.python_version }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Need full history for tag checking
+
+    - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '24.x'
 
-    - name: Install Python build dependencies
+    - name: Check version changes
+      id: check
       run: |
-        python -m pip install --upgrade pip
-        python -m pip install build pytest python-dotenv pybind11 scikit-build-core
+        # Get current versions from package files
+        NODE_VERSION=$(node -p "require('./package.json').version")
+        PYTHON_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
 
-    - name: Setup project
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: task setup
+        echo "node_version=$NODE_VERSION" >> $GITHUB_OUTPUT
+        echo "python_version=$PYTHON_VERSION" >> $GITHUB_OUTPUT
 
-    - name: Build Python module
-      run: task build:py
+        echo "Current Node.js version: $NODE_VERSION"
+        echo "Current Python version: $PYTHON_VERSION"
 
-    - name: Install Python module for testing
-      run: python -m pip install --find-links=dist/py rtms
+        # Check if tags already exist for current versions
+        if git ls-remote --tags origin | grep -q "refs/tags/js-v${NODE_VERSION}$"; then
+          echo "node_changed=false" >> $GITHUB_OUTPUT
+          echo "Node.js version $NODE_VERSION already published (tag exists)"
+        else
+          echo "node_changed=true" >> $GITHUB_OUTPUT
+          echo "Node.js version $NODE_VERSION is NEW - will trigger publish"
+        fi
 
-    - name: Run Python tests
-      run: pytest tests/test_rtms.py -v
+        if git ls-remote --tags origin | grep -q "refs/tags/py-v${PYTHON_VERSION}$"; then
+          echo "python_changed=false" >> $GITHUB_OUTPUT
+          echo "Python version $PYTHON_VERSION already published (tag exists)"
+        else
+          echo "python_changed=true" >> $GITHUB_OUTPUT
+          echo "Python version $PYTHON_VERSION is NEW - will trigger publish"
+        fi
+
+  # Trigger Python publish workflow if version changed
+  # Note: No secrets needed - uses PyPI Trusted Publishing (OIDC)
+  trigger-publish-python:
+    name: Trigger Python Publish
+    needs: [check-version-change, build-python-wheels-linux, build-python-wheels-macos]
+    if: |
+      success() &&
+      needs.check-version-change.outputs.python_changed == 'true'
+    uses: ./.github/workflows/publish.yml
+    with:
+      language: python
+      version: ${{ needs.check-version-change.outputs.python_version }}
+      dry_run: false
+      use_existing_artifacts: true
+
+  # Trigger Node.js publish workflow if version changed
+  # Note: No secrets needed - uses npm Trusted Publishing (OIDC)
+  trigger-publish-node:
+    name: Trigger Node.js Publish
+    needs: [check-version-change, build-nodejs-linux, build-nodejs-macos]
+    if: |
+      success() &&
+      needs.check-version-change.outputs.node_changed == 'true'
+    uses: ./.github/workflows/publish.yml
+    with:
+      language: node
+      version: ${{ needs.check-version-change.outputs.node_version }}
+      dry_run: false
+      use_existing_artifacts: true
+
+  # ============================================================================
+  # DOCUMENTATION JOBS
+  # ============================================================================
 
   # Test application build and generate documentation
   test-and-build-docs:
