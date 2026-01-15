@@ -216,8 +216,8 @@ tasks:
     desc: "Run Python tests (local)"
     deps: [build:py]
     cmds:
-      - echo "Python tests not yet implemented"
-      # - python3 -m pytest tests/
+      - python -m pip install --find-links=dist/py rtms
+      - pytest tests/test_rtms.py -v
 
   test:py:linux:
     desc: "Run Python tests in Linux Docker"
