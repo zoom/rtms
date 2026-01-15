@@ -25,9 +25,9 @@ on:
         default: true
 
 permissions:
-  contents: read
+  contents: write  # Needed for creating tags when publish workflow is called
   pages: write
-  id-token: write
+  id-token: write  # Needed for Trusted Publishing (OIDC) - npm and PyPI
 
 jobs:
   # ============================================================================
