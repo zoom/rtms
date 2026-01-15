@@ -7,7 +7,7 @@ build-backend = "scikit_build_core.build"
 name = "rtms"
 version = "0.0.2"
 description = "Python bindings for the Zoom RTMS C SDK - Real-Time Media Streaming"
-readme = "README.md"
+readme = "README.MD"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
@@ -53,7 +53,7 @@ Issues = "https://github.com/zoom/rtms/issues"
 # Include SDK libraries and README in source distributions
 sdist.include = [
     "lib/**/*",
-    "README.md",
+    "README.MD",
 ]
 
 # Platform-specific settings
