@@ -269,10 +269,17 @@ elseif(DEFINED SKBUILD_PROJECT_NAME)
     # Linux specific settings
     set_property(TARGET ${PYTHON_MODULE_NAME} APPEND_STRING PROPERTY
       LINK_FLAGS " -L${RTMS_LIB_DIR}")
-      
-    set_property(TARGET ${PYTHON_MODULE_NAME} APPEND_STRING PROPERTY
-      LINK_FLAGS " -Wl,-rpath,'$$ORIGIN'")
-      
+
+    # OLD: This escaping doesn't work correctly - produces $$ORIGIN in binary
+    # set_property(TARGET ${PYTHON_MODULE_NAME} APPEND_STRING PROPERTY
+    #   LINK_FLAGS " -Wl,-rpath,'$$ORIGIN'")
+
+    # NEW: Use set_target_properties for proper RPATH handling
+    # Set RPATH to $ORIGIN so the module can find librtmsdk.so.0 in the same directory
+    set_target_properties(${PYTHON_MODULE_NAME} PROPERTIES
+      BUILD_WITH_INSTALL_RPATH TRUE
+      INSTALL_RPATH "$ORIGIN")
+
     target_link_libraries(${PYTHON_MODULE_NAME} PRIVATE -l:${RTMS_LIB_FILENAME})
   endif()
 
