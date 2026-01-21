@@ -147,7 +147,7 @@ jobs:
       run: task setup
 
     - name: Build prebuilds
-      run: task prebuild:js:linux
+      run: node scripts/prebuild.js --platform=linux
 
     - name: Upload prebuild artifacts
       uses: actions/upload-artifact@v4
@@ -183,7 +183,7 @@ jobs:
       run: task setup
 
     - name: Build prebuilds
-      run: task prebuild:js:darwin
+      run: node scripts/prebuild.js --platform=darwin
 
     - name: Upload prebuild artifacts
       uses: actions/upload-artifact@v4
