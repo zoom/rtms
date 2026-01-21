@@ -72,12 +72,6 @@ RUN if [ "$TARGET" = "py" ] || [ "$TARGET" = "all" ]; then \
         pip install --no-cache-dir build "pybind11[global]" python-dotenv pdoc3 auditwheel twine; \
     fi
 
-RUN if [ "$TARGET" = "py-cibuild" ]; then \
-        echo "Installing cibuildwheel for multi-version Python builds..." && \
-        pip install --no-cache-dir --upgrade pip && \
-        pip install --no-cache-dir cibuildwheel; \
-    fi
-
 RUN if [ "$TARGET" = "go" ] || [ "$TARGET" = "all" ]; then \
         echo "Go bindings not yet implemented..."; \
     fi

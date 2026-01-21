@@ -949,7 +949,7 @@ task build:py
 **Linux Wheel Repair Process:**
 When building for Linux (`task build:py:linux`), the wheel undergoes automatic repair:
 1. Initial build creates wheel with `linux_x86_64` tag
-2. `auditwheel repair` converts to proper `manylinux_*` tag (e.g., `manylinux_2_17_x86_64`)
+2. `auditwheel repair` converts to proper `manylinux_*` tag (e.g., `manylinux_2_34_x86_64`)
 3. Excludes `librtmsdk.so.0` (already bundled in wheel) from repair
 4. Auto-detects appropriate manylinux version based on system libraries
 5. Removes original non-compliant wheel
@@ -959,7 +959,7 @@ PyPI requires Linux wheels to use `manylinux` tags to ensure compatibility acros
 
 **Output:** Wheels are created in `dist/py/` directory
 - macOS: `rtms-X.Y.Z-cp310-abi3-macosx_11_0_arm64.whl`
-- Linux: `rtms-X.Y.Z-cp310-abi3-manylinux_2_17_x86_64.whl` (after auditwheel repair)
+- Linux: `rtms-X.Y.Z-cp310-abi3-manylinux_2_34_x86_64.whl` (after auditwheel repair)
 
 ### Step 2: Test on TestPyPI
 
@@ -1078,7 +1078,16 @@ docker compose up test-js # Test Node.js on Linux
 - Use these commands on darwin-arm64 to build linux-x64 packages
 - Prebuilds go to `prebuilds/` directory
 - Python wheels go to `dist/py/` directory
-- manylinux tags ensure broad Linux compatibility
+- manylinux_2_34 tags ensure compatibility with modern Linux (glibc 2.34+)
+
+**Linux Distribution Requirements:**
+- Ubuntu 22.04+ (LTS)
+- Debian 12+
+- RHEL 9+ / CentOS Stream 9+
+- Fedora 35+
+- Other distros with glibc 2.34+
+
+**Note:** The Zoom SDK requires glibc 2.34 (for pthread symbols), which sets the minimum manylinux version.
 
 ## Complete Release Workflow
 
@@ -1424,9 +1433,10 @@ codesign --force --sign - lib/darwin-arm64/*.dylib
 ```
 
 **Linux glibc compatibility:**
-- Use manylinux wheel tags for broad compatibility
-- Test on multiple Linux distributions
-- Check glibc version requirements
+- Wheels require glibc 2.34+ (manylinux_2_34)
+- This is required by the Zoom SDK (uses pthread symbols from glibc 2.34)
+- Supported: Ubuntu 22.04+, Debian 12+, RHEL 9+, Fedora 35+
+- Not supported: Ubuntu 20.04, Debian 11, RHEL 8, older distros
 
 **Missing SDK libraries:**
 - Ensure SDK files in `lib/platform-arch/`

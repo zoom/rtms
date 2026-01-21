@@ -116,9 +116,11 @@ tasks:
       - cibuildwheel --platform auto --output-dir dist/py
 
   build:py:cibuildwheel:linux:
-    desc: "Build Python wheels for Linux (all versions via Docker)"
+    desc: "Build Python wheels for Linux (all versions via cibuildwheel's Docker)"
+    deps: [doctor]
     cmds:
-      - docker compose run --rm cibuild-py
+      - pip install cibuildwheel
+      - cibuildwheel --platform linux --output-dir dist/py
 
   build:py:cibuildwheel:darwin:
     desc: "Build Python wheels for macOS (all versions)"

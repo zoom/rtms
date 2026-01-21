@@ -92,7 +92,7 @@ repair-wheel-command = ""  # Disable delocate (SDK already bundled)
 [tool.cibuildwheel.linux]
 archs = ["x86_64"]
 repair-wheel-command = "auditwheel repair --exclude librtmsdk.so.0 -w {dest_dir} {wheel}"
-manylinux-x86_64-image = "manylinux_2_28"  # AlmaLinux-based, GLIBC 2.28 (cibuildwheel default since 2024)
+manylinux-x86_64-image = "manylinux_2_34"  # Zoom SDK requires GLIBC 2.34 (pthread symbols)
 
 # Environment variables during build
 [tool.cibuildwheel.environment]
