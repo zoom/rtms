@@ -153,7 +153,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: prebuilds-linux
-        path: prebuilds/*.tar.gz
+        path: prebuilds/@zoom/*.tar.gz
         retention-days: 7
 
   # Build Node.js prebuilds for macOS
@@ -189,7 +189,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: prebuilds-darwin
-        path: prebuilds/*.tar.gz
+        path: prebuilds/@zoom/*.tar.gz
         retention-days: 7
 
   # ============================================================================

@@ -180,7 +180,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: prebuilds-${{ matrix.platform }}
-          path: prebuilds/*.tar.gz
+          path: prebuilds/@zoom/*.tar.gz
           retention-days: 7
 
   # Job 3: Build Python wheels (skip if using existing artifacts)
@@ -261,13 +261,17 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: prebuilds-*
-          path: prebuilds/
+          path: downloaded-prebuilds/
           merge-multiple: true
 
-      - name: List downloaded artifacts
+      - name: Restore prebuild directory structure
         run: |
+          # prebuild expects files in prebuilds/@zoom/ (scoped package)
+          mkdir -p prebuilds/@zoom
+          mv downloaded-prebuilds/*.tar.gz prebuilds/@zoom/
+          rm -rf downloaded-prebuilds
           echo "Downloaded prebuilds:"
-          ls -la prebuilds/
+          ls -la prebuilds/@zoom/
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
