@@ -30,42 +30,20 @@ jest.mock("../index.ts", () => {
       // Callback methods
       onJoinConfirm: jest.fn().mockReturnValue(true),
       onSessionUpdate: jest.fn().mockReturnValue(true),
-      onUserUpdate: jest.fn().mockReturnValue(true),
+      onParticipantEvent: jest.fn().mockReturnValue(true),
+      onActiveSpeakerEvent: jest.fn().mockReturnValue(true),
+      onSharingEvent: jest.fn().mockReturnValue(true),
+      onEventEx: jest.fn().mockReturnValue(true),
       onAudioData: jest.fn().mockReturnValue(true),
       onVideoData: jest.fn().mockReturnValue(true),
       onDeskshareData: jest.fn().mockReturnValue(true),
       onTranscriptData: jest.fn().mockReturnValue(true),
       onLeave: jest.fn().mockReturnValue(true),
-    })),
 
-    // Global client singleton methods
-    join: jest.fn().mockReturnValue(true),
-    poll: jest.fn(),
-    leave: jest.fn().mockReturnValue(true),
-    release: jest.fn().mockReturnValue(true),
-    uuid: jest.fn().mockReturnValue("global-uuid"),
-    streamId: jest.fn().mockReturnValue("global-stream-id"),
-    
-    // Global enable/disable methods
-    enableAudio: jest.fn().mockReturnValue(true),
-    enableVideo: jest.fn().mockReturnValue(true),
-    enableTranscript: jest.fn().mockReturnValue(true),
-    enableDeskshare: jest.fn().mockReturnValue(true),
-    
-    // Global parameter setting methods
-    setAudioParams: jest.fn().mockReturnValue(true),
-    setVideoParams: jest.fn().mockReturnValue(true),
-    setDeskshareParams: jest.fn().mockReturnValue(true),
-    
-    // Global callback methods
-    onJoinConfirm: jest.fn(),
-    onSessionUpdate: jest.fn(),
-    onUserUpdate: jest.fn(),
-    onAudioData: jest.fn(),
-    onVideoData: jest.fn(),
-    onDeskshareData: jest.fn(),
-    onTranscriptData: jest.fn(),
-    onLeave: jest.fn(),
+      // Event subscription methods
+      subscribeEvent: jest.fn().mockReturnValue(true),
+      unsubscribeEvent: jest.fn().mockReturnValue(true),
+    })),
 
     // Utility functions
     initialize: jest.fn().mockReturnValue(true),
@@ -104,9 +82,12 @@ jest.mock("../index.ts", () => {
     SESSION_EVENT_PAUSE: 3,
     SESSION_EVENT_RESUME: 4,
     
-    // User event constants
-    USER_EVENT_JOIN: 1,
-    USER_EVENT_LEAVE: 2,
+    // Event type constants (for subscribeEvent/unsubscribeEvent)
+    EVENT_ACTIVE_SPEAKER_CHANGE: 0,
+    EVENT_PARTICIPANT_JOIN: 1,
+    EVENT_PARTICIPANT_LEAVE: 2,
+    EVENT_SHARING_START: 3,
+    EVENT_SHARING_STOP: 4,
     
     // Status constants
     RTMS_SDK_FAILURE: -1,
@@ -355,10 +336,31 @@ describe('RTMS Node.JS Addon Comprehensive Test Suite', () => {
         expect(result).toBe(true);
       });
 
-      test('client.onUserUpdate sets the user update callback correctly', () => {
+      test('client.onParticipantEvent sets the participant event callback correctly', () => {
         const callback = jest.fn();
-        const result = client.onUserUpdate(callback);
-        expect(client.onUserUpdate).toHaveBeenCalledWith(callback);
+        const result = client.onParticipantEvent(callback);
+        expect(client.onParticipantEvent).toHaveBeenCalledWith(callback);
+        expect(result).toBe(true);
+      });
+
+      test('client.onActiveSpeakerEvent sets the active speaker callback correctly', () => {
+        const callback = jest.fn();
+        const result = client.onActiveSpeakerEvent(callback);
+        expect(client.onActiveSpeakerEvent).toHaveBeenCalledWith(callback);
+        expect(result).toBe(true);
+      });
+
+      test('client.onSharingEvent sets the sharing event callback correctly', () => {
+        const callback = jest.fn();
+        const result = client.onSharingEvent(callback);
+        expect(client.onSharingEvent).toHaveBeenCalledWith(callback);
+        expect(result).toBe(true);
+      });
+
+      test('client.onEventEx sets the raw event callback correctly', () => {
+        const callback = jest.fn();
+        const result = client.onEventEx(callback);
+        expect(client.onEventEx).toHaveBeenCalledWith(callback);
         expect(result).toBe(true);
       });
 
@@ -397,175 +399,33 @@ describe('RTMS Node.JS Addon Comprehensive Test Suite', () => {
         expect(result).toBe(true);
       });
     });
-  });
 
-  // ---- Global singleton approach tests ----
-  describe('Global Singleton Approach', () => {
-    describe('Basic Connection Methods', () => {
-      test('rtms.join with parameters joins a session correctly', () => {
-        const result = rtms.join("uuid", "session_id", "signature", "server_url", 5000);
-        expect(rtms.join).toHaveBeenCalledWith("uuid", "session_id", "signature", "server_url", 5000);
+    describe('Event Subscription Methods', () => {
+      test('client.subscribeEvent subscribes to events correctly', () => {
+        const events = [rtms.EVENT_PARTICIPANT_JOIN, rtms.EVENT_PARTICIPANT_LEAVE];
+        const result = client.subscribeEvent(events);
+        expect(client.subscribeEvent).toHaveBeenCalledWith(events);
         expect(result).toBe(true);
       });
 
-      test('rtms.join with JoinParams object joins a session correctly', () => {
-        const joinParams = {
-          meeting_uuid: "uuid",
-          rtms_stream_id: "session_id",
-          server_urls: "server_url",
-          signature: "signature",
-          timeout: 5000,
-          pollInterval: 100
-        };
-        
-        const result = rtms.join(joinParams);
-        expect(rtms.join).toHaveBeenCalledWith(joinParams);
+      test('client.unsubscribeEvent unsubscribes from events correctly', () => {
+        const events = [rtms.EVENT_PARTICIPANT_JOIN];
+        const result = client.unsubscribeEvent(events);
+        expect(client.unsubscribeEvent).toHaveBeenCalledWith(events);
         expect(result).toBe(true);
       });
 
-      test('rtms.uuid returns the UUID correctly', () => {
-        const uuid = rtms.uuid();
-        expect(rtms.uuid).toHaveBeenCalled();
-        expect(uuid).toBe("global-uuid");
-      });
-
-      test('rtms.streamId returns the stream ID correctly', () => {
-        const streamId = rtms.streamId();
-        expect(rtms.streamId).toHaveBeenCalled();
-        expect(streamId).toBe("global-stream-id");
-      });
-
-      test('rtms.leave releases resources correctly', () => {
-        const result = rtms.leave();
-        expect(rtms.leave).toHaveBeenCalled();
+      test('can subscribe to all event types', () => {
+        const events = [
+          rtms.EVENT_ACTIVE_SPEAKER_CHANGE,
+          rtms.EVENT_PARTICIPANT_JOIN,
+          rtms.EVENT_PARTICIPANT_LEAVE,
+          rtms.EVENT_SHARING_START,
+          rtms.EVENT_SHARING_STOP
+        ];
+        const result = client.subscribeEvent(events);
+        expect(client.subscribeEvent).toHaveBeenCalledWith(events);
         expect(result).toBe(true);
-      });
-    });
-
-    describe('Media Enable/Disable Methods', () => {
-      test('rtms.enableAudio enables/disables audio correctly', () => {
-        const result1 = rtms.enableAudio(true);
-        expect(rtms.enableAudio).toHaveBeenCalledWith(true);
-        expect(result1).toBe(true);
-
-        const result2 = rtms.enableAudio(false);
-        expect(rtms.enableAudio).toHaveBeenCalledWith(false);
-        expect(result2).toBe(true);
-      });
-
-      test('rtms.enableVideo enables/disables video correctly', () => {
-        const result1 = rtms.enableVideo(true);
-        expect(rtms.enableVideo).toHaveBeenCalledWith(true);
-        expect(result1).toBe(true);
-
-        const result2 = rtms.enableVideo(false);
-        expect(rtms.enableVideo).toHaveBeenCalledWith(false);
-        expect(result2).toBe(true);
-      });
-
-      test('rtms.enableTranscript enables/disables transcript correctly', () => {
-        const result1 = rtms.enableTranscript(true);
-        expect(rtms.enableTranscript).toHaveBeenCalledWith(true);
-        expect(result1).toBe(true);
-
-        const result2 = rtms.enableTranscript(false);
-        expect(rtms.enableTranscript).toHaveBeenCalledWith(false);
-        expect(result2).toBe(true);
-      });
-    });
-
-    describe('Parameter Setting Methods', () => {
-      test('rtms.setAudioParams sets audio parameters correctly', () => {
-        const audioParams = {
-          contentType: rtms.AudioContentType.RTP,
-          codec: rtms.AudioCodec.OPUS,
-          sampleRate: rtms.AudioSampleRate.SR_48K,
-          channel: rtms.AudioChannel.STEREO,
-          dataOpt: rtms.AudioDataOption.AUDIO_MIXED_STREAM,
-          duration: 20,
-          frameSize: 960
-        };
-
-        const result = rtms.setAudioParams(audioParams);
-        expect(rtms.setAudioParams).toHaveBeenCalledWith(audioParams);
-        expect(result).toBe(true);
-      });
-
-      test('rtms.setVideoParams sets video parameters correctly', () => {
-        const videoParams = {
-          contentType: rtms.VideoContentType.RTP,
-          codec: rtms.VideoCodec.H264,
-          resolution: rtms.VideoResolution.HD,
-          dataOpt: rtms.VideoDataOption.VIDEO_MIXED_SPEAKER_VIEW,
-          fps: 30
-        };
-
-        const result = rtms.setVideoParams(videoParams);
-        expect(rtms.setVideoParams).toHaveBeenCalledWith(videoParams);
-        expect(result).toBe(true);
-      });
-
-      test('rtms.setDeskshareParams sets deskshare parameters correctly', () => {
-        const deskshareParams = {
-          contentType: rtms.VideoContentType.RTP,
-          codec: rtms.VideoCodec.H264,
-          resolution: rtms.VideoResolution.FHD,
-          fps: 15
-        };
-
-        const result = rtms.setDeskshareParams(deskshareParams);
-        expect(rtms.setDeskshareParams).toHaveBeenCalledWith(deskshareParams);
-        expect(result).toBe(true);
-      });
-    });
-
-    describe('Callback Methods', () => {
-      test('rtms.onJoinConfirm sets the join confirmation callback correctly', () => {
-        const callback = jest.fn();
-        rtms.onJoinConfirm(callback);
-        expect(rtms.onJoinConfirm).toHaveBeenCalledWith(callback);
-      });
-
-      test('rtms.onSessionUpdate sets the session update callback correctly', () => {
-        const callback = jest.fn();
-        rtms.onSessionUpdate(callback);
-        expect(rtms.onSessionUpdate).toHaveBeenCalledWith(callback);
-      });
-
-      test('rtms.onUserUpdate sets the user update callback correctly', () => {
-        const callback = jest.fn();
-        rtms.onUserUpdate(callback);
-        expect(rtms.onUserUpdate).toHaveBeenCalledWith(callback);
-      });
-
-      test('rtms.onAudioData sets the audio data callback correctly', () => {
-        const callback = jest.fn();
-        rtms.onAudioData(callback);
-        expect(rtms.onAudioData).toHaveBeenCalledWith(callback);
-      });
-
-      test('rtms.onVideoData sets the video data callback correctly', () => {
-        const callback = jest.fn();
-        rtms.onVideoData(callback);
-        expect(rtms.onVideoData).toHaveBeenCalledWith(callback);
-      });
-
-      test('rtms.onDeskshareData sets the deskshare data callback correctly', () => {
-        const callback = jest.fn();
-        rtms.onDeskshareData(callback);
-        expect(rtms.onDeskshareData).toHaveBeenCalledWith(callback);
-      });
-
-      test('rtms.onTranscriptData sets the transcript data callback correctly', () => {
-        const callback = jest.fn();
-        rtms.onTranscriptData(callback);
-        expect(rtms.onTranscriptData).toHaveBeenCalledWith(callback);
-      });
-
-      test('rtms.onLeave sets the leave callback correctly', () => {
-        const callback = jest.fn();
-        rtms.onLeave(callback);
-        expect(rtms.onLeave).toHaveBeenCalledWith(callback);
       });
     });
   });
@@ -658,9 +518,12 @@ describe('RTMS Node.JS Addon Comprehensive Test Suite', () => {
       expect(rtms.SESSION_EVENT_RESUME).toBe(4);
     });
 
-    test('User event constants are defined correctly', () => {
-      expect(rtms.USER_EVENT_JOIN).toBe(1);
-      expect(rtms.USER_EVENT_LEAVE).toBe(2);
+    test('Event type constants are defined correctly', () => {
+      expect(rtms.EVENT_ACTIVE_SPEAKER_CHANGE).toBe(0);
+      expect(rtms.EVENT_PARTICIPANT_JOIN).toBe(1);
+      expect(rtms.EVENT_PARTICIPANT_LEAVE).toBe(2);
+      expect(rtms.EVENT_SHARING_START).toBe(3);
+      expect(rtms.EVENT_SHARING_STOP).toBe(4);
     });
 
     test('Status constants are defined correctly', () => {
@@ -690,23 +553,23 @@ describe('RTMS Node.JS Addon Comprehensive Test Suite', () => {
   describe('Integration Tests', () => {
     test('Complete workflow with client instance', () => {
       const client = new rtms.Client();
-      
+
       // Set up callbacks
       const joinCallback = jest.fn();
       const audioCallback = jest.fn();
       const leaveCallback = jest.fn();
-      
+
       client.onJoinConfirm(joinCallback);
       client.onAudioData(audioCallback);
       client.onLeave(leaveCallback);
-      
+
       // Set parameters
       const audioParams = {
         codec: rtms.AudioCodec.OPUS,
         sampleRate: rtms.AudioSampleRate.SR_48K
       };
       client.setAudioParams(audioParams);
-      
+
       // Join meeting
       const joinParams = {
         meeting_uuid: "test-uuid",
@@ -715,100 +578,45 @@ describe('RTMS Node.JS Addon Comprehensive Test Suite', () => {
         signature: "test-signature"
       };
       const joinResult = client.join(joinParams);
-      
+
       // Leave meeting
       const leaveResult = client.leave();
-      
+
       expect(joinResult).toBe(true);
       expect(leaveResult).toBe(true);
       expect(client.setAudioParams).toHaveBeenCalledWith(audioParams);
       expect(client.join).toHaveBeenCalledWith(joinParams);
     });
 
-    test('Complete workflow with global client', () => {
-      // Set up callbacks
-      const joinCallback = jest.fn();
-      const videoCallback = jest.fn();
-      const leaveCallback = jest.fn();
-      
-      rtms.onJoinConfirm(joinCallback);
-      rtms.onVideoData(videoCallback);
-      rtms.onLeave(leaveCallback);
-      
-      // Set parameters
-      const videoParams = {
-        codec: rtms.VideoCodec.H264,
-        resolution: rtms.VideoResolution.HD
-      };
-      rtms.setVideoParams(videoParams);
-      
-      // Enable media types
-      rtms.enableAudio(true);
-      rtms.enableVideo(true);
-      
-      // Join meeting
-      const joinParams = {
-        meeting_uuid: "global-test-uuid",
-        rtms_stream_id: "global-test-stream",
-        server_urls: "wss://global-test.zoom.us"
-      };
-      const joinResult = rtms.join(joinParams);
-      
-      // Leave meeting
-      const leaveResult = rtms.leave();
-      
-      expect(joinResult).toBe(true);
-      expect(leaveResult).toBe(true);
-      expect(rtms.setVideoParams).toHaveBeenCalledWith(videoParams);
-      expect(rtms.enableAudio).toHaveBeenCalledWith(true);
-      expect(rtms.enableVideo).toHaveBeenCalledWith(true);
-    });
+    test('Multiple client instances can work independently', () => {
+      const client1 = new rtms.Client();
+      const client2 = new rtms.Client();
 
-    test('Both patterns can be used simultaneously', () => {
-      const client = new rtms.Client();
-      
-      // Global client
-      rtms.join({
-        meeting_uuid: "global-uuid",
-        rtms_stream_id: "global-session",
-        server_urls: "global-server"
+      // Each client joins a different meeting
+      client1.join({
+        meeting_uuid: "client1-uuid",
+        rtms_stream_id: "client1-session",
+        server_urls: "client1-server"
       });
-      
-      // Class instance
-      client.join({
-        meeting_uuid: "instance-uuid",
-        rtms_stream_id: "instance-session",
-        server_urls: "instance-server"
+
+      client2.join({
+        meeting_uuid: "client2-uuid",
+        rtms_stream_id: "client2-session",
+        server_urls: "client2-server"
       });
-      
+
       // Check that both were called correctly
-      expect(rtms.join).toHaveBeenCalledWith({
-        meeting_uuid: "global-uuid",
-        rtms_stream_id: "global-session",
-        server_urls: "global-server"
+      expect(client1.join).toHaveBeenCalledWith({
+        meeting_uuid: "client1-uuid",
+        rtms_stream_id: "client1-session",
+        server_urls: "client1-server"
       });
-      
-      expect(client.join).toHaveBeenCalledWith({
-        meeting_uuid: "instance-uuid",
-        rtms_stream_id: "instance-session",
-        server_urls: "instance-server"
-      });
-    });
 
-    test('Each pattern has its own UUID and stream ID', () => {
-      const client = new rtms.Client();
-      
-      const globalUuid = rtms.uuid();
-      const instanceUuid = client.uuid();
-      
-      const globalStreamId = rtms.streamId();
-      const instanceStreamId = client.streamId();
-      
-      expect(globalUuid).toBe('global-uuid');
-      expect(instanceUuid).toBe('client-uuid');
-      
-      expect(globalStreamId).toBe('global-stream-id');
-      expect(instanceStreamId).toBe('client-stream-id');
+      expect(client2.join).toHaveBeenCalledWith({
+        meeting_uuid: "client2-uuid",
+        rtms_stream_id: "client2-session",
+        server_urls: "client2-server"
+      });
     });
 
     test('All media types can be configured together', () => {

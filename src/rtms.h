@@ -209,7 +209,6 @@ class Client {
 public:
     using JoinConfirmFn = function<void(int)>;
     using SessionUpdateFn = function<void(int, const Session&)>;
-    using UserUpdateFn = function<void(int, const Participant&)>;
     using DsDataFn = function<void(const vector<uint8_t>&, uint64_t,  const Metadata&)>;
     using AudioDataFn = function<void(const vector<uint8_t>&, uint64_t, const Metadata&)>;
     using VideoDataFn = function<void(const vector<uint8_t>&, uint64_t,  const Metadata&)>;
@@ -227,6 +226,16 @@ public:
         ALL = 31  // Sum of all types (1+2+4+8+16)
     };
 
+    // Event types for subscribeEvent/unsubscribeEvent
+    // These are used with on_event_ex callback (JSON events)
+    enum EventType {
+        EVENT_ACTIVE_SPEAKER_CHANGE = 0,
+        EVENT_PARTICIPANT_JOIN = 1,
+        EVENT_PARTICIPANT_LEAVE = 2,
+        EVENT_SHARING_START = 3,
+        EVENT_SHARING_STOP = 4
+    };
+
     Client();
     ~Client();
 
@@ -242,12 +251,14 @@ public:
     void setOnJoinConfirm(JoinConfirmFn callback);
     void setOnSessionUpdate(SessionUpdateFn callback);
     void setOnDeskshareData(DsDataFn callback);
-    void setOnUserUpdate(UserUpdateFn callback);
     void setOnAudioData(AudioDataFn callback);
     void setOnVideoData(VideoDataFn callback);
     void setOnTranscriptData(TranscriptDataFn callback);
     void setOnLeave(LeaveFn callback);
     void setOnEventEx(EventExFn callback);
+
+    void subscribeEvent(const std::vector<int>& events);
+    void unsubscribeEvent(const std::vector<int>& events);
 
     void setDeskshareParams(const DeskshareParams& ds_params);
     void setVideoParams(const VideoParams& video_params);
@@ -274,13 +285,14 @@ private:
 
     JoinConfirmFn join_confirm_callback_;
     SessionUpdateFn session_update_callback_;
-    UserUpdateFn user_update_callback_;
     DsDataFn ds_data_callback_;
     AudioDataFn audio_data_callback_;
     VideoDataFn video_data_callback_;
     TranscriptDataFn transcript_data_callback_;
     LeaveFn leave_callback_;
     EventExFn event_ex_callback_;
+
+    std::vector<int> subscribed_events_;
 
     static void handleJoinConfirm(struct rtms_csdk* sdk, int reason);
     static void handleSessionUpdate(struct rtms_csdk* sdk, int op, struct session_info* sess);

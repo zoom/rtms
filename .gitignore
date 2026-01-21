@@ -1,6 +1,14 @@
 ### orchestration
 .task
 
+### Python cache
+__pycache__/
+.pytest_cache/
+
+### Editor/IDE folders
+.claude/
+.vscode/
+
 ### Dev Only
 docs/*
 !docs/*.md

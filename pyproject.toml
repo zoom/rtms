@@ -5,7 +5,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "rtms"
-version = "0.0.3"
+version = "1.0.0"
 description = "Python bindings for the Zoom RTMS C SDK - Real-Time Media Streaming"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -92,7 +92,7 @@ repair-wheel-command = ""  # Disable delocate (SDK already bundled)
 [tool.cibuildwheel.linux]
 archs = ["x86_64"]
 repair-wheel-command = "auditwheel repair --exclude librtmsdk.so.0 -w {dest_dir} {wheel}"
-manylinux-x86_64-image = "manylinux_2_17"  # CentOS 8 equivalent
+manylinux-x86_64-image = "manylinux_2_28"  # AlmaLinux-based, GLIBC 2.28 (cibuildwheel default since 2024)
 
 # Environment variables during build
 [tool.cibuildwheel.environment]

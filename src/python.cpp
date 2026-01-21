@@ -126,20 +126,6 @@ public:
         });
     }
 
-    void onUserUpdate(py::function callback) {
-        user_update_callback_ = callback;
-        client_->setOnUserUpdate([this](int op, const Participant& participant) {
-            if (!user_update_callback_.is_none()) {
-                py::gil_scoped_acquire acquire;
-                try {
-                    user_update_callback_(op, participant);
-                } catch (const py::error_already_set& e) {
-                    py::print("Error in user update callback:", e.what());
-                }
-            }
-        });
-    }
-
     void onAudioData(py::function callback) {
         audio_data_callback_ = callback;
         client_->setOnAudioData([this](const std::vector<uint8_t>& data, uint64_t timestamp, const Metadata& metadata) {
@@ -228,13 +214,24 @@ public:
         });
     }
 
+    // ========================================================================
+    // Event Subscription Methods
+    // ========================================================================
+
+    void subscribeEvent(const std::vector<int>& events) {
+        client_->subscribeEvent(events);
+    }
+
+    void unsubscribeEvent(const std::vector<int>& events) {
+        client_->unsubscribeEvent(events);
+    }
+
 private:
     std::unique_ptr<Client> client_;
 
     // Python callback storage
     py::object join_confirm_callback_ = py::none();
     py::object session_update_callback_ = py::none();
-    py::object user_update_callback_ = py::none();
     py::object audio_data_callback_ = py::none();
     py::object video_data_callback_ = py::none();
     py::object deskshare_data_callback_ = py::none();
@@ -245,7 +242,6 @@ private:
     void clearCallbacks() {
         join_confirm_callback_ = py::none();
         session_update_callback_ = py::none();
-        user_update_callback_ = py::none();
         audio_data_callback_ = py::none();
         video_data_callback_ = py::none();
         deskshare_data_callback_ = py::none();
@@ -259,7 +255,6 @@ private:
         if (client_) {
             client_->setOnJoinConfirm([](int) {});
             client_->setOnSessionUpdate([](int, const Session&) {});
-            client_->setOnUserUpdate([](int, const Participant&) {});
             client_->setOnAudioData([](const std::vector<uint8_t>&, uint64_t, const Metadata&) {});
             client_->setOnVideoData([](const std::vector<uint8_t>&, uint64_t, const Metadata&) {});
             client_->setOnDeskshareData([](const std::vector<uint8_t>&, uint64_t, const Metadata&) {});
@@ -386,8 +381,6 @@ PYBIND11_MODULE(_rtms, m) {
              "Register join confirm callback")
         .def("onSessionUpdate", &PyClient::onSessionUpdate,
              "Register session update callback")
-        .def("onUserUpdate", &PyClient::onUserUpdate,
-             "Register user update callback")
         .def("onAudioData", &PyClient::onAudioData,
              "Register audio data callback")
         .def("onVideoData", &PyClient::onVideoData,
@@ -399,7 +392,13 @@ PYBIND11_MODULE(_rtms, m) {
         .def("onLeave", &PyClient::onLeave,
              "Register leave callback")
         .def("onEventEx", &PyClient::onEventEx,
-             "Register extended event callback");
+             "Register extended event callback")
+        .def("subscribeEvent", &PyClient::subscribeEvent,
+             "Subscribe to receive specific event types",
+             py::arg("events"))
+        .def("unsubscribeEvent", &PyClient::unsubscribeEvent,
+             "Unsubscribe from specific event types",
+             py::arg("events"));
 
     // ========================================================================
     // Constants - Media Types
@@ -424,9 +423,14 @@ PYBIND11_MODULE(_rtms, m) {
     // ========================================================================
     // Constants - User Events
     // ========================================================================
+    // Event Types (for subscribeEvent/unsubscribeEvent - used with onEventEx callback)
+    // ========================================================================
 
-    m.attr("USER_EVENT_JOIN") = py::int_(static_cast<int>(USER_JOIN));
-    m.attr("USER_EVENT_LEAVE") = py::int_(static_cast<int>(USER_LEAVE));
+    m.attr("EVENT_ACTIVE_SPEAKER_CHANGE") = py::int_(static_cast<int>(Client::EVENT_ACTIVE_SPEAKER_CHANGE));
+    m.attr("EVENT_PARTICIPANT_JOIN") = py::int_(static_cast<int>(Client::EVENT_PARTICIPANT_JOIN));
+    m.attr("EVENT_PARTICIPANT_LEAVE") = py::int_(static_cast<int>(Client::EVENT_PARTICIPANT_LEAVE));
+    m.attr("EVENT_SHARING_START") = py::int_(static_cast<int>(Client::EVENT_SHARING_START));
+    m.attr("EVENT_SHARING_STOP") = py::int_(static_cast<int>(Client::EVENT_SHARING_STOP));
 
     // ========================================================================
     // Constants - Error Codes

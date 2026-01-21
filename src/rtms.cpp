@@ -1,6 +1,7 @@
 #include "rtms.h"
 #include <cstring>
 #include <iostream>
+#include <algorithm>
 
 namespace rtms {
 
@@ -377,9 +378,9 @@ media_parameters MediaParams::toNative() const {
     return params;
 }
 
-Client::Client() 
-    : sdk_(nullptr), 
-      enabled_media_types_(0), 
+Client::Client()
+    : sdk_(nullptr),
+      enabled_media_types_(0),
       media_params_updated_(false) {
     sdk_ = rtms_alloc();
     if (!sdk_) {
@@ -495,11 +496,6 @@ void Client::setOnDeskshareData(DsDataFn callback){
     updateMediaConfiguration(MediaType::DESKSHARE);
 }
 
-void Client::setOnUserUpdate(UserUpdateFn callback) {
-    lock_guard<mutex> lock(mutex_);
-    user_update_callback_ = std::move(callback);
-}
-
 void Client::setOnAudioData(AudioDataFn callback) {
     lock_guard<mutex> lock(mutex_);
     audio_data_callback_ = std::move(callback);
@@ -529,6 +525,43 @@ void Client::setOnLeave(LeaveFn callback) {
 void Client::setOnEventEx(EventExFn callback) {
     lock_guard<mutex> lock(mutex_);
     event_ex_callback_ = std::move(callback);
+}
+
+void Client::subscribeEvent(const std::vector<int>& events) {
+    if (events.empty()) return;
+    if (!sdk_) {
+        throw Exception(RTMS_SDK_INVALID_STATUS, "SDK not initialized");
+    }
+
+    int result = rtms_subscribe_event(sdk_, const_cast<int*>(events.data()), static_cast<int>(events.size()));
+    throwIfError(result, "subscribe_event");
+
+    // Track subscribed events for cleanup
+    lock_guard<mutex> lock(mutex_);
+    for (int event : events) {
+        if (std::find(subscribed_events_.begin(), subscribed_events_.end(), event) == subscribed_events_.end()) {
+            subscribed_events_.push_back(event);
+        }
+    }
+}
+
+void Client::unsubscribeEvent(const std::vector<int>& events) {
+    if (events.empty()) return;
+    if (!sdk_) {
+        throw Exception(RTMS_SDK_INVALID_STATUS, "SDK not initialized");
+    }
+
+    int result = rtms_unsubscribe_event(sdk_, const_cast<int*>(events.data()), static_cast<int>(events.size()));
+    throwIfError(result, "unsubscribe_event");
+
+    // Remove from tracked events
+    lock_guard<mutex> lock(mutex_);
+    for (int event : events) {
+        subscribed_events_.erase(
+            std::remove(subscribed_events_.begin(), subscribed_events_.end(), event),
+            subscribed_events_.end()
+        );
+    }
 }
 
 void Client::setDeskshareParams(const DeskshareParams& ds_params)
@@ -571,10 +604,10 @@ void Client::join(const string& meeting_uuid, const string& rtms_stream_id,
         }
     }
     
-    result = rtms_join(sdk_, meeting_uuid.c_str(), rtms_stream_id.c_str(), 
+    result = rtms_join(sdk_, meeting_uuid.c_str(), rtms_stream_id.c_str(),
                       signature.c_str(), server_url.c_str(), timeout);
     throwIfError(result, "join");
-    
+
     lock_guard<mutex> lock(mutex_);
     meeting_uuid_ = meeting_uuid;
     rtms_stream_id_ = rtms_stream_id;
@@ -668,14 +701,12 @@ void Client::handleSessionUpdate(struct rtms_csdk* sdk, int op, struct session_i
 }
 
 void Client::handleUserUpdate(struct rtms_csdk* sdk, int op, struct participant_info* pi) {
-    Client* client = getClient(sdk);
-    if (client && pi) {
-        lock_guard<mutex> lock(client->mutex_);
-        if (client->user_update_callback_) {
-            Participant participant(*pi);
-            client->user_update_callback_(op, participant);
-        }
-    }
+    // Note: User events are now delivered via on_event_ex callback as JSON.
+    // This callback is kept for SDK compatibility but is no longer used.
+    // Use onEventEx and subscribeEvent(EVENT_PARTICIPANT_JOIN/LEAVE) instead.
+    (void)sdk;
+    (void)op;
+    (void)pi;
 }
 
 void Client::handleDsData(rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, rtms_metadata* md) {

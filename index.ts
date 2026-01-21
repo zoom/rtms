@@ -804,9 +804,90 @@ function setParameters<T>(
 class Client extends nativeRtms.Client {
   private pollingInterval: NodeJS.Timeout | null = null;
   private pollRate: number = 0;
-  
+  private participantEventCallback: ((event: 'join' | 'leave', timestamp: number, participants: Array<{ userId: number; userName?: string }>) => void) | null = null;
+  private activeSpeakerEventCallback: ((timestamp: number, userId: number, userName: string) => void) | null = null;
+  private sharingEventCallback: ((event: 'start' | 'stop', timestamp: number, userId?: number, userName?: string) => void) | null = null;
+  private rawEventCallback: ((eventData: string) => void) | null = null;
+  private eventHandlerRegistered: boolean = false;
+
   constructor() {
     super();
+  }
+
+  /**
+   * Internal event dispatcher that routes events to typed callbacks
+   * @private
+   */
+  private setupEventHandler(): void {
+    if (this.eventHandlerRegistered) return;
+    this.eventHandlerRegistered = true;
+
+    super.onEventEx((eventData: string) => {
+      // Call raw callback if set
+      if (this.rawEventCallback) {
+        this.rawEventCallback(eventData);
+      }
+
+      // Parse and dispatch to typed callbacks
+      try {
+        const data = JSON.parse(eventData);
+        const eventType = data.event?.event_type;
+
+        switch (eventType) {
+          case nativeRtms.EVENT_PARTICIPANT_JOIN:
+            if (this.participantEventCallback) {
+              const participants = (data.event?.participants || []).map((p: any) => ({
+                userId: p.user_id,
+                userName: p.user_name
+              }));
+              this.participantEventCallback('join', data.event?.timestamp || 0, participants);
+            }
+            break;
+
+          case nativeRtms.EVENT_PARTICIPANT_LEAVE:
+            if (this.participantEventCallback) {
+              const participants = (data.event?.participants || []).map((p: any) => ({
+                userId: p.user_id,
+                userName: p.user_name
+              }));
+              this.participantEventCallback('leave', data.event?.timestamp || 0, participants);
+            }
+            break;
+
+          case nativeRtms.EVENT_ACTIVE_SPEAKER_CHANGE:
+            if (this.activeSpeakerEventCallback) {
+              this.activeSpeakerEventCallback(
+                data.event?.timestamp || 0,
+                data.event?.user_id || 0,
+                data.event?.user_name || ''
+              );
+            }
+            break;
+
+          case nativeRtms.EVENT_SHARING_START:
+            if (this.sharingEventCallback) {
+              this.sharingEventCallback(
+                'start',
+                data.event?.timestamp || 0,
+                data.event?.user_id,
+                data.event?.user_name
+              );
+            }
+            break;
+
+          case nativeRtms.EVENT_SHARING_STOP:
+            if (this.sharingEventCallback) {
+              this.sharingEventCallback(
+                'stop',
+                data.event?.timestamp || 0
+              );
+            }
+            break;
+        }
+      } catch (e) {
+        Logger.error('client', `Failed to parse event: ${e}`);
+      }
+    });
   }
   
   /**
@@ -911,7 +992,118 @@ class Client extends nativeRtms.Client {
      (p) => super.setDeskshareParams(p)
    );
  }
-  
+
+  /**
+   * Register a callback for participant join/leave events
+   *
+   * This automatically subscribes to EVENT_PARTICIPANT_JOIN and EVENT_PARTICIPANT_LEAVE.
+   * Events are delivered as parsed objects, not raw JSON.
+   *
+   * @param callback Function called when participants join or leave
+   * @returns true if registration succeeds
+   *
+   * @example
+   * ```typescript
+   * client.onParticipantEvent((event, timestamp, participants) => {
+   *   console.log(`Participant ${event}:`, participants);
+   * });
+   * ```
+   */
+  onParticipantEvent(callback: (event: 'join' | 'leave', timestamp: number, participants: Array<{ userId: number; userName?: string }>) => void): boolean {
+    this.participantEventCallback = callback;
+    this.setupEventHandler();
+
+    // Auto-subscribe to participant events
+    try {
+      super.subscribeEvent([nativeRtms.EVENT_PARTICIPANT_JOIN, nativeRtms.EVENT_PARTICIPANT_LEAVE]);
+    } catch (e) {
+      Logger.warn('client', `Failed to auto-subscribe to participant events: ${e}`);
+    }
+
+    return true;
+  }
+
+  /**
+   * Register a callback for active speaker change events
+   *
+   * This automatically subscribes to EVENT_ACTIVE_SPEAKER_CHANGE.
+   *
+   * @param callback Function called when the active speaker changes
+   * @returns true if registration succeeds
+   *
+   * @example
+   * ```typescript
+   * client.onActiveSpeakerEvent((timestamp, userId, userName) => {
+   *   console.log(`Active speaker: ${userName} (${userId})`);
+   * });
+   * ```
+   */
+  onActiveSpeakerEvent(callback: (timestamp: number, userId: number, userName: string) => void): boolean {
+    this.activeSpeakerEventCallback = callback;
+    this.setupEventHandler();
+
+    try {
+      super.subscribeEvent([nativeRtms.EVENT_ACTIVE_SPEAKER_CHANGE]);
+    } catch (e) {
+      Logger.warn('client', `Failed to auto-subscribe to active speaker events: ${e}`);
+    }
+
+    return true;
+  }
+
+  /**
+   * Register a callback for sharing start/stop events
+   *
+   * This automatically subscribes to EVENT_SHARING_START and EVENT_SHARING_STOP.
+   * Note: These events only work when the RTMS app has DESKSHARE scope permission.
+   *
+   * @param callback Function called when sharing starts or stops
+   * @returns true if registration succeeds
+   *
+   * @example
+   * ```typescript
+   * client.onSharingEvent((event, timestamp, userId, userName) => {
+   *   console.log(`Sharing ${event} by ${userName}`);
+   * });
+   * ```
+   */
+  onSharingEvent(callback: (event: 'start' | 'stop', timestamp: number, userId?: number, userName?: string) => void): boolean {
+    this.sharingEventCallback = callback;
+    this.setupEventHandler();
+
+    try {
+      super.subscribeEvent([nativeRtms.EVENT_SHARING_START, nativeRtms.EVENT_SHARING_STOP]);
+    } catch (e) {
+      Logger.warn('client', `Failed to auto-subscribe to sharing events: ${e}`);
+    }
+
+    return true;
+  }
+
+  /**
+   * Register a callback for raw event data
+   *
+   * This provides access to the raw JSON event data from the SDK.
+   * Use this when you need custom event handling or access to all event types.
+   * This callback is called IN ADDITION to typed callbacks, not instead of.
+   *
+   * @param callback Function called with raw JSON event data
+   * @returns true if registration succeeds
+   *
+   * @example
+   * ```typescript
+   * client.onEventEx((eventData) => {
+   *   const data = JSON.parse(eventData);
+   *   console.log('Raw event:', data);
+   * });
+   * ```
+   */
+  onEventEx(callback: (eventData: string) => void): boolean {
+    this.rawEventCallback = callback;
+    this.setupEventHandler();
+    return true;
+  }
+
   /**
    * Start background polling for events
    * 
@@ -978,186 +1170,6 @@ class Client extends nativeRtms.Client {
   }
 }
 
-// Global client polling state
-let globalPollingInterval: NodeJS.Timeout | null = null;
-let globalPollRate: number = 0;
-
-/**
- * Start global client polling
- * 
- * @private
- */
-function startGlobalPolling(): void {
-  if (globalPollingInterval) {
-    clearInterval(globalPollingInterval);
-  }
-  
-  Logger.debug('global', `Starting global polling with interval: ${globalPollRate}ms`);
-  
-  globalPollingInterval = setInterval(() => {
-    try {
-      nativeRtms.poll();
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      Logger.error('global', `Error during global polling: ${errorMessage}`);
-      stopGlobalPolling();
-    }
-  }, globalPollRate);
-}
-
-/**
- * Stop global client polling
- * 
- * @private
- */
-function stopGlobalPolling(): void {
-  if (globalPollingInterval) {
-    Logger.debug('global', 'Stopping global polling');
-    clearInterval(globalPollingInterval);
-    globalPollingInterval = null;
-  }
-}
-
-/**
- * Join a Zoom RTMS session using the global client
- * 
- * This function establishes a connection to a Zoom RTMS stream using the
- * global client singleton. It automatically handles initialization,
- * signature generation, and starts background polling for events.
- * 
- * @param options Object containing join parameters
- * @returns true if the join operation succeeds
- */
-function join(options: JoinParams): boolean {
- 
-  let ret = false;
-  const caPath = options.ca || process.env['ZM_RTMS_CA'];
-  const isVerifyCert = options.is_verify_cert !== undefined ? options.is_verify_cert : 1;
-  const agent = options.agent;
-  ret = ensureInitialized(caPath, isVerifyCert, agent);
-
-  const {
-    meeting_uuid,
-    rtms_stream_id,
-    server_urls,
-    signature: providedSignature,
-    client = process.env['ZM_RTMS_CLIENT'] || "",
-    secret = process.env['ZM_RTMS_SECRET'] || "",
-    timeout: providedTimeout = -1,
-    pollInterval = 0
-  } = options;
-
-  globalPollRate = pollInterval;
-
-  Logger.info('global', `Joining meeting: ${meeting_uuid}`, {
-    streamId: rtms_stream_id,
-    serverUrls: server_urls,
-    timeout: providedTimeout,
-    globalPollingInterval
-  });
-  
-
-  const finalSignature = providedSignature || generateSignature({
-    client,
-    secret,
-    uuid: meeting_uuid,
-    streamId: rtms_stream_id
-  });
-
-  try {
-    ret = nativeRtms.join(meeting_uuid, rtms_stream_id, finalSignature, server_urls, providedTimeout);
-    
-    if (ret) {
-      Logger.info('global', `Successfully joined meeting: ${meeting_uuid}`);
-    } else {
-      Logger.error('global', `Failed to join meeting: ${meeting_uuid}`);
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    Logger.error('global', `Error joining meeting: ${errorMessage}`, { meeting_uuid });
-    throw error;
-  }
-
-  if (ret)
-    startGlobalPolling();
-
-
-  return ret;
-}
-
-function setAudioParams(params: AudioParams): boolean {
-  return setParameters<AudioParams>(
-    'global',
-    'audio',
-    params,
-    (p) => nativeRtms.setAudioParams(p)
-  );
-}
-
-function setVideoParams(params: VideoParams): boolean {
-  return setParameters<VideoParams>(
-    'global',
-    'video',
-    params,
-    (p) => nativeRtms.setVideoParams(p)
-  )
-}
-  
-  function setDeskshareParams(params: DeskshareParams): boolean {
-    return setParameters<DeskshareParams>(
-      'global',
-      'deskshare',
-      params,
-      (p) => nativeRtms.setDeskshareParams(p)
-    );
-  }
-
-
-/**
- * Leave the current session and clean up global client resources
- * 
- * This function disconnects from the Zoom RTMS stream, stops
- * background polling, and releases resources for the global client.
- * 
- * @returns true if the leave operation succeeds
- *
- */
-function leave(): boolean {
-  Logger.info('global', 'Leaving meeting');
-  
-  try {
-    stopGlobalPolling();
-    
-    // If the native module has a leave function, use that
-    if (typeof nativeRtms.leave === 'function') {
-      const result = nativeRtms.leave();
-      
-      if (result) {
-        Logger.info('global', 'Successfully left meeting');
-      } else {
-        Logger.warn('global', 'Left meeting with warnings');
-      }
-      
-      return result;
-    }
-    
-    // Otherwise, fall back to release (for backward compatibility)
-    const result = nativeRtms.release();
-    
-    if (result) {
-      Logger.info('global', 'Successfully released resources');
-    } else {
-      Logger.warn('global', 'Released resources with warnings');
-    }
-    
-    return result;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    Logger.error('global', `Error during leave: ${errorMessage}`);
-    return false;
-  }
-}
-
 /**
  * Configure the RTMS logger
  * 
@@ -1180,33 +1192,17 @@ export default {
   // Class-based API
   Client,
   onWebhookEvent,
-  
-  // Global singleton API
-  join,
-  leave,
-  setDeskshareParams: setDeskshareParams,
-  setAudioParams: setAudioParams,
-  setVideoParams: setVideoParams,
-  poll: nativeRtms.poll,
-  uuid: nativeRtms.uuid,
-  streamId: nativeRtms.streamId,
-  onJoinConfirm: nativeRtms.onJoinConfirm,
-  onSessionUpdate: nativeRtms.onSessionUpdate,
-  onUserUpdate: nativeRtms.onUserUpdate,
-  onDeskshareData: nativeRtms.onDeskshareData,
-  onAudioData: nativeRtms.onAudioData,
-  onVideoData: nativeRtms.onVideoData,
-  onTranscriptData: nativeRtms.onTranscriptData,
-  onLeave: nativeRtms.onLeave,
+  createWebhookHandler,
 
-  ...nativeConstants,
-  
   // Utility functions
   generateSignature,
   isInitialized: () => isInitialized,
-  
+
   // Logger configuration
   configureLogger,
   LogLevel,
-  LogFormat
+  LogFormat,
+
+  // Native constants (media types, codecs, etc.)
+  ...nativeConstants,
 };
