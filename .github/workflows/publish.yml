@@ -471,6 +471,8 @@ jobs:
         with:
           repository-url: https://test.pypi.org/legacy/
           packages-dir: dist/py/
+          verbose: true
+          skip-existing: true
 
       - name: Publish to PyPI (Trusted Publishing)
         if: |
