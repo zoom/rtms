@@ -67,9 +67,12 @@ jobs:
     outputs:
       language: ${{ steps.detect.outputs.language }}
       version: ${{ steps.detect.outputs.version }}
+      base_version: ${{ steps.detect.outputs.base_version }}
       should_publish: ${{ steps.detect.outputs.should_publish }}
+      is_prerelease: ${{ steps.detect.outputs.is_prerelease }}
       is_workflow_call: ${{ steps.detect.outputs.is_workflow_call }}
       use_existing_artifacts: ${{ steps.detect.outputs.use_existing_artifacts }}
+      pypi_target: ${{ steps.detect.outputs.pypi_target }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -77,63 +80,132 @@ jobs:
       - name: Detect language and version
         id: detect
         run: |
+          # Helper function to check if version is a prerelease (rc, alpha, beta)
+          is_prerelease() {
+            [[ "$1" == *"-rc"* ]] || [[ "$1" == *"-alpha"* ]] || [[ "$1" == *"-beta"* ]]
+          }
+
+          # Helper function to extract base version (strip prerelease suffix)
+          get_base_version() {
+            echo "$1" | sed 's/-rc.*//' | sed 's/-alpha.*//' | sed 's/-beta.*//'
+          }
+
           # Detect trigger type and set appropriate values
           if [[ "${{ github.event_name }}" == "workflow_call" ]]; then
             # Called from main.yml
             echo "language=${{ inputs.language }}" >> $GITHUB_OUTPUT
             echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+            echo "base_version=${{ inputs.version }}" >> $GITHUB_OUTPUT
             echo "should_publish=${{ inputs.dry_run == false }}" >> $GITHUB_OUTPUT
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
             echo "is_workflow_call=true" >> $GITHUB_OUTPUT
             echo "use_existing_artifacts=${{ inputs.use_existing_artifacts }}" >> $GITHUB_OUTPUT
+            echo "pypi_target=prod" >> $GITHUB_OUTPUT
             echo "Triggered via workflow_call from main.yml"
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             # Manual trigger
+            VERSION="${{ github.event.inputs.version }}"
+            BASE_VERSION=$(get_base_version "$VERSION")
             echo "language=${{ github.event.inputs.language }}" >> $GITHUB_OUTPUT
-            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "base_version=$BASE_VERSION" >> $GITHUB_OUTPUT
             echo "should_publish=${{ github.event.inputs.dry_run == 'false' }}" >> $GITHUB_OUTPUT
+            if is_prerelease "$VERSION"; then
+              echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            else
+              echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            fi
             echo "is_workflow_call=false" >> $GITHUB_OUTPUT
             echo "use_existing_artifacts=false" >> $GITHUB_OUTPUT
+            echo "pypi_target=${{ github.event.inputs.target }}" >> $GITHUB_OUTPUT
             echo "Triggered via workflow_dispatch (manual)"
           elif [[ "${{ github.ref }}" == refs/tags/js-v* ]]; then
             # Tag push for Node.js
-            echo "language=node" >> $GITHUB_OUTPUT
             VERSION="${GITHUB_REF#refs/tags/js-v}"
+            BASE_VERSION=$(get_base_version "$VERSION")
+            echo "language=node" >> $GITHUB_OUTPUT
             echo "version=$VERSION" >> $GITHUB_OUTPUT
-            echo "should_publish=true" >> $GITHUB_OUTPUT
+            echo "base_version=$BASE_VERSION" >> $GITHUB_OUTPUT
             echo "is_workflow_call=false" >> $GITHUB_OUTPUT
             echo "use_existing_artifacts=false" >> $GITHUB_OUTPUT
+            # RC/prerelease tags → dry-run for Node.js (no test npm registry)
+            if is_prerelease "$VERSION"; then
+              echo "is_prerelease=true" >> $GITHUB_OUTPUT
+              echo "should_publish=false" >> $GITHUB_OUTPUT
+              echo "⚠️ Prerelease tag detected: Node.js will run in dry-run mode"
+            else
+              echo "is_prerelease=false" >> $GITHUB_OUTPUT
+              echo "should_publish=true" >> $GITHUB_OUTPUT
+            fi
+            echo "pypi_target=prod" >> $GITHUB_OUTPUT
             echo "Triggered via tag push: js-v$VERSION"
           elif [[ "${{ github.ref }}" == refs/tags/py-v* ]]; then
             # Tag push for Python
-            echo "language=python" >> $GITHUB_OUTPUT
             VERSION="${GITHUB_REF#refs/tags/py-v}"
+            BASE_VERSION=$(get_base_version "$VERSION")
+            echo "language=python" >> $GITHUB_OUTPUT
             echo "version=$VERSION" >> $GITHUB_OUTPUT
-            echo "should_publish=true" >> $GITHUB_OUTPUT
+            echo "base_version=$BASE_VERSION" >> $GITHUB_OUTPUT
             echo "is_workflow_call=false" >> $GITHUB_OUTPUT
             echo "use_existing_artifacts=false" >> $GITHUB_OUTPUT
+            # RC/prerelease tags → publish to TestPyPI instead of PyPI
+            if is_prerelease "$VERSION"; then
+              echo "is_prerelease=true" >> $GITHUB_OUTPUT
+              echo "should_publish=true" >> $GITHUB_OUTPUT
+              echo "pypi_target=test" >> $GITHUB_OUTPUT
+              echo "⚠️ Prerelease tag detected: Python will publish to TestPyPI"
+            else
+              echo "is_prerelease=false" >> $GITHUB_OUTPUT
+              echo "should_publish=true" >> $GITHUB_OUTPUT
+              echo "pypi_target=prod" >> $GITHUB_OUTPUT
+            fi
             echo "Triggered via tag push: py-v$VERSION"
           else
             echo "should_publish=false" >> $GITHUB_OUTPUT
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            echo "pypi_target=prod" >> $GITHUB_OUTPUT
             echo "Unknown trigger type"
           fi
 
       - name: Validate version matches package
         if: steps.detect.outputs.should_publish == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call'
         run: |
+          TAG_VERSION="${{ steps.detect.outputs.version }}"
+          BASE_VERSION="${{ steps.detect.outputs.base_version }}"
+          IS_PRERELEASE="${{ steps.detect.outputs.is_prerelease }}"
+
           if [[ "${{ steps.detect.outputs.language }}" == "node" ]]; then
             PKG_VERSION=$(node -p "require('./package.json').version")
-            if [[ "$PKG_VERSION" != "${{ steps.detect.outputs.version }}" ]]; then
-              echo "Error: Version ${{ steps.detect.outputs.version }} doesn't match package.json version $PKG_VERSION"
-              exit 1
+            # For prereleases, validate base version matches package version
+            if [[ "$IS_PRERELEASE" == "true" ]]; then
+              if [[ "$PKG_VERSION" != "$BASE_VERSION" ]]; then
+                echo "Error: Base version $BASE_VERSION doesn't match package.json version $PKG_VERSION"
+                exit 1
+              fi
+              echo "✓ Prerelease version validated: tag=$TAG_VERSION, package=$PKG_VERSION"
+            else
+              if [[ "$PKG_VERSION" != "$TAG_VERSION" ]]; then
+                echo "Error: Version $TAG_VERSION doesn't match package.json version $PKG_VERSION"
+                exit 1
+              fi
+              echo "✓ Version validated: $PKG_VERSION"
             fi
-            echo "✓ Version validated: $PKG_VERSION"
           elif [[ "${{ steps.detect.outputs.language }}" == "python" ]]; then
             PKG_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
-            if [[ "$PKG_VERSION" != "${{ steps.detect.outputs.version }}" ]]; then
-              echo "Error: Version ${{ steps.detect.outputs.version }} doesn't match pyproject.toml version $PKG_VERSION"
-              exit 1
+            # For prereleases, validate base version matches package version
+            if [[ "$IS_PRERELEASE" == "true" ]]; then
+              if [[ "$PKG_VERSION" != "$BASE_VERSION" ]]; then
+                echo "Error: Base version $BASE_VERSION doesn't match pyproject.toml version $PKG_VERSION"
+                exit 1
+              fi
+              echo "✓ Prerelease version validated: tag=$TAG_VERSION, package=$PKG_VERSION"
+            else
+              if [[ "$PKG_VERSION" != "$TAG_VERSION" ]]; then
+                echo "Error: Version $TAG_VERSION doesn't match pyproject.toml version $PKG_VERSION"
+                exit 1
+              fi
+              echo "✓ Version validated: $PKG_VERSION"
             fi
-            echo "✓ Version validated: $PKG_VERSION"
           fi
 
   # Job 2: Build Node.js prebuilds (skip if using existing artifacts)
@@ -311,7 +383,12 @@ jobs:
       - name: Dry-run npm publish
         if: needs.detect-release.outputs.should_publish != 'true'
         run: |
-          echo "DRY RUN: Would publish to npm with Trusted Publishing (OIDC)"
+          if [[ "${{ needs.detect-release.outputs.is_prerelease }}" == "true" ]]; then
+            echo "🧪 PRERELEASE DRY RUN: RC/alpha/beta tags run in dry-run mode for Node.js"
+            echo "   (There is no test npm registry - use workflow_dispatch for manual testing)"
+          else
+            echo "DRY RUN: Would publish to npm with Trusted Publishing (OIDC)"
+          fi
           npm publish --dry-run
 
       - name: Publish to npm (Trusted Publishing)
@@ -385,9 +462,8 @@ jobs:
 
       - name: Publish to TestPyPI (Trusted Publishing)
         if: |
-          github.event_name == 'workflow_dispatch' &&
-          github.event.inputs.target == 'test' &&
-          needs.detect-release.outputs.should_publish == 'true'
+          needs.detect-release.outputs.should_publish == 'true' &&
+          needs.detect-release.outputs.pypi_target == 'test'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
@@ -396,7 +472,7 @@ jobs:
       - name: Publish to PyPI (Trusted Publishing)
         if: |
           needs.detect-release.outputs.should_publish == 'true' &&
-          (github.event_name != 'workflow_dispatch' || github.event.inputs.target == 'prod')
+          needs.detect-release.outputs.pypi_target == 'prod'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/py/
@@ -430,8 +506,9 @@ jobs:
           name: |
             ${{ needs.detect-release.outputs.language == 'node' && 'Node.js' || 'Python' }} v${{ needs.detect-release.outputs.version }}
           draft: false
-          prerelease: false
+          prerelease: ${{ needs.detect-release.outputs.is_prerelease == 'true' }}
           body: |
             Release ${{ needs.detect-release.outputs.language == 'node' && 'Node.js' || 'Python' }} v${{ needs.detect-release.outputs.version }}
+            ${{ needs.detect-release.outputs.is_prerelease == 'true' && '⚠️ This is a pre-release version for testing.' || '' }}
 
             See [CHANGELOG.md](https://github.com/zoom/rtms/blob/main/CHANGELOG.md) for details.

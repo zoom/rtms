@@ -9,6 +9,7 @@ This PR introduces a comprehensive release infrastructure overhaul for the Zoom 
 
 **Key highlights:**
 - **Git tag-based publishing**: Push `js-v1.0.0` or `py-v1.0.0` tags to trigger automated builds and publishing
+- **Pre-release tag support**: RC/alpha/beta tags for testing (Node.js=dry-run, Python=TestPyPI)
 - **Trusted Publishing (OIDC)**: Secure authentication without long-lived API tokens for both npm and PyPI
 - **Manual approval gates**: Human review required before packages are published to registries
 - **Multi-platform builds**: Automated builds for Linux x64 and macOS ARM64
@@ -48,6 +49,7 @@ Implements release infrastructure for v1.0.0 launch.
 | c2da1d0 | feat(ci): add Trusted Publishing (OIDC) for npm and PyPI |
 | 8607247 | feat(python): add cibuildwheel for multi-version wheel building |
 | 72d1bcc | fix(ci): grant contents:write permission for publish workflow |
+| (new) | feat(ci): add pre-release tag support (RC/alpha/beta) |
 
 ### CI/CD Fixes
 | Commit | Description |

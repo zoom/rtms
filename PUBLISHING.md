@@ -342,6 +342,35 @@ Use language-prefixed semantic version tags:
 - Easy filtering in GitHub Releases UI
 - Prevents version conflicts between languages
 
+### Pre-release Tags (RC/Alpha/Beta)
+
+For testing the CI/CD pipeline before a production release, use pre-release tags:
+
+```bash
+# Release candidates
+git tag js-v1.0.0-rc.1
+git tag py-v1.0.0-rc.1
+
+# Alpha/Beta releases
+git tag js-v1.0.0-alpha.1
+git tag py-v1.0.0-beta.1
+```
+
+**Pre-release behavior:**
+
+| Language | Tag Example | Behavior |
+|----------|-------------|----------|
+| Node.js | `js-v1.0.0-rc.1` | **Dry-run only** (no test npm registry exists) |
+| Python | `py-v1.0.0-rc.1` | **Publishes to TestPyPI** (test.pypi.org) |
+
+**Version validation:** Pre-release tags validate against the base version in package files. For example, `js-v1.0.0-rc.1` validates against `1.0.0` in package.json.
+
+**Use cases:**
+- Test full CI/CD pipeline before production release
+- Verify builds work on all platforms
+- Test Python package installation from TestPyPI
+- Review build artifacts before committing to production
+
 ### GitHub Environment Setup (One-Time)
 
 The publish workflow requires a "production" GitHub Environment with manual approval.
