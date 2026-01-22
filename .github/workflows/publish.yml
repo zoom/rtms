@@ -245,8 +245,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: task setup
 
-      - name: Build prebuilds
-        run: task prebuild:js:${{ matrix.platform }}
+      - name: Build Node.js bindings
+        run: task build:js
+
+      - name: Create prebuilds
+        run: node scripts/prebuild.js --platform=${{ matrix.platform }}
 
       - name: Upload prebuild artifacts
         uses: actions/upload-artifact@v4
@@ -407,7 +410,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production  # Triggers manual approval
-      url: https://pypi.org/project/rtms/
+      url: ${{ needs.detect-release.outputs.pypi_target == 'test' && 'https://test.pypi.org/project/rtms/' || 'https://pypi.org/project/rtms/' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
