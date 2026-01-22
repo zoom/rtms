@@ -67,6 +67,14 @@ tasks:
   build:py:
     desc: "Build Python wheel (local platform)"
     cmds:
+      - mkdir -p dist/py
+      # Remove any existing wheels for the current platform to avoid conflicts
+      - |
+        if [ "{{OS}}" = "darwin" ]; then
+          rm -f dist/py/*macosx*.whl
+        else
+          rm -f dist/py/*linux*.whl dist/py/*manylinux*.whl
+        fi
       - python3 -m build --wheel -Ccmake.build-type={{.BUILD_TYPE}} --outdir dist/py
     sources:
       - src/**/*.cpp
@@ -258,7 +266,13 @@ tasks:
     desc: "Run interactive Python manual test"
     deps: [build:py]
     cmds:
-      - python3 -m pip install --force dist/py/*.whl
+      # Install only the wheel matching the current platform
+      - |
+        if [ "{{OS}}" = "darwin" ]; then
+          python3 -m pip install --force-reinstall dist/py/*macosx*.whl
+        else
+          python3 -m pip install --force-reinstall dist/py/*manylinux*.whl
+        fi
       - python3 test.py
 
   manual:js:linux:
