@@ -268,8 +268,8 @@ pdoc --html --output-dir docs/py --force src/rtms
 
 Each language maintains its own version number:
 
-- **Node.js**: Version in `package.json` (currently **0.0.4**)
-- **Python**: Version in `pyproject.toml` (currently **0.0.1**)
+- **Node.js**: Version in `package.json` (currently **1.0.0**)
+- **Python**: Version in `pyproject.toml` (currently **1.0.0**)
 - **Go**: Will have separate version when implemented
 
 This allows for:
@@ -333,8 +333,8 @@ Before creating a git tag, ensure:
 
 Use language-prefixed semantic version tags:
 
-- **Node.js releases**: `js-v{version}` (e.g., `js-v0.0.7`)
-- **Python releases**: `py-v{version}` (e.g., `py-v0.0.3`)
+- **Node.js releases**: `js-v{version}` (e.g., `js-v1.0.0`)
+- **Python releases**: `py-v{version}` (e.g., `py-v1.0.0`)
 
 **Rationale:**
 - Language prefix enables independent versioning
@@ -445,7 +445,7 @@ PyPI Trusted Publishing uses OIDC (OpenID Connect) to authenticate GitHub Action
 **Step 1: Update version in package.json**
 
 ```bash
-vim package.json  # Change "version" to "0.0.7"
+vim package.json  # Change "version" to "1.0.1"
 ```
 
 **Step 2: Update CHANGELOG.md**
@@ -453,7 +453,7 @@ vim package.json  # Change "version" to "0.0.7"
 Add release notes:
 
 ```markdown
-## [0.0.7] - 2025-12-XX
+## [1.0.1] - 2026-01-XX
 
 ### Changed
 - Updated to latest Zoom RTMS C SDK
@@ -467,7 +467,7 @@ Add release notes:
 
 ```bash
 git add package.json CHANGELOG.md
-git commit -m "chore(js): bump version to 0.0.7"
+git commit -m "chore(js): bump version to 1.0.1"
 git push origin main
 ```
 
@@ -478,15 +478,15 @@ Check the Actions tab to ensure all CI tests complete successfully.
 **Step 5: Create and push git tag**
 
 ```bash
-git tag js-v0.0.7
-git push origin js-v0.0.7
+git tag js-v1.0.1
+git push origin js-v1.0.1
 ```
 
 **Step 6: Monitor CI/CD workflow**
 
 1. Go to **Actions** tab → **"Publish Packages"** workflow
 2. Workflow automatically:
-   - Detects language (node) and version (0.0.7)
+   - Detects language (node) and version (1.0.1)
    - Validates version matches package.json
    - Builds prebuilds for darwin-arm64 and linux-x64
    - Builds for N-API v9 and v10 (4 total prebuilds)
@@ -532,13 +532,13 @@ npm install @zoom/rtms
 **Step 1: Update version in pyproject.toml**
 
 ```bash
-vim pyproject.toml  # Change "version" to "0.0.3"
+vim pyproject.toml  # Change "version" to "1.0.1"
 ```
 
 **Step 2: Update CHANGELOG.md**
 
 ```markdown
-## [0.0.3] - 2025-12-XX
+## [1.0.1] - 2026-01-XX
 
 ### Changed
 - Build wheels for Python 3.10-3.13 using cibuildwheel
@@ -552,7 +552,7 @@ vim pyproject.toml  # Change "version" to "0.0.3"
 
 ```bash
 git add pyproject.toml CHANGELOG.md
-git commit -m "chore(py): bump version to 0.0.3"
+git commit -m "chore(py): bump version to 1.0.1"
 git push origin main
 ```
 
@@ -563,14 +563,14 @@ Check Actions tab for successful test completion.
 **Step 5: Create and push git tag**
 
 ```bash
-git tag py-v0.0.3
-git push origin py-v0.0.3
+git tag py-v1.0.1
+git push origin py-v1.0.1
 ```
 
 **Step 6: Monitor CI/CD workflow**
 
 Workflow automatically:
-- Detects language (python) and version (0.0.3)
+- Detects language (python) and version (1.0.1)
 - Validates version matches pyproject.toml
 - Builds wheels for Python 3.10, 3.11, 3.12, 3.13
 - Builds for darwin-arm64 and linux-x64 (**8 total wheels**)
@@ -616,7 +616,7 @@ Use `workflow_dispatch` to test the publish workflow **without actually publishi
 
 - **Branch**: Select `main` or your feature branch
 - **Language**: `node` or `python`
-- **Version**: e.g., `0.0.7`
+- **Version**: e.g., `1.0.0`
 - **Dry run**: ✅ **true** (important!)
 - **Target** (Python only): `test` (for TestPyPI)
 
@@ -678,8 +678,8 @@ If any validation fails, the workflow stops and sends an error notification.
 
 ```bash
 # Delete tag locally and remotely
-git tag -d js-v0.0.7
-git push origin :refs/tags/js-v0.0.7
+git tag -d js-v1.0.0
+git push origin :refs/tags/js-v1.0.0
 
 # Fix issue, commit changes
 git add .
@@ -687,8 +687,8 @@ git commit -m "fix: resolve issue found during release"
 git push origin main
 
 # Recreate tag
-git tag js-v0.0.7
-git push origin js-v0.0.7
+git tag js-v1.0.0
+git push origin js-v1.0.0
 ```
 
 5. Workflow runs again with fresh artifacts
@@ -704,11 +704,11 @@ git push origin js-v0.0.7
 
 ```bash
 # Mark version as deprecated (users see warning)
-npm deprecate @zoom/rtms@0.0.7 "Critical bug - use 0.0.8 instead"
+npm deprecate @zoom/rtms@1.0.0 "Critical bug - use 1.0.1 instead"
 
 # What this does:
-# - npm install @zoom/rtms will skip 0.0.7
-# - Users see deprecation warning when installing 0.0.7 specifically
+# - npm install @zoom/rtms will skip 1.0.0
+# - Users see deprecation warning when installing 1.0.0 specifically
 # - Existing installs keep working
 # - Package is NOT deleted, just discouraged
 ```
@@ -717,11 +717,11 @@ npm deprecate @zoom/rtms@0.0.7 "Critical bug - use 0.0.8 instead"
 
 ```bash
 # Yank the release (hides from default pip install)
-twine yank rtms 0.0.7 -r pypi --reason "Critical bug - use 0.0.8"
+twine yank rtms 1.0.0 -r pypi --reason "Critical bug - use 1.0.1"
 
 # What this does:
-# - pip install rtms will skip 0.0.7
-# - Can still install via: pip install rtms==0.0.7 (if explicitly requested)
+# - pip install rtms will skip 1.0.0
+# - Can still install via: pip install rtms==1.0.0 (if explicitly requested)
 # - Existing installs keep working
 # - Package is NOT deleted, just hidden from default installs
 ```
@@ -730,26 +730,26 @@ twine yank rtms 0.0.7 -r pypi --reason "Critical bug - use 0.0.8"
 
 ```bash
 # Can delete GitHub release (does not affect npm/PyPI)
-gh release delete js-v0.0.7
+gh release delete js-v1.0.0
 
 # Or edit release to add warning
-gh release edit js-v0.0.7 --notes "⚠️ **Do not use** - critical bugs. Use v0.0.8 instead."
+gh release edit js-v1.0.0 --notes "⚠️ **Do not use** - critical bugs. Use v1.0.1 instead."
 ```
 
 **Then publish fixed version:**
 
 ```bash
-# Bump to 0.0.8 in package.json/pyproject.toml
+# Bump to 1.0.1 in package.json/pyproject.toml
 vim package.json  # or pyproject.toml
 
 # Commit
 git add package.json CHANGELOG.md
-git commit -m "chore(js): bump version to 0.0.8 (hotfix)"
+git commit -m "chore(js): bump version to 1.0.1 (hotfix)"
 git push origin main
 
 # Create new tag
-git tag js-v0.0.8
-git push origin js-v0.0.8
+git tag js-v1.0.1
+git push origin js-v1.0.1
 
 # Approve when workflow pauses
 # New version becomes latest
@@ -871,10 +871,10 @@ task prebuild:js          # All 4 combinations
 ```
 
 **Output:** Prebuilds are created in `prebuilds/` directory with names like:
-- `rtms-v0.0.5-napi-v9-darwin-arm64.tar.gz`
-- `rtms-v0.0.5-napi-v10-darwin-arm64.tar.gz`
-- `rtms-v0.0.5-napi-v9-linux-x64.tar.gz`
-- `rtms-v0.0.5-napi-v10-linux-x64.tar.gz`
+- `rtms-v1.0.0-napi-v9-darwin-arm64.tar.gz`
+- `rtms-v1.0.0-napi-v10-darwin-arm64.tar.gz`
+- `rtms-v1.0.0-napi-v9-linux-x64.tar.gz`
+- `rtms-v1.0.0-napi-v10-linux-x64.tar.gz`
 
 ### Step 3: Upload Prebuilds to GitHub Releases
 
@@ -1541,7 +1541,7 @@ To test Python publishing on TestPyPI first:
 1. Go to Actions → "Publish Packages"
 2. Click "Run workflow"
 3. Language: `python`
-4. Version: e.g., `0.0.3`
+4. Version: e.g., `1.0.0`
 5. Dry run: `false`
 6. Target: `test`
 7. Run workflow
@@ -1554,12 +1554,12 @@ You can also trigger publishing by pushing a git tag:
 
 ```bash
 # For Python
-git tag py-v0.0.3
-git push origin py-v0.0.3
+git tag py-v1.0.0
+git push origin py-v1.0.0
 
 # For Node.js
-git tag js-v0.0.7
-git push origin js-v0.0.7
+git tag js-v1.0.0
+git push origin js-v1.0.0
 ```
 
 This triggers publish.yml directly, which will:
