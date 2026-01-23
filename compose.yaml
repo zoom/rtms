@@ -9,6 +9,8 @@ x-base: &base
     - SYS_PTRACE
   security_opt:
     - seccomp:unconfined
+  ports:
+    - "8080:8080"
   volumes:
     - .:/tmp/rtms
     - ./logs:/tmp/rtms/logs
@@ -50,8 +52,6 @@ services:
         TARGET: js
     environment:
       - GITHUB_TOKEN
-    ports:
-      - "8080:8080"
     command: sh -c "task setup && task build:js && npx jest tests/"
 
   test-py:
@@ -60,8 +60,6 @@ services:
       context: .
       args:
         TARGET: py
-    ports:
-      - "8080:8080"
     command: sh -c "task setup && task build:py && python -m pip install --find-links=dist/py rtms && pytest tests/test_rtms.py -v"
 
   # =============================================================================

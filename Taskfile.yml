@@ -278,12 +278,12 @@ tasks:
   manual:js:linux:
     desc: "Run interactive Node.js manual test in Linux Docker"
     cmds:
-      - docker compose run --rm -it test-js sh -c "npm run test:js-manual"
+      - docker compose run --rm -it --service-ports test-js sh -c "task build:js && NODE_ENV=test node --trace-deprecation --force-node-api-uncaught-exceptions-policy=true --env-file=.env test.js"
 
   manual:py:linux:
     desc: "Run interactive Python manual test in Linux Docker"
     cmds:
-      - docker compose run --rm -it test-py sh -c "npm run test:py-manual"
+      - docker compose run --rm -it --service-ports test-py sh -c "task build:py && pip install --force-reinstall dist/py/*manylinux*.whl && python3 test.py"
 
   # =============================================================================
   # Documentation Tasks
