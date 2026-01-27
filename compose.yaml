@@ -71,7 +71,9 @@ services:
       context: .
       args:
         TARGET: all
-    command: sh -c "task docs:all"
+    environment:
+      - GITHUB_TOKEN
+    command: sh -c "npm install && task setup && task build:py && pip install dist/py/*.whl && task docs:all"
     volumes:
       - .:/tmp/rtms
       - ./docs:/tmp/rtms/docs
