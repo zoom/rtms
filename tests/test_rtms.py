@@ -32,11 +32,20 @@ class TestConstants:
 
     def test_event_type_constants(self):
         """Test event type constants (for subscribeEvent/unsubscribeEvent)"""
-        assert rtms.EVENT_ACTIVE_SPEAKER_CHANGE == 0
-        assert rtms.EVENT_PARTICIPANT_JOIN == 1
-        assert rtms.EVENT_PARTICIPANT_LEAVE == 2
-        assert rtms.EVENT_SHARING_START == 3
-        assert rtms.EVENT_SHARING_STOP == 4
+        assert rtms.EVENT_UNDEFINED == 0
+        assert rtms.EVENT_FIRST_PACKET_TIMESTAMP == 1
+        assert rtms.EVENT_ACTIVE_SPEAKER_CHANGE == 2
+        assert rtms.EVENT_PARTICIPANT_JOIN == 3
+        assert rtms.EVENT_PARTICIPANT_LEAVE == 4
+        assert rtms.EVENT_SHARING_START == 5
+        assert rtms.EVENT_SHARING_STOP == 6
+        assert rtms.EVENT_MEDIA_CONNECTION_INTERRUPTED == 7
+        assert rtms.EVENT_CONSUMER_ANSWERED == 8
+        assert rtms.EVENT_CONSUMER_END == 9
+        assert rtms.EVENT_USER_ANSWERED == 10
+        assert rtms.EVENT_USER_END == 11
+        assert rtms.EVENT_USER_HOLD == 12
+        assert rtms.EVENT_USER_UNHOLD == 13
 
     def test_status_constants(self):
         """Test SDK status constants"""
