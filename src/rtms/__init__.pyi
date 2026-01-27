@@ -3,7 +3,7 @@ Zoom RTMS SDK - Python Type Stubs
 Real-Time Media Streaming SDK for Python
 """
 
-from typing import Callable, Dict, Any, Optional
+from typing import Callable, Dict, Any, Optional, List, Literal, TypedDict
 
 # ============================================================================
 # Data Classes
@@ -172,6 +172,31 @@ class DeskshareParams:
     def fps(self, value: int) -> None: ...
 
 # ============================================================================
+# Callback Types
+# ============================================================================
+
+class EventParticipantInfo(TypedDict):
+    """Participant info for event callbacks"""
+    userId: int
+    userName: str  # Optional in leave events
+
+ParticipantEventCallback = Callable[
+    [Literal['join', 'leave'], int, List[EventParticipantInfo]], None
+]
+"""Callback for participant join/leave events: (event, timestamp, participants)"""
+
+ActiveSpeakerEventCallback = Callable[[int, int, str], None]
+"""Callback for active speaker events: (timestamp, userId, userName)"""
+
+SharingEventCallback = Callable[
+    [Literal['start', 'stop'], int, Optional[int], Optional[str]], None
+]
+"""Callback for sharing events: (event, timestamp, userId?, userName?)"""
+
+EventExCallback = Callable[[str], None]
+"""Callback for raw JSON event data: (eventData)"""
+
+# ============================================================================
 # Client Class
 # ============================================================================
 
@@ -266,8 +291,73 @@ class Client:
         """Register session update callback"""
         ...
 
-    def onUserUpdate(self, callback: Callable[[int, Participant], None]) -> None:
-        """Register user update callback"""
+    def onParticipantEvent(self, callback: ParticipantEventCallback) -> bool:
+        """
+        Register participant join/leave event callback.
+
+        This automatically subscribes to EVENT_PARTICIPANT_JOIN and EVENT_PARTICIPANT_LEAVE.
+
+        Args:
+            callback: Function called with (event, timestamp, participants)
+                - event: 'join' or 'leave'
+                - timestamp: Unix timestamp in milliseconds
+                - participants: List of participant info dicts with userId and userName
+
+        Returns:
+            True if callback was set successfully
+        """
+        ...
+
+    def onActiveSpeakerEvent(self, callback: ActiveSpeakerEventCallback) -> bool:
+        """
+        Register active speaker change event callback.
+
+        This automatically subscribes to EVENT_ACTIVE_SPEAKER_CHANGE.
+
+        Args:
+            callback: Function called with (timestamp, userId, userName)
+                - timestamp: Unix timestamp in milliseconds
+                - userId: The user ID of the active speaker
+                - userName: The display name of the active speaker
+
+        Returns:
+            True if callback was set successfully
+        """
+        ...
+
+    def onSharingEvent(self, callback: SharingEventCallback) -> bool:
+        """
+        Register sharing start/stop event callback.
+
+        This automatically subscribes to EVENT_SHARING_START and EVENT_SHARING_STOP.
+        Note: These events only work when the RTMS app has DESKSHARE scope permission.
+
+        Args:
+            callback: Function called with (event, timestamp, userId, userName)
+                - event: 'start' or 'stop'
+                - timestamp: Unix timestamp in milliseconds
+                - userId: User ID (only for 'start' events)
+                - userName: Display name (only for 'start' events)
+
+        Returns:
+            True if callback was set successfully
+        """
+        ...
+
+    def onEventEx(self, callback: EventExCallback) -> bool:
+        """
+        Register raw JSON event callback.
+
+        This provides access to the raw JSON event data from the SDK.
+        Use this when you need custom event handling or access to all event types.
+        This callback is called IN ADDITION to typed callbacks, not instead of.
+
+        Args:
+            callback: Function called with raw JSON string
+
+        Returns:
+            True if callback was set successfully
+        """
         ...
 
     def onAudioData(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
@@ -290,8 +380,31 @@ class Client:
         """Register leave callback"""
         ...
 
-    def onEventEx(self, callback: Callable[[str], None]) -> None:
-        """Register extended event callback"""
+    def subscribeEvent(self, events: List[int]) -> bool:
+        """
+        Subscribe to receive specific event types.
+
+        Note: Typed event callbacks (onParticipantEvent, onActiveSpeakerEvent, etc.)
+        automatically subscribe to their respective events.
+
+        Args:
+            events: List of event type constants (e.g., [EVENT_PARTICIPANT_JOIN, EVENT_PARTICIPANT_LEAVE])
+
+        Returns:
+            True if subscription was successful
+        """
+        ...
+
+    def unsubscribeEvent(self, events: List[int]) -> bool:
+        """
+        Unsubscribe from specific event types.
+
+        Args:
+            events: List of event type constants (e.g., [EVENT_PARTICIPANT_JOIN, EVENT_PARTICIPANT_LEAVE])
+
+        Returns:
+            True if unsubscription was successful
+        """
         ...
 
     def on_webhook_event(
@@ -315,7 +428,7 @@ MEDIA_TYPE_CHAT: int
 MEDIA_TYPE_ALL: int
 
 # ============================================================================
-# Constants - Events
+# Constants - Session Events
 # ============================================================================
 
 SESSION_EVENT_ADD: int
@@ -323,8 +436,25 @@ SESSION_EVENT_STOP: int
 SESSION_EVENT_PAUSE: int
 SESSION_EVENT_RESUME: int
 
-USER_EVENT_JOIN: int
-USER_EVENT_LEAVE: int
+# ============================================================================
+# Constants - Event Types (for subscribeEvent/unsubscribeEvent)
+# These match RTMS_EVENT_TYPE from Zoom's C SDK
+# ============================================================================
+
+EVENT_UNDEFINED: int
+EVENT_FIRST_PACKET_TIMESTAMP: int
+EVENT_ACTIVE_SPEAKER_CHANGE: int
+EVENT_PARTICIPANT_JOIN: int
+EVENT_PARTICIPANT_LEAVE: int
+EVENT_SHARING_START: int
+EVENT_SHARING_STOP: int
+EVENT_MEDIA_CONNECTION_INTERRUPTED: int
+EVENT_CONSUMER_ANSWERED: int
+EVENT_CONSUMER_END: int
+EVENT_USER_ANSWERED: int
+EVENT_USER_END: int
+EVENT_USER_HOLD: int
+EVENT_USER_UNHOLD: int
 
 # ============================================================================
 # Constants - Status Codes
@@ -364,107 +494,84 @@ MessageType: Dict[str, int]
 StopReason: Dict[str, int]
 
 # ============================================================================
-# Global Functions
+# SDK Initialization Functions
 # ============================================================================
 
 def initialize(ca_path: Optional[str] = None) -> bool:
-    """Initialize the RTMS SDK"""
+    """
+    Initialize the RTMS SDK.
+
+    Note: The SDK is automatically initialized when you create a Client instance.
+    You only need to call this if you want to initialize with a custom CA path.
+
+    Args:
+        ca_path: Path to the CA certificate file.
+
+    Returns:
+        True if initialization was successful
+    """
     ...
 
 def uninitialize() -> bool:
-    """Uninitialize the RTMS SDK"""
+    """
+    Uninitialize the RTMS SDK.
+
+    Call this when you're done using the SDK to release resources.
+
+    Returns:
+        True if uninitialization was successful
+    """
     ...
 
-def join(
-    meeting_uuid: Optional[str] = None,
-    rtms_stream_id: Optional[str] = None,
-    server_urls: Optional[str] = None,
-    signature: Optional[str] = None,
-    timeout: int = -1,
-    ca: Optional[str] = None,
-    client: Optional[str] = None,
-    secret: Optional[str] = None,
-    poll_interval: int = 10,
-    **kwargs: Any
-) -> bool:
-    """Join a Zoom RTMS session using the global client"""
-    ...
-
-def leave() -> bool:
-    """Leave the RTMS session"""
-    ...
-
-def uuid() -> str:
-    """Get the UUID of the current meeting"""
-    ...
-
-def stream_id() -> str:
-    """Get the stream ID of the current session"""
-    ...
+# ============================================================================
+# Utility Functions
+# ============================================================================
 
 def generate_signature(client: str, secret: str, uuid: str, stream_id: str) -> str:
-    """Generate a signature for RTMS authentication"""
-    ...
+    """
+    Generate a signature for RTMS authentication.
 
-def setAudioParams(params: AudioParams) -> None:
-    """Set audio parameters for the global client"""
-    ...
+    Args:
+        client: Zoom OAuth client ID
+        secret: Zoom OAuth client secret
+        uuid: Meeting UUID
+        stream_id: RTMS stream ID
 
-def setVideoParams(params: VideoParams) -> None:
-    """Set video parameters for the global client"""
-    ...
-
-def setDeskshareParams(params: DeskshareParams) -> None:
-    """Set deskshare parameters for the global client"""
+    Returns:
+        Hex-encoded HMAC-SHA256 signature
+    """
     ...
 
 # ============================================================================
-# Callback Decorators
+# Webhook Functions
 # ============================================================================
 
-def on_webhook_event(
+def onWebhookEvent(
     callback: Optional[Callable[[Dict[str, Any]], None]] = None,
     port: Optional[int] = None,
     path: Optional[str] = None
 ) -> Callable[[Dict[str, Any]], None]:
-    """Register a webhook event handler"""
+    """
+    Start a webhook server to receive events from Zoom.
+
+    This function creates an HTTP server that listens for webhook events from Zoom.
+    When a webhook event is received, it parses the JSON payload and passes it to
+    the provided callback function.
+
+    Can be used as a decorator or a direct function call.
+
+    Args:
+        callback: Function to call when a webhook is received
+        port: Port to listen on. Defaults to ZM_RTMS_PORT env var or 8080
+        path: URL path to listen on. Defaults to ZM_RTMS_PATH env var or '/'
+
+    Returns:
+        Decorator function if used as a decorator
+    """
     ...
 
-def onJoinConfirm(func: Callable[[int], None]) -> Callable[[int], None]:
-    """Decorator for join confirmation callback"""
-    ...
-
-def onSessionUpdate(func: Callable[[int, Session], None]) -> Callable[[int, Session], None]:
-    """Decorator for session update callback"""
-    ...
-
-def onUserUpdate(func: Callable[[int, Participant], None]) -> Callable[[int, Participant], None]:
-    """Decorator for user update callback"""
-    ...
-
-def onAudioData(func: Callable[[bytes, int, int, Metadata], None]) -> Callable[[bytes, int, int, Metadata], None]:
-    """Decorator for audio data callback"""
-    ...
-
-def onVideoData(func: Callable[[bytes, int, int, Metadata], None]) -> Callable[[bytes, int, int, Metadata], None]:
-    """Decorator for video data callback"""
-    ...
-
-def onDeskshareData(func: Callable[[bytes, int, int, Metadata], None]) -> Callable[[bytes, int, int, Metadata], None]:
-    """Decorator for deskshare data callback"""
-    ...
-
-def onTranscriptData(func: Callable[[bytes, int, int, Metadata], None]) -> Callable[[bytes, int, int, Metadata], None]:
-    """Decorator for transcript data callback"""
-    ...
-
-def onLeave(func: Callable[[int], None]) -> Callable[[int], None]:
-    """Decorator for leave callback"""
-    ...
-
-def onEventEx(func: Callable[[str], None]) -> Callable[[str], None]:
-    """Decorator for extended event callback"""
-    ...
+# Alias for backwards compatibility
+on_webhook_event = onWebhookEvent
 
 # ============================================================================
 # Logging

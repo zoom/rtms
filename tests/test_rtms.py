@@ -30,10 +30,22 @@ class TestConstants:
         assert rtms.SESSION_EVENT_PAUSE == 3
         assert rtms.SESSION_EVENT_RESUME == 4
 
-    def test_user_event_constants(self):
-        """Test user event constants"""
-        assert rtms.USER_EVENT_JOIN == 0
-        assert rtms.USER_EVENT_LEAVE == 1
+    def test_event_type_constants(self):
+        """Test event type constants (for subscribeEvent/unsubscribeEvent)"""
+        assert rtms.EVENT_UNDEFINED == 0
+        assert rtms.EVENT_FIRST_PACKET_TIMESTAMP == 1
+        assert rtms.EVENT_ACTIVE_SPEAKER_CHANGE == 2
+        assert rtms.EVENT_PARTICIPANT_JOIN == 3
+        assert rtms.EVENT_PARTICIPANT_LEAVE == 4
+        assert rtms.EVENT_SHARING_START == 5
+        assert rtms.EVENT_SHARING_STOP == 6
+        assert rtms.EVENT_MEDIA_CONNECTION_INTERRUPTED == 7
+        assert rtms.EVENT_CONSUMER_ANSWERED == 8
+        assert rtms.EVENT_CONSUMER_END == 9
+        assert rtms.EVENT_USER_ANSWERED == 10
+        assert rtms.EVENT_USER_END == 11
+        assert rtms.EVENT_USER_HOLD == 12
+        assert rtms.EVENT_USER_UNHOLD == 13
 
     def test_status_constants(self):
         """Test SDK status constants"""
@@ -125,7 +137,10 @@ class TestClient:
         client = rtms.Client()
         assert hasattr(client, 'onJoinConfirm')
         assert hasattr(client, 'onSessionUpdate')
-        assert hasattr(client, 'onUserUpdate')
+        assert hasattr(client, 'onParticipantEvent')
+        assert hasattr(client, 'onActiveSpeakerEvent')
+        assert hasattr(client, 'onSharingEvent')
+        assert hasattr(client, 'onEventEx')
         assert hasattr(client, 'onAudioData')
         assert hasattr(client, 'onVideoData')
         assert hasattr(client, 'onDeskshareData')
@@ -138,6 +153,14 @@ class TestClient:
         assert hasattr(client, 'setAudioParams')
         assert hasattr(client, 'setVideoParams')
         assert hasattr(client, 'setDeskshareParams')
+
+    def test_client_has_event_subscription_methods(self):
+        """Test that Client has event subscription methods"""
+        client = rtms.Client()
+        assert hasattr(client, 'subscribeEvent')
+        assert callable(client.subscribeEvent)
+        assert hasattr(client, 'unsubscribeEvent')
+        assert callable(client.unsubscribeEvent)
 
     def test_client_callback_registration(self):
         """Test callback registration doesn't raise errors"""
@@ -171,36 +194,6 @@ class TestParameterValidation:
         assert hasattr(rtms, 'DeskshareParams')
 
 
-class TestGlobalClient:
-    """Test global client singleton functionality"""
-
-    def test_global_join_exists(self):
-        """Test global join function exists"""
-        assert hasattr(rtms, 'join')
-        assert callable(rtms.join)
-
-    def test_global_leave_exists(self):
-        """Test global leave function exists"""
-        assert hasattr(rtms, 'leave')
-        assert callable(rtms.leave)
-
-    def test_global_callback_decorators_exist(self):
-        """Test global callback decorators exist"""
-        assert hasattr(rtms, 'onJoinConfirm')
-        assert hasattr(rtms, 'onSessionUpdate')
-        assert hasattr(rtms, 'onUserUpdate')
-        assert hasattr(rtms, 'onAudioData')
-        assert hasattr(rtms, 'onVideoData')
-        assert hasattr(rtms, 'onTranscriptData')
-        assert hasattr(rtms, 'onLeave')
-
-    def test_global_param_functions_exist(self):
-        """Test global parameter setting functions exist"""
-        assert hasattr(rtms, 'setAudioParams')
-        assert hasattr(rtms, 'setVideoParams')
-        assert hasattr(rtms, 'setDeskshareParams')
-
-
 class TestUtilityFunctions:
     """Test utility functions"""
 
@@ -230,6 +223,9 @@ class TestWebhookFunctionality:
 
     def test_on_webhook_event_exists(self):
         """Test webhook event decorator exists"""
+        assert hasattr(rtms, 'onWebhookEvent')
+        assert callable(rtms.onWebhookEvent)
+        # Also test the alias
         assert hasattr(rtms, 'on_webhook_event')
         assert callable(rtms.on_webhook_event)
 
@@ -283,7 +279,11 @@ class TestModuleExports:
             'MEDIA_TYPE_VIDEO',
             'MEDIA_TYPE_TRANSCRIPT',
             'SESSION_EVENT_ADD',
-            'USER_EVENT_JOIN',
+            'EVENT_PARTICIPANT_JOIN',
+            'EVENT_PARTICIPANT_LEAVE',
+            'EVENT_ACTIVE_SPEAKER_CHANGE',
+            'EVENT_SHARING_START',
+            'EVENT_SHARING_STOP',
             'RTMS_SDK_OK'
         ]
         for export in exports_to_check:
@@ -292,8 +292,6 @@ class TestModuleExports:
     def test_function_exports(self):
         """Test functions are exported"""
         functions = [
-            'join',
-            'leave',
             'initialize',
             'uninitialize',
             'generate_signature',

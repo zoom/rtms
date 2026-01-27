@@ -83,7 +83,7 @@ function run(command) {
  * Create prebuild for a specific platform and N-API version
  */
 function createPrebuild(platform, arch, napiVersion) {
-  const prebuildCmd = `prebuild -r napi \
+  const prebuildCmd = `npx prebuild -r napi \
     --include-regex '\\.(node|dylib|so\\.0|tar\\.gz|ts|js|js\\.map)$' \
     --backend cmake-js \
     --arch ${arch} \

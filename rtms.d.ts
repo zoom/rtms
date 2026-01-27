@@ -1,10 +1,10 @@
 /**
  * Zoom Realtime Media Streams (RTMS) SDK
- * 
+ *
  * The RTMS SDK provides access to real-time audio, video, and transcript data
- * from Zoom meetings. It offers both class-based and singleton approaches for
- * connecting to meetings.
- * 
+ * from Zoom meetings. Use the Client class to connect to meetings and receive
+ * real-time media streams.
+ *
  * @packageDocumentation
  * @module rtms
  */
@@ -90,14 +90,50 @@ export const SESSION_EVENT_PAUSE: number;
 export const SESSION_EVENT_RESUME: number;
 
 /**
- * User event constants
- * 
+ * User event constants (for onUserUpdate callback)
+ *
  * @category Constants
  */
 /** Event constant indicating a user has joined */
-export const USER_EVENT_JOIN: number;
+export const USER_JOIN: number;
 /** Event constant indicating a user has left */
-export const USER_EVENT_LEAVE: number;
+export const USER_LEAVE: number;
+
+/**
+ * Event types for subscribeEvent/unsubscribeEvent
+ * Used with onEventEx callback or typed event callbacks
+ * These match RTMS_EVENT_TYPE from Zoom's C SDK
+ *
+ * @category Constants
+ */
+/** Event constant for undefined events */
+export const EVENT_UNDEFINED: number;
+/** Event constant for first packet timestamp */
+export const EVENT_FIRST_PACKET_TIMESTAMP: number;
+/** Event constant for active speaker changes */
+export const EVENT_ACTIVE_SPEAKER_CHANGE: number;
+/** Event constant for participant join */
+export const EVENT_PARTICIPANT_JOIN: number;
+/** Event constant for participant leave */
+export const EVENT_PARTICIPANT_LEAVE: number;
+/** Event constant for screen sharing start */
+export const EVENT_SHARING_START: number;
+/** Event constant for screen sharing stop */
+export const EVENT_SHARING_STOP: number;
+/** Event constant for media connection interrupted */
+export const EVENT_MEDIA_CONNECTION_INTERRUPTED: number;
+/** Event constant for consumer answered (phone calls) */
+export const EVENT_CONSUMER_ANSWERED: number;
+/** Event constant for consumer end (phone calls) */
+export const EVENT_CONSUMER_END: number;
+/** Event constant for user answered (phone calls) */
+export const EVENT_USER_ANSWERED: number;
+/** Event constant for user end (phone calls) */
+export const EVENT_USER_END: number;
+/** Event constant for user hold (phone calls) */
+export const EVENT_USER_HOLD: number;
+/** Event constant for user unhold (phone calls) */
+export const EVENT_USER_UNHOLD: number;
 
 /**
  * SDK status codes
@@ -363,15 +399,71 @@ export type JoinConfirmCallback = (reason: number) => void;
 export type SessionUpdateCallback = (op: number, sessionInfo: SessionInfo) => void;
 
 /**
- * Callback function for user update events
- * 
- * @param op The operation type (USER_EVENT_*)
- * @param participantInfo Information about the updated participant
- * 
+ * Callback function for user update events (participant join/leave at SDK level)
+ *
+ * @param op The operation type (USER_JOIN or USER_LEAVE constant)
+ * @param participant Information about the participant
+ *
  * @category Callback Types
  */
-export type UserUpdateCallback = (op: number, participantInfo: ParticipantInfo) => void;
+export type UserUpdateCallback = (op: number, participant: ParticipantInfo) => void;
 
+/**
+ * Participant info for event callbacks
+ *
+ * @category Callback Types
+ */
+export interface EventParticipantInfo {
+  userId: number;
+  userName?: string;
+}
+
+/**
+ * Callback function for participant join/leave events
+ *
+ * @param event The event type ('join' or 'leave')
+ * @param timestamp Unix timestamp in milliseconds
+ * @param participants Array of participant info objects
+ *
+ * @category Callback Types
+ */
+export type ParticipantEventCallback = (
+  event: 'join' | 'leave',
+  timestamp: number,
+  participants: EventParticipantInfo[]
+) => void;
+
+/**
+ * Callback function for active speaker change events
+ *
+ * @param timestamp Unix timestamp in milliseconds
+ * @param userId The user ID of the active speaker
+ * @param userName The display name of the active speaker
+ *
+ * @category Callback Types
+ */
+export type ActiveSpeakerEventCallback = (
+  timestamp: number,
+  userId: number,
+  userName: string
+) => void;
+
+/**
+ * Callback function for sharing start/stop events
+ *
+ * @param event The event type ('start' or 'stop')
+ * @param timestamp Unix timestamp in milliseconds
+ * @param userId The user ID (only for 'start' events)
+ * @param userName The display name (only for 'start' events)
+ *
+ * @category Callback Types
+ */
+export type SharingEventCallback = (
+  event: 'start' | 'stop',
+  timestamp: number,
+  userId?: number,
+  userName?: string
+) => void;
 
 /**
  * Callback function for receiving deskshare data
@@ -698,30 +790,105 @@ export class Client {
    * ```
    */
   onSessionUpdate(callback: SessionUpdateCallback): boolean;
-  
+
   /**
-   * Sets a callback for user update events
-   * 
-   * This callback is triggered when users join or leave the meeting.
-   * It provides information about the participant who joined or left.
-   * 
+   * Sets a callback for raw SDK user update events (participant join/leave)
+   *
+   * This is the low-level SDK callback. For most use cases, prefer onParticipantEvent
+   * which provides a more convenient API with automatic event subscription.
+   *
    * @param callback The callback function to invoke
    * @returns true if the callback was set successfully
-   * 
+   *
    * @example
    * ```typescript
-   * client.onUserUpdate((op, participantInfo) => {
-   *   // op = USER_EVENT_JOIN or USER_EVENT_LEAVE
-   *   if (op === rtms.USER_EVENT_JOIN) {
-   *     console.log(`User joined: ${participantInfo.name} (ID: ${participantInfo.id})`);
-   *   } else {
-   *     console.log(`User left: ${participantInfo.name} (ID: ${participantInfo.id})`);
-   *   }
+   * client.onUserUpdate((op, participant) => {
+   *   console.log(`User ${participant.name} (${participant.id}) - op: ${op}`);
    * });
    * ```
    */
   onUserUpdate(callback: UserUpdateCallback): boolean;
-  
+
+  /**
+   * Sets a callback for participant join/leave events
+   *
+   * This automatically subscribes to EVENT_PARTICIPANT_JOIN and EVENT_PARTICIPANT_LEAVE.
+   * Events are delivered as parsed objects, not raw JSON.
+   *
+   * @param callback The callback function to invoke
+   * @returns true if the callback was set successfully
+   *
+   * @example
+   * ```typescript
+   * client.onParticipantEvent((event, timestamp, participants) => {
+   *   if (event === 'join') {
+   *     participants.forEach(p => console.log(`User joined: ${p.userName} (${p.userId})`));
+   *   } else {
+   *     participants.forEach(p => console.log(`User left: ${p.userId}`));
+   *   }
+   * });
+   * ```
+   */
+  onParticipantEvent(callback: ParticipantEventCallback): boolean;
+
+  /**
+   * Sets a callback for active speaker change events
+   *
+   * This automatically subscribes to EVENT_ACTIVE_SPEAKER_CHANGE.
+   *
+   * @param callback The callback function to invoke
+   * @returns true if the callback was set successfully
+   *
+   * @example
+   * ```typescript
+   * client.onActiveSpeakerEvent((timestamp, userId, userName) => {
+   *   console.log(`Active speaker: ${userName} (${userId})`);
+   * });
+   * ```
+   */
+  onActiveSpeakerEvent(callback: ActiveSpeakerEventCallback): boolean;
+
+  /**
+   * Sets a callback for sharing start/stop events
+   *
+   * This automatically subscribes to EVENT_SHARING_START and EVENT_SHARING_STOP.
+   * Note: These events only work when the RTMS app has DESKSHARE scope permission.
+   *
+   * @param callback The callback function to invoke
+   * @returns true if the callback was set successfully
+   *
+   * @example
+   * ```typescript
+   * client.onSharingEvent((event, timestamp, userId, userName) => {
+   *   if (event === 'start') {
+   *     console.log(`${userName} started sharing`);
+   *   } else {
+   *     console.log('Sharing stopped');
+   *   }
+   * });
+   * ```
+   */
+  onSharingEvent(callback: SharingEventCallback): boolean;
+
+  /**
+   * Sets a callback for raw event data
+   *
+   * This provides access to the raw JSON event data from the SDK.
+   * Use this when you need custom event handling or access to all event types.
+   * This callback is called IN ADDITION to typed callbacks, not instead of.
+   *
+   * @param callback The callback function to invoke with raw JSON string
+   * @returns true if the callback was set successfully
+   *
+   * @example
+   * ```typescript
+   * client.onEventEx((eventData) => {
+   *   const data = JSON.parse(eventData);
+   *   console.log('Raw event:', data);
+   * });
+   * ```
+   */
+  onEventEx(callback: EventExCallback): boolean;
 
   /**
    * Sets a callback for receiving deskshare data
@@ -836,18 +1003,44 @@ export class Client {
    * ```
    */
   onLeave(callback: LeaveCallback): boolean;
-  
+
   /**
-   * Set callback for extended event data
-   * 
-   * @param callback Function to call when extended event data is received
-   * @returns true if callback was set successfully
+   * Subscribe to receive specific event types
+   *
+   * This method allows you to subscribe to specific event types from the SDK.
+   * Note: Typed event callbacks (onParticipantEvent, onActiveSpeakerEvent, etc.)
+   * automatically subscribe to their respective events.
+   *
+   * @param events Array of event type constants (EVENT_PARTICIPANT_JOIN, etc.)
+   * @returns true if subscription was successful
+   *
+   * @example
+   * ```typescript
+   * // Subscribe to participant events
+   * client.subscribeEvent([rtms.EVENT_PARTICIPANT_JOIN, rtms.EVENT_PARTICIPANT_LEAVE]);
+   * ```
    */
-  onEventEx(callback: EventExCallback): boolean;
+  subscribeEvent(events: number[]): boolean;
+
+  /**
+   * Unsubscribe from specific event types
+   *
+   * This method allows you to unsubscribe from specific event types.
+   *
+   * @param events Array of event type constants to unsubscribe from
+   * @returns true if unsubscription was successful
+   *
+   * @example
+   * ```typescript
+   * // Unsubscribe from participant events
+   * client.unsubscribeEvent([rtms.EVENT_PARTICIPANT_JOIN, rtms.EVENT_PARTICIPANT_LEAVE]);
+   * ```
+   */
+  unsubscribeEvent(events: number[]): boolean;
 }
 
 //-----------------------------------------------------------------------------------
-// Singleton (global) functions
+// Webhook and Utility Functions
 //-----------------------------------------------------------------------------------
 
 /**
@@ -877,22 +1070,18 @@ export class Client {
  *   res.json({ status: 'healthy' });
  * });
  *
- * app.get('/admin', (req, res) => {
- *   res.json({ admin: 'panel' });
- * });
- *
  * // Mount Zoom webhook handler on the same server
  * const webhookHandler = rtms.createWebhookHandler(
  *   (payload) => {
  *     console.log(`Received webhook: ${payload.event}`);
  *
  *     if (payload.event === "meeting.rtms.started") {
- *       // Join the meeting
- *       rtms.join({
- *         joinUrl: payload.join_url,
- *         accessToken: payload.access_token,
- *         config: rtms.Config.AUDIO | rtms.Config.VIDEO,
- *         mediaTypes: rtms.SDK_AUDIO | rtms.SDK_VIDEO
+ *       // Create a client and join the meeting
+ *       const client = new rtms.Client();
+ *       client.join({
+ *         meeting_uuid: payload.payload.meeting_uuid,
+ *         rtms_stream_id: payload.payload.rtms_stream_id,
+ *         server_urls: payload.payload.server_urls
  *       });
  *     }
  *   },
@@ -906,36 +1095,7 @@ export class Client {
  * const PORT = process.env.PORT || 8080;
  * app.listen(PORT, () => {
  *   console.log(`Server listening on port ${PORT}`);
- *   console.log(`Webhook: http://localhost:${PORT}/zoom/webhook`);
- *   console.log(`Health: http://localhost:${PORT}/health`);
  * });
- * ```
- *
- * @example
- * ```typescript
- * // Advanced: Using RawWebhookCallback for custom validation
- * const webhookHandler = rtms.createWebhookHandler(
- *   (payload, req, res) => {
- *     // Access raw HTTP request/response for custom logic
- *     const signature = req.headers['x-zoom-signature'];
- *
- *     if (!validateSignature(payload, signature)) {
- *       res.writeHead(401);
- *       res.end('Unauthorized');
- *       return;
- *     }
- *
- *     // Process webhook
- *     console.log(`Validated webhook: ${payload.event}`);
- *
- *     // Custom response
- *     res.writeHead(200, { 'Content-Type': 'application/json' });
- *     res.end(JSON.stringify({ status: 'ok' }));
- *   },
- *   '/zoom/webhook'
- * );
- *
- * app.post('/zoom/webhook', webhookHandler);
  * ```
  *
  * @category Common Functions
@@ -947,318 +1107,40 @@ export function createWebhookHandler(
 
 /**
  * Sets up a webhook server to receive events from Zoom
- * 
+ *
  * This function creates an HTTP or HTTPS server that listens for webhook events from Zoom.
  * When a webhook event is received, it parses the JSON payload and passes it to
  * the provided callback function.
- * 
+ *
  * For secure HTTPS connections, provide the following environment variables:
  * - ZM_RTMS_CERT: Path to SSL certificate file
  * - ZM_RTMS_KEY: Path to SSL certificate key file
  * - ZM_RTMS_CA_WEBHOOK: (Optional) Path to CA certificate for client verification
- * 
+ *
  * The callback can be either a basic WebhookCallback (receives only the payload)
  * or a RawWebhookCallback (receives payload, request, and response objects for
  * custom handling of webhook validation challenges).
- * 
+ *
  * @param callback Function to call when webhook events are received
- * 
+ *
  * @example
  * ```typescript
  * import rtms from '@zoom/rtms';
- * 
+ *
  * // Basic webhook handler (automatically responds with 200 OK)
  * rtms.onWebhookEvent((payload) => {
  *   if (payload.event === "meeting.rtms.started") {
  *     console.log(`RTMS started for meeting: ${payload.meeting_uuid}`);
+ *     // Create a client and join the meeting
+ *     const client = new rtms.Client();
+ *     client.join({...});
  *   }
  * });
  * ```
- * 
- * @example
- * ```typescript
- * // Advanced webhook handler with raw HTTP access for custom validation
- * rtms.onWebhookEvent((payload, req, res) => {
- *   // Access headers for webhook validation
- *   const authorization = req.headers.authorization;
- *   const signature = req.headers['x-zoom-signature'];
- *   
- *   // Custom validation logic here
- *   if (!validateSignature(payload, signature)) {
- *     res.writeHead(401);
- *     res.end('Unauthorized');
- *     return;
- *   }
- *   
- *   // Process the event
- *   if (payload.event === "meeting.rtms.started") {
- *     console.log(`RTMS started for meeting: ${payload.meeting_uuid}`);
- *   }
- *   
- *   // Custom response
- *   res.writeHead(200, { 'Content-Type': 'application/json' });
- *   res.end(JSON.stringify({ status: 'ok' }));
- * });
- * ```
- * 
+ *
  * @category Common Functions
  */
 export function onWebhookEvent(callback: WebhookCallback | RawWebhookCallback): void;
-
-/**
- * Joins a Zoom RTMS session using the global client
- * 
- * This function is part of the singleton API, which provides a simplified interface for
- * connecting to a single Zoom meeting. It handles initialization and starts
- * background polling for events.
- * 
- * @param options An object containing join parameters
- * @returns true if the join operation succeeds
- * 
- * @example
- * ```typescript
- * // Join with parameters object
- * rtms.join({
- *   meeting_uuid: "meeting_uuid_here",
- *   rtms_stream_id: "stream_id_here",
- *   server_urls: "wss://rtms.zoom.us",
- *   pollInterval: 10
- * });
- * ```
- * 
- * @category Singleton API
- */
-export function join(options: JoinParams): boolean;
-
-/**
- * Joins a Zoom RTMS session using the global client
- * 
- * This function is part of the singleton API.
- * It establishes a connection to a Zoom RTMS stream using the global client.
- * 
- * @param meetingUuid The UUID of the Zoom meeting
- * @param rtmsStreamId The RTMS stream ID for this connection
- * @param signature The authentication signature
- * @param serverUrls The server URL(s) to connect to
- * @param timeout The timeout for the join operation in milliseconds
- * @returns true if the join operation succeeds
- * 
- * @example
- * ```typescript
- * // Generate signature
- * const signature = rtms.generateSignature({
- *   client: "client_id",
- *   secret: "client_secret",
- *   uuid: "meeting_uuid",
- *   streamId: "stream_id"
- * });
- * 
- * // Join with explicit parameters
- * rtms.join(
- *   "meeting_uuid",
- *   "stream_id",
- *   signature,
- *   "wss://rtms.zoom.us"
- * );
- * ```
- * 
- * @category Singleton API
- */
-export function join(meetingUuid: string, rtmsStreamId: string, signature: string, serverUrls: string, timeout?: number): boolean;
-
-/**
- * Leaves the current session and releases global client resources
- * 
- * This function is part of the singleton API.
- * It disconnects from the Zoom RTMS stream and releases resources.
- * 
- * @returns true if the leave operation succeeds
- * 
- * @example
- * ```typescript
- * // Leave the meeting when done
- * rtms.leave();
- * ```
- * 
- * @category Singleton API
- */
-export function leave(): boolean;
-
-/**
- * Manually polls for events from the RTMS server using the global client
- * 
- * This function is part of the singleton API.
- * It's automatically called by the SDK's internal polling mechanism.
- * 
- * @returns true if the poll operation succeeds
- * 
- * @category Singleton API
- */
-export function poll(): boolean;
-
-/**
- * Gets the UUID of the current meeting from the global client
- * 
- * This function is part of the singleton API.
- * 
- * @returns The meeting UUID
- * 
- * @category Singleton API
- */
-export function uuid(): string;
-
-/**
- * Gets the stream ID of the current connection from the global client
- * 
- * This function is part of the singleton API.
- * 
- * @returns The RTMS stream ID
- * 
- * @category Singleton API
- */
-export function streamId(): string;
-
-/**
- * Sets a callback for join confirmation events on the global client
- * 
- * This function is part of the singleton API.
- * The callback is triggered when the join operation is confirmed by the server.
- * 
- * @param callback The callback function to invoke
- * @returns true if the callback was set successfully
- * 
- * @example
- * ```typescript
- * rtms.onJoinConfirm((reason) => {
- *   console.log(`Join confirmed with reason code: ${reason}`);
- * });
- * ```
- * 
- * @category Singleton API
- */
-export function onJoinConfirm(callback: JoinConfirmCallback): boolean;
-
-/**
- * Sets a callback for session update events on the global client
- * 
- * This function is part of the singleton API.
- * The callback is triggered when session information is updated.
- * 
- * @param callback The callback function to invoke
- * @returns true if the callback was set successfully
- * 
- * @category Singleton API
- */
-export function onSessionUpdate(callback: SessionUpdateCallback): boolean;
-
-/**
- * Sets a callback for user update events on the global client
- * 
- * This function is part of the singleton API.
- * The callback is triggered when users join or leave the meeting.
- * 
- * @param callback The callback function to invoke
- * @returns true if the callback was set successfully
- * 
- * @category Singleton API
- */
-export function onUserUpdate(callback: UserUpdateCallback): boolean;
-
-/**
- * Sets a callback for receiving audio data on the global client
- * 
- * This function is part of the singleton API.
- * The callback is triggered when audio data is received from the meeting.
- * 
- * @param callback The callback function to invoke
- * @returns true if the callback was set successfully
- * 
- * @example
- * ```typescript
- * rtms.onAudioData((buffer, size, timestamp, metadata) => {
- *   console.log(`Received ${size} bytes of audio from ${metadata.userName}`);
- *   
- *   // Process the audio data
- *   // buffer - Raw audio data (Buffer)
- *   // size - Size of the audio data in bytes
- *   // timestamp - Timestamp of the audio data
- *   // metadata - Information about the sender
- * });
- * ```
- * 
- * @category Singleton API
- */
-export function onAudioData(callback: AudioDataCallback): boolean;
-
-/**
- * Sets a callback for receiving video data on the global client
- * 
- * This function is part of the singleton API.
- * The callback is triggered when video data is received from the meeting.
- * 
- * @param callback The callback function to invoke
- * @returns true if the callback was set successfully
- * 
- * @example
- * ```typescript
- * rtms.onVideoData((buffer, size, timestamp, trackId, metadata) => {
- *   console.log(`Received ${size} bytes of video from ${metadata.userName}`);
- *   console.log(`Track ID: ${trackId}`);
- *   
- *   // Process the video data...
- * });
- * ```
- * 
- * @category Singleton API
- */
-export function onVideoData(callback: VideoDataCallback): boolean;
-
-/**
- * Sets a callback for receiving transcript data on the global client
- * 
- * This function is part of the singleton API.
- * The callback is triggered when transcript data is received from the meeting.
- * 
- * @param callback The callback function to invoke
- * @returns true if the callback was set successfully
- * 
- * @example
- * ```typescript
- * rtms.onTranscriptData((buffer, size, timestamp, metadata) => {
- *   // Convert buffer to string (assuming UTF-8 encoding)
- *   const text = buffer.toString('utf8');
- *   console.log(`Transcript from ${metadata.userName}: ${text}`);
- * });
- * ```
- * 
- * @category Singleton API
- */
-export function onTranscriptData(callback: TranscriptDataCallback): boolean;
-
-/**
- * Sets a callback for leave events on the global client
- * 
- * This function is part of the singleton API.
- * The callback is triggered when the client leaves the meeting.
- * 
- * @param callback The callback function to invoke
- * @returns true if the callback was set successfully
- * 
- * @category Singleton API
- */
-export function onLeave(callback: LeaveCallback): boolean;
-
-/**
- * Set callback for extended event data (global client)
- * 
- * @param callback Function to call when extended event data is received
- * @returns true if callback was set successfully
- */
-export function onEventEx(callback: EventExCallback): boolean;
-
-//-----------------------------------------------------------------------------------
-// Utility functions
-//-----------------------------------------------------------------------------------
 
 /**
  * Configure the RTMS logger
@@ -1422,6 +1304,15 @@ export interface EventType {
   ACTIVE_SPEAKER_CHANGE: number;
   PARTICIPANT_JOIN: number;
   PARTICIPANT_LEAVE: number;
+  SHARING_START: number;
+  SHARING_STOP: number;
+  MEDIA_CONNECTION_INTERRUPTED: number;
+  CONSUMER_ANSWERED: number;
+  CONSUMER_END: number;
+  USER_ANSWERED: number;
+  USER_END: number;
+  USER_HOLD: number;
+  USER_UNHOLD: number;
 }
 
 export interface MessageType {
@@ -1470,37 +1361,25 @@ export interface StopReason {
 
 /**
  * Default export of the RTMS module
- * 
+ *
  * This object contains all exported functions and classes for the RTMS SDK.
+ * Use the Client class for connecting to Zoom RTMS streams.
  */
 declare const rtms: {
   // Class-based API
   Client: typeof Client;
   onWebhookEvent: typeof onWebhookEvent;
-  
-  // Global singleton API
-  join: typeof join;
-  leave: typeof leave;
-  poll: typeof poll;
-  uuid: typeof uuid;
-  streamId: typeof streamId;
-  onJoinConfirm: typeof onJoinConfirm;
-  onSessionUpdate: typeof onSessionUpdate;
-  onUserUpdate: typeof onUserUpdate;
-  onAudioData: typeof onAudioData;
-  onVideoData: typeof onVideoData;
-  onTranscriptData: typeof onTranscriptData;
-  onLeave: typeof onLeave;
-  
+  createWebhookHandler: typeof createWebhookHandler;
+
   // Utility functions
   generateSignature: typeof generateSignature;
   isInitialized: typeof isInitialized;
   configureLogger: typeof configureLogger;
-  
+
   // Enums
   LogLevel: typeof LogLevel;
   LogFormat: typeof LogFormat;
-  
+
   // Constants
   MEDIA_TYPE_AUDIO: number;
   MEDIA_TYPE_VIDEO: number;
@@ -1508,15 +1387,30 @@ declare const rtms: {
   MEDIA_TYPE_TRANSCRIPT: number;
   MEDIA_TYPE_CHAT: number;
   MEDIA_TYPE_ALL: number;
-  
+
   SESSION_EVENT_ADD: number;
   SESSION_EVENT_STOP: number;
   SESSION_EVENT_PAUSE: number;
   SESSION_EVENT_RESUME: number;
-  
-  USER_EVENT_JOIN: number;
-  USER_EVENT_LEAVE: number;
-  
+
+  USER_JOIN: number;
+  USER_LEAVE: number;
+
+  EVENT_UNDEFINED: number;
+  EVENT_FIRST_PACKET_TIMESTAMP: number;
+  EVENT_ACTIVE_SPEAKER_CHANGE: number;
+  EVENT_PARTICIPANT_JOIN: number;
+  EVENT_PARTICIPANT_LEAVE: number;
+  EVENT_SHARING_START: number;
+  EVENT_SHARING_STOP: number;
+  EVENT_MEDIA_CONNECTION_INTERRUPTED: number;
+  EVENT_CONSUMER_ANSWERED: number;
+  EVENT_CONSUMER_END: number;
+  EVENT_USER_ANSWERED: number;
+  EVENT_USER_END: number;
+  EVENT_USER_HOLD: number;
+  EVENT_USER_UNHOLD: number;
+
   RTMS_SDK_FAILURE: number;
   RTMS_SDK_OK: number;
   RTMS_SDK_TIMEOUT: number;
@@ -1524,7 +1418,7 @@ declare const rtms: {
   RTMS_SDK_WRONG_TYPE: number;
   RTMS_SDK_INVALID_STATUS: number;
   RTMS_SDK_INVALID_ARGS: number;
-  
+
   SESS_STATUS_ACTIVE: number;
   SESS_STATUS_PAUSED: number;
 

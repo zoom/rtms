@@ -69,11 +69,16 @@ function isLibDirectoryEmpty(libPath) {
 // Simple fetch implementation using https module for better compatibility
 function httpsGet(url) {
   return new Promise((resolve, reject) => {
-    https.get(url, {
-      headers: {
-        'User-Agent': 'rtms-build-script'
-      }
-    }, (res) => {
+    const headers = {
+      'User-Agent': 'rtms-build-script'
+    };
+
+    // Use GitHub token if available (for CI/CD to avoid rate limits)
+    if (process.env.GITHUB_TOKEN) {
+      headers['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`;
+    }
+
+    https.get(url, { headers }, (res) => {
       let data = '';
       
       res.on('data', (chunk) => {
@@ -161,17 +166,23 @@ async function fetchLatestRelease(tagPrefix) {
     
     const data = await httpsGet('https://api.github.com/repos/zoom/rtms-sdk-cpp/releases');
     const releases = JSON.parse(data);
-    
-    // Find the latest release that matches our platform
-    const matchingRelease = releases.find(release => 
+
+    // Filter releases that match our platform and are not prereleases
+    const matchingReleases = releases.filter(release =>
       release.tag_name.startsWith(tagPrefix) && !release.prerelease
     );
-    
-    if (!matchingRelease) {
+
+    if (matchingReleases.length === 0) {
       throw new Error(`No ${tagPrefix} release found`);
     }
-    
-    console.log(`[RTMS ${PREFIX}]`, `Found release: ${matchingRelease.tag_name}`);
+
+    // Sort by published date (newest first) to ensure we get the latest
+    matchingReleases.sort((a, b) =>
+      new Date(b.published_at) - new Date(a.published_at)
+    );
+
+    const matchingRelease = matchingReleases[0];
+    console.log(`[RTMS ${PREFIX}]`, `Found release: ${matchingRelease.tag_name} (published: ${matchingRelease.published_at})`);
     return matchingRelease;
   } catch (err) {
     throw new Error(`Failed to fetch release information: ${err.message}`);

@@ -20,9 +20,17 @@ from ._rtms import (
     MEDIA_TYPE_AUDIO, MEDIA_TYPE_VIDEO, MEDIA_TYPE_DESKSHARE,
     MEDIA_TYPE_TRANSCRIPT, MEDIA_TYPE_CHAT, MEDIA_TYPE_ALL,
 
-    # Event constants
+    # Session event constants
     SESSION_EVENT_ADD, SESSION_EVENT_STOP, SESSION_EVENT_PAUSE, SESSION_EVENT_RESUME,
-    USER_EVENT_JOIN, USER_EVENT_LEAVE,
+
+    # Event types for subscribeEvent/unsubscribeEvent (used with onEventEx callback)
+    # These match RTMS_EVENT_TYPE from Zoom's C SDK
+    EVENT_UNDEFINED, EVENT_FIRST_PACKET_TIMESTAMP,
+    EVENT_ACTIVE_SPEAKER_CHANGE, EVENT_PARTICIPANT_JOIN, EVENT_PARTICIPANT_LEAVE,
+    EVENT_SHARING_START, EVENT_SHARING_STOP,
+    EVENT_MEDIA_CONNECTION_INTERRUPTED,
+    EVENT_CONSUMER_ANSWERED, EVENT_CONSUMER_END,
+    EVENT_USER_ANSWERED, EVENT_USER_END, EVENT_USER_HOLD, EVENT_USER_UNHOLD,
 
     # Status code constants
     RTMS_SDK_FAILURE, RTMS_SDK_OK, RTMS_SDK_TIMEOUT,
@@ -38,7 +46,7 @@ from ._rtms import (
 
 
 # Set up logging
-_log_level = os.getenv('ZM_RTMS_LOG_LEVEL', 'debug').lower()
+_log_level = os.getenv('ZM_RTMS_LOG_LEVEL', 'info').lower()
 _log_format = os.getenv('ZM_RTMS_LOG_FORMAT', 'progressive').lower()
 _log_enabled = os.getenv('ZM_RTMS_LOG_ENABLED', 'true').lower() != 'false'
 
@@ -253,7 +261,9 @@ class WebhookHandler(BaseHTTPRequestHandler):
 
         try:
             payload = json.loads(body.decode('utf-8'))
-            log_debug(f"webhook", f"Received webhook payload: {payload}")
+            event_type = payload.get('event', 'unknown')
+            log_info("webhook", f"Received event: {event_type}")
+            log_debug("webhook", f"Received webhook payload: {payload}")
 
             # Check callback arity to determine if it's a raw callback
             import inspect
@@ -320,7 +330,8 @@ class WebhookServer:
             log_debug("webhook", f"Starting webhook server on port {self.port} path {self.path}")
             self.server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)
             self.server_thread.start()
-            
+
+            log_info("webhook", f"Listening for webhook events at http://localhost:{self.port}{self.path}")
             return True
         except Exception as e:
             log_error("webhook", f"Error starting webhook server: {e}")
@@ -797,6 +808,170 @@ class Client(_ClientBase):
         _validate_deskshare_params(params)
         return super().setDeskshareParams(params)
 
+    def subscribeEvent(self, events):
+        """
+        Subscribe to receive specific event types.
+
+        Note: Calling onParticipantEvent() automatically subscribes to
+        EVENT_PARTICIPANT_JOIN and EVENT_PARTICIPANT_LEAVE events.
+
+        Args:
+            events: List of event type constants (e.g., [EVENT_PARTICIPANT_JOIN, EVENT_PARTICIPANT_LEAVE])
+
+        Returns:
+            bool: True if subscription was successful
+        """
+        return super().subscribeEvent(events)
+
+    def unsubscribeEvent(self, events):
+        """
+        Unsubscribe from specific event types.
+
+        Args:
+            events: List of event type constants
+
+        Returns:
+            bool: True if unsubscription was successful
+        """
+        return super().unsubscribeEvent(events)
+
+    def onParticipantEvent(self, callback: Callable[[str, int, list], None]) -> bool:
+        """
+        Register a callback for participant join/leave events.
+
+        This automatically subscribes to EVENT_PARTICIPANT_JOIN and EVENT_PARTICIPANT_LEAVE.
+        Events are delivered as parsed objects, not raw JSON.
+
+        Args:
+            callback: Function called with (event, timestamp, participants) where:
+                - event: 'join' or 'leave'
+                - timestamp: Unix timestamp in milliseconds
+                - participants: List of dicts with 'user_id' and optional 'user_name'
+
+        Returns:
+            bool: True if registration succeeds
+
+        Example:
+            >>> def on_participant(event, timestamp, participants):
+            ...     print(f"Participant {event}: {participants}")
+            >>> client.onParticipantEvent(on_participant)
+        """
+        def event_handler(event_data: str):
+            try:
+                data = json.loads(event_data)
+                event_type = data.get('event_type')
+
+                if event_type == EVENT_PARTICIPANT_JOIN:
+                    participants = [
+                        {'user_id': p.get('user_id'), 'user_name': p.get('user_name')}
+                        for p in data.get('participants', [])
+                    ]
+                    callback('join', data.get('timestamp', 0), participants)
+                elif event_type == EVENT_PARTICIPANT_LEAVE:
+                    participants = [
+                        {'user_id': p.get('user_id'), 'user_name': p.get('user_name')}
+                        for p in data.get('participants', [])
+                    ]
+                    callback('leave', data.get('timestamp', 0), participants)
+            except Exception as e:
+                log_error('client', f'Failed to parse participant event: {e}')
+
+        super().onEventEx(event_handler)
+        try:
+            self.subscribeEvent([EVENT_PARTICIPANT_JOIN, EVENT_PARTICIPANT_LEAVE])
+        except Exception as e:
+            log_warn('client', f'Failed to auto-subscribe to participant events: {e}')
+        return True
+
+    def onActiveSpeakerEvent(self, callback: Callable[[int, int, str], None]) -> bool:
+        """
+        Register a callback for active speaker change events.
+
+        This automatically subscribes to EVENT_ACTIVE_SPEAKER_CHANGE.
+
+        Args:
+            callback: Function called with (timestamp, user_id, user_name)
+
+        Returns:
+            bool: True if registration succeeds
+
+        Example:
+            >>> def on_speaker(timestamp, user_id, user_name):
+            ...     print(f"Active speaker: {user_name} ({user_id})")
+            >>> client.onActiveSpeakerEvent(on_speaker)
+        """
+        def event_handler(event_data: str):
+            try:
+                data = json.loads(event_data)
+                event_type = data.get('event_type')
+
+                if event_type == EVENT_ACTIVE_SPEAKER_CHANGE:
+                    callback(
+                        data.get('timestamp', 0),
+                        data.get('user_id', 0),
+                        data.get('user_name', '')
+                    )
+            except Exception as e:
+                log_error('client', f'Failed to parse active speaker event: {e}')
+
+        super().onEventEx(event_handler)
+        try:
+            self.subscribeEvent([EVENT_ACTIVE_SPEAKER_CHANGE])
+        except Exception as e:
+            log_warn('client', f'Failed to auto-subscribe to active speaker events: {e}')
+        return True
+
+    def onSharingEvent(self, callback: Callable[[str, int, Optional[int], Optional[str]], None]) -> bool:
+        """
+        Register a callback for sharing start/stop events.
+
+        This automatically subscribes to EVENT_SHARING_START and EVENT_SHARING_STOP.
+        Note: These events only work when the RTMS app has DESKSHARE scope permission.
+
+        Args:
+            callback: Function called with (event, timestamp, user_id, user_name) where:
+                - event: 'start' or 'stop'
+                - timestamp: Unix timestamp in milliseconds
+                - user_id: Optional user ID (only for 'start')
+                - user_name: Optional user name (only for 'start')
+
+        Returns:
+            bool: True if registration succeeds
+
+        Example:
+            >>> def on_sharing(event, timestamp, user_id, user_name):
+            ...     print(f"Sharing {event} by {user_name}")
+            >>> client.onSharingEvent(on_sharing)
+        """
+        def event_handler(event_data: str):
+            try:
+                data = json.loads(event_data)
+                event_type = data.get('event_type')
+
+                if event_type == EVENT_SHARING_START:
+                    callback(
+                        'start',
+                        data.get('timestamp', 0),
+                        data.get('user_id'),
+                        data.get('user_name')
+                    )
+                elif event_type == EVENT_SHARING_STOP:
+                    callback(
+                        'stop',
+                        data.get('timestamp', 0),
+                        None,
+                        None
+                    )
+            except Exception as e:
+                log_error('client', f'Failed to parse sharing event: {e}')
+
+        super().onEventEx(event_handler)
+        try:
+            self.subscribeEvent([EVENT_SHARING_START, EVENT_SHARING_STOP])
+        except Exception as e:
+            log_warn('client', f'Failed to auto-subscribe to sharing events: {e}')
+        return True
+
     def leave(self):
         """
         Leave the RTMS session and stop all threads.
@@ -871,171 +1046,95 @@ class Client(_ClientBase):
 
         self._webhook_server.start(callback)
 
-# For backward compatibility, create a global client and expose its methods
-_global_client = None
-
-def _get_global_client():
-    """Get or create the global client instance"""
-    global _global_client
-    if _global_client is None:
-        _global_client = Client()
-    return _global_client
-
-def join(*args, **kwargs):
-    """
-    Join a RTMS session using the global client.
-
-    See Client.join for documentation.
-    """
-    return _get_global_client().join(*args, **kwargs)
-
-def leave():
-    """
-    Leave the RTMS session using the global client.
-
-    See Client.leave for documentation.
-    """
-    return _get_global_client().leave()
-
-def setAudioParams(params):
-    """
-    Set audio parameters for the global client.
-
-    Args:
-        params (AudioParams): Audio parameters object
-
-    Raises:
-        ValueError: If parameters are invalid
-    """
-    _validate_audio_params(params)
-    return _get_global_client().setAudioParams(params)
-
-def setVideoParams(params):
-    """
-    Set video parameters for the global client.
-
-    Args:
-        params (VideoParams): Video parameters object
-
-    Raises:
-        ValueError: If parameters are invalid
-    """
-    _validate_video_params(params)
-    return _get_global_client().setVideoParams(params)
-
-def setDeskshareParams(params):
-    """
-    Set deskshare parameters for the global client.
-
-    Args:
-        params (DeskshareParams): Deskshare parameters object
-
-    Raises:
-        ValueError: If parameters are invalid
-    """
-    _validate_deskshare_params(params)
-    return _get_global_client().setDeskshareParams(params)
-
 def uninitialize():
     """
     Uninitialize the RTMS SDK.
+
+    Call this when you're done using the SDK to release resources.
     """
     try:
         _ClientBase.uninitialize()
+        Client._sdk_initialized = False
         return True
     except Exception as e:
         log_error("rtms", f"Error uninitializing RTMS SDK: {e}")
         traceback.print_exc()
         return False
 
-def uuid():
-    """
-    Get the UUID of the current meeting using the global client.
-    """
-    try:
-        return _global_client.uuid()
-    except Exception as e:
-        log_error("rtms", f"Error getting UUID: {e}")
-        return ""
-
-def stream_id():
-    """
-    Get the stream ID of the current meeting using the global client.
-    """
-    try:
-        return _global_client.stream_id()
-    except Exception as e:
-        log_error("rtms", f"Error getting stream ID: {e}")
-        return ""
-
-def on_webhook_event(*args, **kwargs):
-    """
-    Register a webhook event handler using the global client.
-
-    See Client.on_webhook_event for documentation.
-    """
-    return _get_global_client().on_webhook_event(*args, **kwargs)
-
-# Create proper decorator functions for global client
-def onJoinConfirm(func):
-    """Decorator for join confirmation callback"""
-    _get_global_client().onJoinConfirm(func)
-    return func
-
-def onSessionUpdate(func):
-    """Decorator for session update callback"""
-    _get_global_client().onSessionUpdate(func)
-    return func
-
-def onUserUpdate(func):
-    """Decorator for user update callback"""
-    _get_global_client().onUserUpdate(func)
-    return func
-
-def onAudioData(func):
-    """Decorator for audio data callback"""
-    _get_global_client().onAudioData(func)
-    return func
-
-def onVideoData(func):
-    """Decorator for video data callback"""
-    _get_global_client().onVideoData(func)
-    return func
-
-def onDeskshareData(func):
-    """Decorator for deskshare data callback"""
-    _get_global_client().onDeskshareData(func)
-    return func
-
-def onTranscriptData(func):
-    """Decorator for transcript data callback"""
-    _get_global_client().onTranscriptData(func)
-    return func
-
-def onLeave(func):
-    """Decorator for leave callback"""
-    _get_global_client().onLeave(func)
-    return func
-
-def onEventEx(func):
-    """Decorator for extended event callback"""
-    _get_global_client().onEventEx(func)
-    return func
-
 def initialize(ca_path=None):
     """
     Initialize the RTMS SDK.
 
+    Note: The SDK is automatically initialized when you create a Client instance.
+    You only need to call this if you want to initialize with a custom CA path.
+
     Args:
         ca_path (str, optional): Path to the CA certificate file.
+
+    Returns:
+        bool: True if initialization was successful
     """
     ca_path = find_ca_certificate(ca_path)
     try:
         _ClientBase.initialize(ca_path)
+        Client._sdk_initialized = True
         return True
     except Exception as e:
         log_error("rtms", f"Error initializing RTMS SDK: {e}")
         return False
+
+
+def onWebhookEvent(callback=None, port=None, path=None):
+    """
+    Start a webhook server to receive events from Zoom.
+
+    This function creates an HTTP server that listens for webhook events from Zoom.
+    When a webhook event is received, it parses the JSON payload and passes it to
+    the provided callback function.
+
+    Can be used as a decorator or a direct function call:
+
+    @rtms.onWebhookEvent(port=8080, path='/webhook')
+    def handle_webhook(payload):
+        if payload.get('event') == 'meeting.rtms.started':
+            # Create a client and join
+            client = rtms.Client()
+            client.join(...)
+
+    Args:
+        callback (callable, optional): Function to call when a webhook is received
+        port (int, optional): Port to listen on. Defaults to ZM_RTMS_PORT env var or 8080
+        path (str, optional): URL path to listen on. Defaults to ZM_RTMS_PATH env var or '/'
+
+    Returns:
+        callable: Decorator function if used as a decorator
+    """
+    global _webhook_server
+
+    # Determine port and path
+    webhook_port = port or int(os.getenv('ZM_RTMS_PORT', '8080'))
+    webhook_path = path or os.getenv('ZM_RTMS_PATH', '/')
+
+    # If used as a decorator without arguments
+    if callback is not None and callable(callback):
+        if _webhook_server is None:
+            _webhook_server = WebhookServer(webhook_port, webhook_path)
+        _webhook_server.start(callback)
+        return callback
+
+    # If used as a decorator with arguments or as a method call
+    def decorator(func):
+        global _webhook_server
+        if _webhook_server is None:
+            _webhook_server = WebhookServer(webhook_port, webhook_path)
+        _webhook_server.start(func)
+        return func
+
+    return decorator
+
+
+# Alias for backwards compatibility
+on_webhook_event = onWebhookEvent
 
 __all__ = [
     # Classes
@@ -1057,13 +1156,28 @@ __all__ = [
     "MEDIA_TYPE_CHAT",
     "MEDIA_TYPE_ALL",
 
-    # Constants - Events
+    # Constants - Session Events
     "SESSION_EVENT_ADD",
     "SESSION_EVENT_STOP",
     "SESSION_EVENT_PAUSE",
     "SESSION_EVENT_RESUME",
-    "USER_EVENT_JOIN",
-    "USER_EVENT_LEAVE",
+
+    # Constants - Event Types (for subscribeEvent/onEventEx)
+    # These match RTMS_EVENT_TYPE from Zoom's C SDK
+    "EVENT_UNDEFINED",
+    "EVENT_FIRST_PACKET_TIMESTAMP",
+    "EVENT_ACTIVE_SPEAKER_CHANGE",
+    "EVENT_PARTICIPANT_JOIN",
+    "EVENT_PARTICIPANT_LEAVE",
+    "EVENT_SHARING_START",
+    "EVENT_SHARING_STOP",
+    "EVENT_MEDIA_CONNECTION_INTERRUPTED",
+    "EVENT_CONSUMER_ANSWERED",
+    "EVENT_CONSUMER_END",
+    "EVENT_USER_ANSWERED",
+    "EVENT_USER_END",
+    "EVENT_USER_HOLD",
+    "EVENT_USER_UNHOLD",
 
     # Constants - Status Codes
     "RTMS_SDK_FAILURE",
@@ -1093,17 +1207,16 @@ __all__ = [
     "MessageType",
     "StopReason",
 
-    # Core functions
-    "join",
-    "leave",
+    # SDK initialization functions
     "initialize",
     "uninitialize",
-    "uuid",
-    "stream_id",
+
+    # Utility functions
     "generate_signature",
-    "setAudioParams",
-    "setVideoParams",
-    "setDeskshareParams",
+
+    # Webhook functions
+    "onWebhookEvent",
+    "on_webhook_event",
 
     # Logging functions
     "log_debug",
@@ -1111,16 +1224,4 @@ __all__ = [
     "log_warn",
     "log_error",
     "configure_logger",
-
-    # Callback decorators
-    "on_webhook_event",
-    "onJoinConfirm",
-    "onSessionUpdate",
-    "onUserUpdate",
-    "onAudioData",
-    "onVideoData",
-    "onDeskshareData",
-    "onTranscriptData",
-    "onLeave",
-    "onEventEx"
 ]

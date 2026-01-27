@@ -228,6 +228,18 @@ public:
         });
     }
 
+    // ========================================================================
+    // Event Subscription Methods
+    // ========================================================================
+
+    void subscribeEvent(const std::vector<int>& events) {
+        client_->subscribeEvent(events);
+    }
+
+    void unsubscribeEvent(const std::vector<int>& events) {
+        client_->unsubscribeEvent(events);
+    }
+
 private:
     std::unique_ptr<Client> client_;
 
@@ -399,7 +411,13 @@ PYBIND11_MODULE(_rtms, m) {
         .def("onLeave", &PyClient::onLeave,
              "Register leave callback")
         .def("onEventEx", &PyClient::onEventEx,
-             "Register extended event callback");
+             "Register extended event callback")
+        .def("subscribeEvent", &PyClient::subscribeEvent,
+             "Subscribe to receive specific event types",
+             py::arg("events"))
+        .def("unsubscribeEvent", &PyClient::unsubscribeEvent,
+             "Unsubscribe from specific event types",
+             py::arg("events"));
 
     // ========================================================================
     // Constants - Media Types
@@ -425,8 +443,30 @@ PYBIND11_MODULE(_rtms, m) {
     // Constants - User Events
     // ========================================================================
 
-    m.attr("USER_EVENT_JOIN") = py::int_(static_cast<int>(USER_JOIN));
-    m.attr("USER_EVENT_LEAVE") = py::int_(static_cast<int>(USER_LEAVE));
+    m.attr("USER_JOIN") = py::int_(static_cast<int>(USER_JOIN));
+    m.attr("USER_LEAVE") = py::int_(static_cast<int>(USER_LEAVE));
+
+    // ========================================================================
+    // Constants - Event Types
+    // ========================================================================
+    // Event Types (for subscribeEvent/unsubscribeEvent - used with onEventEx callback)
+    // These match RTMS_EVENT_TYPE from Zoom's C SDK
+    // ========================================================================
+
+    m.attr("EVENT_UNDEFINED") = py::int_(static_cast<int>(Client::EVENT_UNDEFINED));
+    m.attr("EVENT_FIRST_PACKET_TIMESTAMP") = py::int_(static_cast<int>(Client::EVENT_FIRST_PACKET_TIMESTAMP));
+    m.attr("EVENT_ACTIVE_SPEAKER_CHANGE") = py::int_(static_cast<int>(Client::EVENT_ACTIVE_SPEAKER_CHANGE));
+    m.attr("EVENT_PARTICIPANT_JOIN") = py::int_(static_cast<int>(Client::EVENT_PARTICIPANT_JOIN));
+    m.attr("EVENT_PARTICIPANT_LEAVE") = py::int_(static_cast<int>(Client::EVENT_PARTICIPANT_LEAVE));
+    m.attr("EVENT_SHARING_START") = py::int_(static_cast<int>(Client::EVENT_SHARING_START));
+    m.attr("EVENT_SHARING_STOP") = py::int_(static_cast<int>(Client::EVENT_SHARING_STOP));
+    m.attr("EVENT_MEDIA_CONNECTION_INTERRUPTED") = py::int_(static_cast<int>(Client::EVENT_MEDIA_CONNECTION_INTERRUPTED));
+    m.attr("EVENT_CONSUMER_ANSWERED") = py::int_(static_cast<int>(Client::EVENT_CONSUMER_ANSWERED));
+    m.attr("EVENT_CONSUMER_END") = py::int_(static_cast<int>(Client::EVENT_CONSUMER_END));
+    m.attr("EVENT_USER_ANSWERED") = py::int_(static_cast<int>(Client::EVENT_USER_ANSWERED));
+    m.attr("EVENT_USER_END") = py::int_(static_cast<int>(Client::EVENT_USER_END));
+    m.attr("EVENT_USER_HOLD") = py::int_(static_cast<int>(Client::EVENT_USER_HOLD));
+    m.attr("EVENT_USER_UNHOLD") = py::int_(static_cast<int>(Client::EVENT_USER_UNHOLD));
 
     // ========================================================================
     // Constants - Error Codes
@@ -558,7 +598,7 @@ PYBIND11_MODULE(_rtms, m) {
     m.attr("StreamState") = streamState;
 
     // ========================================================================
-    // Constants - Event Type
+    // Constants - Event Type (matches RTMS_EVENT_TYPE from Zoom's C SDK)
     // ========================================================================
 
     py::dict eventType;
@@ -567,6 +607,15 @@ PYBIND11_MODULE(_rtms, m) {
     eventType["ACTIVE_SPEAKER_CHANGE"] = 2;
     eventType["PARTICIPANT_JOIN"] = 3;
     eventType["PARTICIPANT_LEAVE"] = 4;
+    eventType["SHARING_START"] = 5;
+    eventType["SHARING_STOP"] = 6;
+    eventType["MEDIA_CONNECTION_INTERRUPTED"] = 7;
+    eventType["CONSUMER_ANSWERED"] = 8;
+    eventType["CONSUMER_END"] = 9;
+    eventType["USER_ANSWERED"] = 10;
+    eventType["USER_END"] = 11;
+    eventType["USER_HOLD"] = 12;
+    eventType["USER_UNHOLD"] = 13;
     m.attr("EventType") = eventType;
 
     // ========================================================================

@@ -116,7 +116,7 @@ function uploadNodeJS(platform = null) {
 
   log(`Uploading for N-API ${versionsStr}, platforms: ${targetPlatforms.map(p => `${p.platform}-${p.arch}`).join(', ')}`);
 
-  const prebuildCmdBase = `prebuild -r napi \
+  const prebuildCmdBase = `npx prebuild -r napi \
     --include-regex '\\.(node|dylib|so\\.0|tar\\.gz|ts|js|js\\.map)$' \
     --backend cmake-js`;
 

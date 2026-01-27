@@ -38,7 +38,6 @@ tasks:
 
   build:js:
     desc: "Build Node.js bindings (local platform)"
-    deps: [doctor]
     cmds:
       - npx cmake-js compile --CDCMAKE_BUILD_TYPE={{.BUILD_TYPE}}
     sources:
@@ -67,8 +66,15 @@ tasks:
 
   build:py:
     desc: "Build Python wheel (local platform)"
-    deps: [doctor]
     cmds:
+      - mkdir -p dist/py
+      # Remove any existing wheels for the current platform to avoid conflicts
+      - |
+        if [ "{{OS}}" = "darwin" ]; then
+          rm -f dist/py/*macosx*.whl
+        else
+          rm -f dist/py/*linux*.whl dist/py/*manylinux*.whl
+        fi
       - python3 -m build --wheel -Ccmake.build-type={{.BUILD_TYPE}} --outdir dist/py
     sources:
       - src/**/*.cpp
@@ -108,6 +114,28 @@ tasks:
         else
           echo "Skipping wheel repair (not Linux or no Linux wheels found)"
         fi
+
+  # cibuildwheel tasks for multi-version Python wheel building
+  build:py:cibuildwheel:
+    desc: "Build Python wheels for all versions using cibuildwheel (auto-detect platform)"
+    deps: [doctor]
+    cmds:
+      - pip install cibuildwheel
+      - cibuildwheel --platform auto --output-dir dist/py
+
+  build:py:cibuildwheel:linux:
+    desc: "Build Python wheels for Linux (all versions via cibuildwheel's Docker)"
+    deps: [doctor]
+    cmds:
+      - pip install cibuildwheel
+      - cibuildwheel --platform linux --output-dir dist/py
+
+  build:py:cibuildwheel:darwin:
+    desc: "Build Python wheels for macOS (all versions)"
+    deps: [doctor]
+    cmds:
+      - pip install cibuildwheel
+      - cibuildwheel --platform macos --output-dir dist/py
 
   # =============================================================================
   # Go Build Tasks (Placeholder)
@@ -198,8 +226,8 @@ tasks:
     desc: "Run Python tests (local)"
     deps: [build:py]
     cmds:
-      - echo "Python tests not yet implemented"
-      # - python3 -m pytest tests/
+      - python -m pip install --find-links=dist/py rtms
+      - pytest tests/test_rtms.py -v
 
   test:py:linux:
     desc: "Run Python tests in Linux Docker"
@@ -238,18 +266,24 @@ tasks:
     desc: "Run interactive Python manual test"
     deps: [build:py]
     cmds:
-      - python3 -m pip install --force dist/py/*.whl
+      # Install only the wheel matching the current platform
+      - |
+        if [ "{{OS}}" = "darwin" ]; then
+          python3 -m pip install --force-reinstall dist/py/*macosx*.whl
+        else
+          python3 -m pip install --force-reinstall dist/py/*manylinux*.whl
+        fi
       - python3 test.py
 
   manual:js:linux:
     desc: "Run interactive Node.js manual test in Linux Docker"
     cmds:
-      - docker compose run --rm -it test-js sh -c "npm run test:js-manual"
+      - docker compose run --rm -it --service-ports test-js sh -c "task build:js && NODE_ENV=test node --trace-deprecation --force-node-api-uncaught-exceptions-policy=true --env-file=.env test.js"
 
   manual:py:linux:
     desc: "Run interactive Python manual test in Linux Docker"
     cmds:
-      - docker compose run --rm -it test-py sh -c "npm run test:py-manual"
+      - docker compose run --rm -it --service-ports test-py sh -c "task build:py && task repair:py && pip install --force-reinstall dist/py/*manylinux*.whl && python3 test.py"
 
   # =============================================================================
   # Documentation Tasks

@@ -9,6 +9,8 @@ x-base: &base
     - SYS_PTRACE
   security_opt:
     - seccomp:unconfined
+  ports:
+    - "8080:8080"
   volumes:
     - .:/tmp/rtms
     - ./logs:/tmp/rtms/logs
@@ -48,9 +50,9 @@ services:
       context: .
       args:
         TARGET: js
-    ports:
-      - "8080:8080"
-    command: sh -c "task build:js && task manual:js"
+    environment:
+      - GITHUB_TOKEN
+    command: sh -c "task setup && task build:js && npx jest tests/"
 
   test-py:
     <<: *base
@@ -58,9 +60,7 @@ services:
       context: .
       args:
         TARGET: py
-    ports:
-      - "8080:8080"
-    command: sh -c "task build:py && echo 'Python tests not yet implemented'"
+    command: sh -c "task setup && task build:py && python -m pip install --find-links=dist/py rtms && pytest tests/test_rtms.py -v"
 
   # =============================================================================
   # Docs Service - Documentation generation
@@ -75,3 +75,4 @@ services:
     volumes:
       - .:/tmp/rtms
       - ./docs:/tmp/rtms/docs
+
