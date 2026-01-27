@@ -46,6 +46,7 @@ scripts/**/*
 !src/rtms/*.pyi
 
 !tests/**.py
+!tests/**.js
 
 # MacOS
 .DS_Store

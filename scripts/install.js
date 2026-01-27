@@ -11,9 +11,10 @@
  */
 
 import { execSync } from 'child_process';
-import { existsSync } from 'fs';
+import { existsSync, readdirSync, unlinkSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import * as tar from 'tar';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -39,6 +40,47 @@ function warning(message) {
 }
 
 /**
+ * Extract macOS framework archives (.framework.tar.gz) after prebuild-install
+ *
+ * The prebuilt binaries include macOS frameworks as tar.gz archives to reduce size.
+ * These must be extracted for the native module to load correctly.
+ */
+function extractFrameworks(buildDir) {
+  if (process.platform !== 'darwin') {
+    // Frameworks only exist on macOS
+    return;
+  }
+
+  if (!existsSync(buildDir)) {
+    return;
+  }
+
+  const files = readdirSync(buildDir);
+  const frameworkArchives = files.filter(f => f.endsWith('.framework.tar.gz'));
+
+  if (frameworkArchives.length === 0) {
+    return;
+  }
+
+  log(`Extracting ${frameworkArchives.length} framework archive(s)...`);
+
+  for (const archive of frameworkArchives) {
+    const archivePath = join(buildDir, archive);
+    try {
+      tar.extract({
+        file: archivePath,
+        cwd: buildDir,
+        sync: true
+      });
+      // Remove the archive after extraction to save space
+      unlinkSync(archivePath);
+    } catch (err) {
+      warning(`Failed to extract ${archive}: ${err.message}`);
+    }
+  }
+}
+
+/**
  * Try to install prebuilt binary
  */
 function installPrebuild() {
@@ -50,6 +92,10 @@ function installPrebuild() {
       stdio: 'inherit',
       env: process.env
     });
+
+    // Extract framework archives on macOS
+    const buildDir = join(__dirname, '..', 'build', 'Release');
+    extractFrameworks(buildDir);
 
     success('Prebuilt binary installed successfully!');
     return true;

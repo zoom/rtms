@@ -215,7 +215,13 @@ tasks:
     desc: "Run Node.js tests (local)"
     deps: [build:js]
     cmds:
-      - npx jest tests/
+      - npx jest tests/rtms.test.ts
+
+  test:js:integration:
+    desc: "Run npm pack → install → load integration test"
+    deps: [build:js]
+    cmds:
+      - npx jest tests/pack-install.test.js --testTimeout=120000
 
   test:js:linux:
     desc: "Run Node.js tests in Linux Docker"
