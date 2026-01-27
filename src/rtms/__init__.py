@@ -24,8 +24,13 @@ from ._rtms import (
     SESSION_EVENT_ADD, SESSION_EVENT_STOP, SESSION_EVENT_PAUSE, SESSION_EVENT_RESUME,
 
     # Event types for subscribeEvent/unsubscribeEvent (used with onEventEx callback)
+    # These match RTMS_EVENT_TYPE from Zoom's C SDK
+    EVENT_UNDEFINED, EVENT_FIRST_PACKET_TIMESTAMP,
     EVENT_ACTIVE_SPEAKER_CHANGE, EVENT_PARTICIPANT_JOIN, EVENT_PARTICIPANT_LEAVE,
     EVENT_SHARING_START, EVENT_SHARING_STOP,
+    EVENT_MEDIA_CONNECTION_INTERRUPTED,
+    EVENT_CONSUMER_ANSWERED, EVENT_CONSUMER_END,
+    EVENT_USER_ANSWERED, EVENT_USER_END, EVENT_USER_HOLD, EVENT_USER_UNHOLD,
 
     # Status code constants
     RTMS_SDK_FAILURE, RTMS_SDK_OK, RTMS_SDK_TIMEOUT,
@@ -41,7 +46,7 @@ from ._rtms import (
 
 
 # Set up logging
-_log_level = os.getenv('ZM_RTMS_LOG_LEVEL', 'debug').lower()
+_log_level = os.getenv('ZM_RTMS_LOG_LEVEL', 'info').lower()
 _log_format = os.getenv('ZM_RTMS_LOG_FORMAT', 'progressive').lower()
 _log_enabled = os.getenv('ZM_RTMS_LOG_ENABLED', 'true').lower() != 'false'
 
@@ -256,7 +261,9 @@ class WebhookHandler(BaseHTTPRequestHandler):
 
         try:
             payload = json.loads(body.decode('utf-8'))
-            log_debug(f"webhook", f"Received webhook payload: {payload}")
+            event_type = payload.get('event', 'unknown')
+            log_info("webhook", f"Received event: {event_type}")
+            log_debug("webhook", f"Received webhook payload: {payload}")
 
             # Check callback arity to determine if it's a raw callback
             import inspect
@@ -323,7 +330,8 @@ class WebhookServer:
             log_debug("webhook", f"Starting webhook server on port {self.port} path {self.path}")
             self.server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)
             self.server_thread.start()
-            
+
+            log_info("webhook", f"Listening for webhook events at http://localhost:{self.port}{self.path}")
             return True
         except Exception as e:
             log_error("webhook", f"Error starting webhook server: {e}")
@@ -804,11 +812,11 @@ class Client(_ClientBase):
         """
         Subscribe to receive specific event types.
 
-        Note: Calling onUserUpdate() automatically subscribes to
-        USER_EVENT_JOIN and USER_EVENT_LEAVE events.
+        Note: Calling onParticipantEvent() automatically subscribes to
+        EVENT_PARTICIPANT_JOIN and EVENT_PARTICIPANT_LEAVE events.
 
         Args:
-            events: List of event type constants (e.g., [USER_EVENT_JOIN, USER_EVENT_LEAVE])
+            events: List of event type constants (e.g., [EVENT_PARTICIPANT_JOIN, EVENT_PARTICIPANT_LEAVE])
 
         Returns:
             bool: True if subscription was successful
@@ -851,20 +859,20 @@ class Client(_ClientBase):
         def event_handler(event_data: str):
             try:
                 data = json.loads(event_data)
-                event_type = data.get('event', {}).get('event_type')
+                event_type = data.get('event_type')
 
                 if event_type == EVENT_PARTICIPANT_JOIN:
                     participants = [
                         {'user_id': p.get('user_id'), 'user_name': p.get('user_name')}
-                        for p in data.get('event', {}).get('participants', [])
+                        for p in data.get('participants', [])
                     ]
-                    callback('join', data.get('event', {}).get('timestamp', 0), participants)
+                    callback('join', data.get('timestamp', 0), participants)
                 elif event_type == EVENT_PARTICIPANT_LEAVE:
                     participants = [
                         {'user_id': p.get('user_id'), 'user_name': p.get('user_name')}
-                        for p in data.get('event', {}).get('participants', [])
+                        for p in data.get('participants', [])
                     ]
-                    callback('leave', data.get('event', {}).get('timestamp', 0), participants)
+                    callback('leave', data.get('timestamp', 0), participants)
             except Exception as e:
                 log_error('client', f'Failed to parse participant event: {e}')
 
@@ -895,13 +903,13 @@ class Client(_ClientBase):
         def event_handler(event_data: str):
             try:
                 data = json.loads(event_data)
-                event_type = data.get('event', {}).get('event_type')
+                event_type = data.get('event_type')
 
                 if event_type == EVENT_ACTIVE_SPEAKER_CHANGE:
                     callback(
-                        data.get('event', {}).get('timestamp', 0),
-                        data.get('event', {}).get('user_id', 0),
-                        data.get('event', {}).get('user_name', '')
+                        data.get('timestamp', 0),
+                        data.get('user_id', 0),
+                        data.get('user_name', '')
                     )
             except Exception as e:
                 log_error('client', f'Failed to parse active speaker event: {e}')
@@ -938,19 +946,19 @@ class Client(_ClientBase):
         def event_handler(event_data: str):
             try:
                 data = json.loads(event_data)
-                event_type = data.get('event', {}).get('event_type')
+                event_type = data.get('event_type')
 
                 if event_type == EVENT_SHARING_START:
                     callback(
                         'start',
-                        data.get('event', {}).get('timestamp', 0),
-                        data.get('event', {}).get('user_id'),
-                        data.get('event', {}).get('user_name')
+                        data.get('timestamp', 0),
+                        data.get('user_id'),
+                        data.get('user_name')
                     )
                 elif event_type == EVENT_SHARING_STOP:
                     callback(
                         'stop',
-                        data.get('event', {}).get('timestamp', 0),
+                        data.get('timestamp', 0),
                         None,
                         None
                     )
@@ -1155,11 +1163,21 @@ __all__ = [
     "SESSION_EVENT_RESUME",
 
     # Constants - Event Types (for subscribeEvent/onEventEx)
+    # These match RTMS_EVENT_TYPE from Zoom's C SDK
+    "EVENT_UNDEFINED",
+    "EVENT_FIRST_PACKET_TIMESTAMP",
     "EVENT_ACTIVE_SPEAKER_CHANGE",
     "EVENT_PARTICIPANT_JOIN",
     "EVENT_PARTICIPANT_LEAVE",
     "EVENT_SHARING_START",
     "EVENT_SHARING_STOP",
+    "EVENT_MEDIA_CONNECTION_INTERRUPTED",
+    "EVENT_CONSUMER_ANSWERED",
+    "EVENT_CONSUMER_END",
+    "EVENT_USER_ANSWERED",
+    "EVENT_USER_END",
+    "EVENT_USER_HOLD",
+    "EVENT_USER_UNHOLD",
 
     # Constants - Status Codes
     "RTMS_SDK_FAILURE",

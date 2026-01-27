@@ -126,6 +126,20 @@ public:
         });
     }
 
+    void onUserUpdate(py::function callback) {
+        user_update_callback_ = callback;
+        client_->setOnUserUpdate([this](int op, const Participant& participant) {
+            if (!user_update_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try {
+                    user_update_callback_(op, participant);
+                } catch (const py::error_already_set& e) {
+                    py::print("Error in user update callback:", e.what());
+                }
+            }
+        });
+    }
+
     void onAudioData(py::function callback) {
         audio_data_callback_ = callback;
         client_->setOnAudioData([this](const std::vector<uint8_t>& data, uint64_t timestamp, const Metadata& metadata) {
@@ -232,6 +246,7 @@ private:
     // Python callback storage
     py::object join_confirm_callback_ = py::none();
     py::object session_update_callback_ = py::none();
+    py::object user_update_callback_ = py::none();
     py::object audio_data_callback_ = py::none();
     py::object video_data_callback_ = py::none();
     py::object deskshare_data_callback_ = py::none();
@@ -242,6 +257,7 @@ private:
     void clearCallbacks() {
         join_confirm_callback_ = py::none();
         session_update_callback_ = py::none();
+        user_update_callback_ = py::none();
         audio_data_callback_ = py::none();
         video_data_callback_ = py::none();
         deskshare_data_callback_ = py::none();
@@ -255,6 +271,7 @@ private:
         if (client_) {
             client_->setOnJoinConfirm([](int) {});
             client_->setOnSessionUpdate([](int, const Session&) {});
+            client_->setOnUserUpdate([](int, const Participant&) {});
             client_->setOnAudioData([](const std::vector<uint8_t>&, uint64_t, const Metadata&) {});
             client_->setOnVideoData([](const std::vector<uint8_t>&, uint64_t, const Metadata&) {});
             client_->setOnDeskshareData([](const std::vector<uint8_t>&, uint64_t, const Metadata&) {});
@@ -381,6 +398,8 @@ PYBIND11_MODULE(_rtms, m) {
              "Register join confirm callback")
         .def("onSessionUpdate", &PyClient::onSessionUpdate,
              "Register session update callback")
+        .def("onUserUpdate", &PyClient::onUserUpdate,
+             "Register user update callback")
         .def("onAudioData", &PyClient::onAudioData,
              "Register audio data callback")
         .def("onVideoData", &PyClient::onVideoData,
@@ -423,14 +442,31 @@ PYBIND11_MODULE(_rtms, m) {
     // ========================================================================
     // Constants - User Events
     // ========================================================================
+
+    m.attr("USER_JOIN") = py::int_(static_cast<int>(USER_JOIN));
+    m.attr("USER_LEAVE") = py::int_(static_cast<int>(USER_LEAVE));
+
+    // ========================================================================
+    // Constants - Event Types
+    // ========================================================================
     // Event Types (for subscribeEvent/unsubscribeEvent - used with onEventEx callback)
+    // These match RTMS_EVENT_TYPE from Zoom's C SDK
     // ========================================================================
 
+    m.attr("EVENT_UNDEFINED") = py::int_(static_cast<int>(Client::EVENT_UNDEFINED));
+    m.attr("EVENT_FIRST_PACKET_TIMESTAMP") = py::int_(static_cast<int>(Client::EVENT_FIRST_PACKET_TIMESTAMP));
     m.attr("EVENT_ACTIVE_SPEAKER_CHANGE") = py::int_(static_cast<int>(Client::EVENT_ACTIVE_SPEAKER_CHANGE));
     m.attr("EVENT_PARTICIPANT_JOIN") = py::int_(static_cast<int>(Client::EVENT_PARTICIPANT_JOIN));
     m.attr("EVENT_PARTICIPANT_LEAVE") = py::int_(static_cast<int>(Client::EVENT_PARTICIPANT_LEAVE));
     m.attr("EVENT_SHARING_START") = py::int_(static_cast<int>(Client::EVENT_SHARING_START));
     m.attr("EVENT_SHARING_STOP") = py::int_(static_cast<int>(Client::EVENT_SHARING_STOP));
+    m.attr("EVENT_MEDIA_CONNECTION_INTERRUPTED") = py::int_(static_cast<int>(Client::EVENT_MEDIA_CONNECTION_INTERRUPTED));
+    m.attr("EVENT_CONSUMER_ANSWERED") = py::int_(static_cast<int>(Client::EVENT_CONSUMER_ANSWERED));
+    m.attr("EVENT_CONSUMER_END") = py::int_(static_cast<int>(Client::EVENT_CONSUMER_END));
+    m.attr("EVENT_USER_ANSWERED") = py::int_(static_cast<int>(Client::EVENT_USER_ANSWERED));
+    m.attr("EVENT_USER_END") = py::int_(static_cast<int>(Client::EVENT_USER_END));
+    m.attr("EVENT_USER_HOLD") = py::int_(static_cast<int>(Client::EVENT_USER_HOLD));
+    m.attr("EVENT_USER_UNHOLD") = py::int_(static_cast<int>(Client::EVENT_USER_UNHOLD));
 
     // ========================================================================
     // Constants - Error Codes
@@ -562,7 +598,7 @@ PYBIND11_MODULE(_rtms, m) {
     m.attr("StreamState") = streamState;
 
     // ========================================================================
-    // Constants - Event Type
+    // Constants - Event Type (matches RTMS_EVENT_TYPE from Zoom's C SDK)
     // ========================================================================
 
     py::dict eventType;
@@ -571,6 +607,15 @@ PYBIND11_MODULE(_rtms, m) {
     eventType["ACTIVE_SPEAKER_CHANGE"] = 2;
     eventType["PARTICIPANT_JOIN"] = 3;
     eventType["PARTICIPANT_LEAVE"] = 4;
+    eventType["SHARING_START"] = 5;
+    eventType["SHARING_STOP"] = 6;
+    eventType["MEDIA_CONNECTION_INTERRUPTED"] = 7;
+    eventType["CONSUMER_ANSWERED"] = 8;
+    eventType["CONSUMER_END"] = 9;
+    eventType["USER_ANSWERED"] = 10;
+    eventType["USER_END"] = 11;
+    eventType["USER_HOLD"] = 12;
+    eventType["USER_UNHOLD"] = 13;
     m.attr("EventType") = eventType;
 
     // ========================================================================

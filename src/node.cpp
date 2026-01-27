@@ -37,6 +37,7 @@ private:
 
     Napi::Value setOnJoinConfirm(const Napi::CallbackInfo& info);
     Napi::Value setOnSessionUpdate(const Napi::CallbackInfo& info);
+    Napi::Value setOnUserUpdate(const Napi::CallbackInfo& info);
     Napi::Value setOnDeskshareData(const Napi::CallbackInfo& info);
     Napi::Value setOnAudioData(const Napi::CallbackInfo& info);
     Napi::Value setOnVideoData(const Napi::CallbackInfo& info);
@@ -50,6 +51,7 @@ private:
     unique_ptr<rtms::Client> client_;
     Napi::ThreadSafeFunction tsfn_join_confirm_;
     Napi::ThreadSafeFunction tsfn_session_update_;
+    Napi::ThreadSafeFunction tsfn_user_update_;
     Napi::ThreadSafeFunction tsfn_ds_data_;
     Napi::ThreadSafeFunction tsfn_audio_data_;
     Napi::ThreadSafeFunction tsfn_video_data_;
@@ -322,6 +324,40 @@ Napi::Value NodeClient::setOnSessionUpdate(const Napi::CallbackInfo& info) {
     return Napi::Boolean::New(env, true);
 }
 
+Napi::Value NodeClient::setOnUserUpdate(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::HandleScope scope(env);
+
+    if (info.Length() < 1 || !info[0].IsFunction()) {
+        Napi::TypeError::New(env, "Function argument expected").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    Napi::Function callback = info[0].As<Napi::Function>();
+
+    if (tsfn_user_update_) {
+        tsfn_user_update_.Release();
+    }
+
+    tsfn_user_update_ = Napi::ThreadSafeFunction::New(
+        env, callback, "UserUpdateCallback", 0, 1
+    );
+
+    client_->setOnUserUpdate([this](int op, const rtms::Participant& participant) {
+        auto callback = [op, id = participant.id(), name = participant.name()]
+                        (Napi::Env env, Napi::Function jsCallback) {
+            Napi::Object participantObj = Napi::Object::New(env);
+            participantObj.Set("id", Napi::Number::New(env, id));
+            participantObj.Set("name", Napi::String::New(env, name));
+
+            jsCallback.Call({Napi::Number::New(env, op), participantObj});
+        };
+        tsfn_user_update_.BlockingCall(callback);
+    });
+
+    return Napi::Boolean::New(env, true);
+}
+
 Napi::Value NodeClient::setOnDeskshareData(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
@@ -332,7 +368,7 @@ Napi::Value NodeClient::setOnDeskshareData(const Napi::CallbackInfo& info) {
     }
 
     Napi::Function callback = info[0].As<Napi::Function>();
-    
+
     if (tsfn_ds_data_) {
         tsfn_ds_data_.Release();
     }
@@ -632,6 +668,7 @@ NodeClient::NodeClient(const Napi::CallbackInfo& info)
 NodeClient::~NodeClient() {
     if (tsfn_join_confirm_) tsfn_join_confirm_.Release();
     if (tsfn_session_update_) tsfn_session_update_.Release();
+    if (tsfn_user_update_) tsfn_user_update_.Release();
     if (tsfn_audio_data_) tsfn_audio_data_.Release();
     if (tsfn_video_data_) tsfn_video_data_.Release();
     if (tsfn_transcript_data_) tsfn_transcript_data_.Release();
@@ -731,6 +768,7 @@ Napi::Object NodeClient::init(Napi::Env env, Napi::Object exports) {
         InstanceMethod("setVideoParams", &NodeClient::setVideoParams),
         InstanceMethod("onJoinConfirm", &NodeClient::setOnJoinConfirm),
         InstanceMethod("onSessionUpdate", &NodeClient::setOnSessionUpdate),
+        InstanceMethod("onUserUpdate", &NodeClient::setOnUserUpdate),
         InstanceMethod("onDeskshareData", &NodeClient::setOnDeskshareData),
         InstanceMethod("onAudioData", &NodeClient::setOnAudioData),
         InstanceMethod("onVideoData", &NodeClient::setOnVideoData),
@@ -760,12 +798,25 @@ Napi::Object NodeClient::init(Napi::Env env, Napi::Object exports) {
     exports.Set(Napi::String::New(env, "SESSION_EVENT_PAUSE"), Napi::Number::New(env, SESSION_PAUSE));
     exports.Set(Napi::String::New(env, "SESSION_EVENT_RESUME"), Napi::Number::New(env, SESSION_RESUME));
 
+    exports.Set(Napi::String::New(env, "USER_JOIN"), Napi::Number::New(env, USER_JOIN));
+    exports.Set(Napi::String::New(env, "USER_LEAVE"), Napi::Number::New(env, USER_LEAVE));
+
     // Event types for subscribeEvent/unsubscribeEvent (used with onEventEx callback)
+    // These match RTMS_EVENT_TYPE from Zoom's C SDK
+    exports.Set(Napi::String::New(env, "EVENT_UNDEFINED"), Napi::Number::New(env, rtms::Client::EVENT_UNDEFINED));
+    exports.Set(Napi::String::New(env, "EVENT_FIRST_PACKET_TIMESTAMP"), Napi::Number::New(env, rtms::Client::EVENT_FIRST_PACKET_TIMESTAMP));
     exports.Set(Napi::String::New(env, "EVENT_ACTIVE_SPEAKER_CHANGE"), Napi::Number::New(env, rtms::Client::EVENT_ACTIVE_SPEAKER_CHANGE));
     exports.Set(Napi::String::New(env, "EVENT_PARTICIPANT_JOIN"), Napi::Number::New(env, rtms::Client::EVENT_PARTICIPANT_JOIN));
     exports.Set(Napi::String::New(env, "EVENT_PARTICIPANT_LEAVE"), Napi::Number::New(env, rtms::Client::EVENT_PARTICIPANT_LEAVE));
     exports.Set(Napi::String::New(env, "EVENT_SHARING_START"), Napi::Number::New(env, rtms::Client::EVENT_SHARING_START));
     exports.Set(Napi::String::New(env, "EVENT_SHARING_STOP"), Napi::Number::New(env, rtms::Client::EVENT_SHARING_STOP));
+    exports.Set(Napi::String::New(env, "EVENT_MEDIA_CONNECTION_INTERRUPTED"), Napi::Number::New(env, rtms::Client::EVENT_MEDIA_CONNECTION_INTERRUPTED));
+    exports.Set(Napi::String::New(env, "EVENT_CONSUMER_ANSWERED"), Napi::Number::New(env, rtms::Client::EVENT_CONSUMER_ANSWERED));
+    exports.Set(Napi::String::New(env, "EVENT_CONSUMER_END"), Napi::Number::New(env, rtms::Client::EVENT_CONSUMER_END));
+    exports.Set(Napi::String::New(env, "EVENT_USER_ANSWERED"), Napi::Number::New(env, rtms::Client::EVENT_USER_ANSWERED));
+    exports.Set(Napi::String::New(env, "EVENT_USER_END"), Napi::Number::New(env, rtms::Client::EVENT_USER_END));
+    exports.Set(Napi::String::New(env, "EVENT_USER_HOLD"), Napi::Number::New(env, rtms::Client::EVENT_USER_HOLD));
+    exports.Set(Napi::String::New(env, "EVENT_USER_UNHOLD"), Napi::Number::New(env, rtms::Client::EVENT_USER_UNHOLD));
 
     exports.Set(Napi::String::New(env, "RTMS_SDK_FAILURE"), Napi::Number::New(env, RTMS_SDK_FAILURE));
     exports.Set(Napi::String::New(env, "RTMS_SDK_OK"), Napi::Number::New(env, RTMS_SDK_OK));
@@ -888,13 +939,22 @@ Napi::Object NodeClient::init(Napi::Env env, Napi::Object exports) {
     streamState.Set("TERMINATED", Napi::Number::New(env, 4));
     exports.Set("StreamState", streamState);
 
-    // Event Type
+    // Event Type (matches RTMS_EVENT_TYPE from Zoom's C SDK)
     Napi::Object eventType = Napi::Object::New(env);
     eventType.Set("UNDEFINED", Napi::Number::New(env, 0));
     eventType.Set("FIRST_PACKET_TIMESTAMP", Napi::Number::New(env, 1));
     eventType.Set("ACTIVE_SPEAKER_CHANGE", Napi::Number::New(env, 2));
     eventType.Set("PARTICIPANT_JOIN", Napi::Number::New(env, 3));
     eventType.Set("PARTICIPANT_LEAVE", Napi::Number::New(env, 4));
+    eventType.Set("SHARING_START", Napi::Number::New(env, 5));
+    eventType.Set("SHARING_STOP", Napi::Number::New(env, 6));
+    eventType.Set("MEDIA_CONNECTION_INTERRUPTED", Napi::Number::New(env, 7));
+    eventType.Set("CONSUMER_ANSWERED", Napi::Number::New(env, 8));
+    eventType.Set("CONSUMER_END", Napi::Number::New(env, 9));
+    eventType.Set("USER_ANSWERED", Napi::Number::New(env, 10));
+    eventType.Set("USER_END", Napi::Number::New(env, 11));
+    eventType.Set("USER_HOLD", Napi::Number::New(env, 12));
+    eventType.Set("USER_UNHOLD", Napi::Number::New(env, 13));
     exports.Set("EventType", eventType);
 
     // Message Type

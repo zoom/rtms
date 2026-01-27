@@ -90,11 +90,26 @@ export const SESSION_EVENT_PAUSE: number;
 export const SESSION_EVENT_RESUME: number;
 
 /**
- * Event types for subscribeEvent/unsubscribeEvent
- * Used with onEventEx callback or typed event callbacks
+ * User event constants (for onUserUpdate callback)
  *
  * @category Constants
  */
+/** Event constant indicating a user has joined */
+export const USER_JOIN: number;
+/** Event constant indicating a user has left */
+export const USER_LEAVE: number;
+
+/**
+ * Event types for subscribeEvent/unsubscribeEvent
+ * Used with onEventEx callback or typed event callbacks
+ * These match RTMS_EVENT_TYPE from Zoom's C SDK
+ *
+ * @category Constants
+ */
+/** Event constant for undefined events */
+export const EVENT_UNDEFINED: number;
+/** Event constant for first packet timestamp */
+export const EVENT_FIRST_PACKET_TIMESTAMP: number;
 /** Event constant for active speaker changes */
 export const EVENT_ACTIVE_SPEAKER_CHANGE: number;
 /** Event constant for participant join */
@@ -105,6 +120,20 @@ export const EVENT_PARTICIPANT_LEAVE: number;
 export const EVENT_SHARING_START: number;
 /** Event constant for screen sharing stop */
 export const EVENT_SHARING_STOP: number;
+/** Event constant for media connection interrupted */
+export const EVENT_MEDIA_CONNECTION_INTERRUPTED: number;
+/** Event constant for consumer answered (phone calls) */
+export const EVENT_CONSUMER_ANSWERED: number;
+/** Event constant for consumer end (phone calls) */
+export const EVENT_CONSUMER_END: number;
+/** Event constant for user answered (phone calls) */
+export const EVENT_USER_ANSWERED: number;
+/** Event constant for user end (phone calls) */
+export const EVENT_USER_END: number;
+/** Event constant for user hold (phone calls) */
+export const EVENT_USER_HOLD: number;
+/** Event constant for user unhold (phone calls) */
+export const EVENT_USER_UNHOLD: number;
 
 /**
  * SDK status codes
@@ -368,6 +397,16 @@ export type JoinConfirmCallback = (reason: number) => void;
  * @category Callback Types
  */
 export type SessionUpdateCallback = (op: number, sessionInfo: SessionInfo) => void;
+
+/**
+ * Callback function for user update events (participant join/leave at SDK level)
+ *
+ * @param op The operation type (USER_JOIN or USER_LEAVE constant)
+ * @param participant Information about the participant
+ *
+ * @category Callback Types
+ */
+export type UserUpdateCallback = (op: number, participant: ParticipantInfo) => void;
 
 /**
  * Participant info for event callbacks
@@ -751,7 +790,25 @@ export class Client {
    * ```
    */
   onSessionUpdate(callback: SessionUpdateCallback): boolean;
-  
+
+  /**
+   * Sets a callback for raw SDK user update events (participant join/leave)
+   *
+   * This is the low-level SDK callback. For most use cases, prefer onParticipantEvent
+   * which provides a more convenient API with automatic event subscription.
+   *
+   * @param callback The callback function to invoke
+   * @returns true if the callback was set successfully
+   *
+   * @example
+   * ```typescript
+   * client.onUserUpdate((op, participant) => {
+   *   console.log(`User ${participant.name} (${participant.id}) - op: ${op}`);
+   * });
+   * ```
+   */
+  onUserUpdate(callback: UserUpdateCallback): boolean;
+
   /**
    * Sets a callback for participant join/leave events
    *
@@ -1247,6 +1304,15 @@ export interface EventType {
   ACTIVE_SPEAKER_CHANGE: number;
   PARTICIPANT_JOIN: number;
   PARTICIPANT_LEAVE: number;
+  SHARING_START: number;
+  SHARING_STOP: number;
+  MEDIA_CONNECTION_INTERRUPTED: number;
+  CONSUMER_ANSWERED: number;
+  CONSUMER_END: number;
+  USER_ANSWERED: number;
+  USER_END: number;
+  USER_HOLD: number;
+  USER_UNHOLD: number;
 }
 
 export interface MessageType {
@@ -1327,11 +1393,23 @@ declare const rtms: {
   SESSION_EVENT_PAUSE: number;
   SESSION_EVENT_RESUME: number;
 
+  USER_JOIN: number;
+  USER_LEAVE: number;
+
+  EVENT_UNDEFINED: number;
+  EVENT_FIRST_PACKET_TIMESTAMP: number;
   EVENT_ACTIVE_SPEAKER_CHANGE: number;
   EVENT_PARTICIPANT_JOIN: number;
   EVENT_PARTICIPANT_LEAVE: number;
   EVENT_SHARING_START: number;
   EVENT_SHARING_STOP: number;
+  EVENT_MEDIA_CONNECTION_INTERRUPTED: number;
+  EVENT_CONSUMER_ANSWERED: number;
+  EVENT_CONSUMER_END: number;
+  EVENT_USER_ANSWERED: number;
+  EVENT_USER_END: number;
+  EVENT_USER_HOLD: number;
+  EVENT_USER_UNHOLD: number;
 
   RTMS_SDK_FAILURE: number;
   RTMS_SDK_OK: number;

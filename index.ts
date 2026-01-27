@@ -69,7 +69,7 @@ export interface LoggerConfig {
 namespace Logger {
   // Default configuration
   let config: LoggerConfig = {
-    level: LogLevel.DEBUG,
+    level: LogLevel.INFO,
     format: LogFormat.PROGRESSIVE,
     enabled: true
   };
@@ -204,31 +204,68 @@ Logger.init();
 
 
 /**
- * Expose all constants from the native module
+ * Expose all constant objects from the native module (dictionaries like AudioCodec, VideoResolution)
  * @param nativeModule the rtms .node module
- * @returns all native constants ready for export
+ * @returns all native constant objects ready for export
  */
 function exposeNativeConstants(nativeModule: any): Record<string, any> {
   const constants: Record<string, any> = {};
-  
+
   // Check if the object has properties and isn't a function or primitive
   function isConstantObject(obj: any): boolean {
-    return obj !== null && 
-           typeof obj === 'object' && 
+    return obj !== null &&
+           typeof obj === 'object' &&
            !Array.isArray(obj) &&
            Object.keys(obj).length > 0 &&
            Object.values(obj).every(val => typeof val === 'number' || typeof val === 'string');
   }
-  
-  // Identify and collect all constants
+
+  // Identify and collect all constant objects
   for (const key in nativeModule) {
     const value = nativeModule[key];
     if (isConstantObject(value)) {
       constants[key] = value;
     }
   }
-  
+
   return constants;
+}
+
+/**
+ * Expose individual number constants from the native module
+ * @param nativeModule the rtms .node module
+ * @returns all native number constants ready for export
+ */
+function exposeNumberConstants(nativeModule: any): Record<string, number> {
+  const numberConstants: Record<string, number> = {};
+
+  // List of known number constants to export
+  const knownConstants = [
+    // Media types
+    'MEDIA_TYPE_AUDIO', 'MEDIA_TYPE_VIDEO', 'MEDIA_TYPE_DESKSHARE',
+    'MEDIA_TYPE_TRANSCRIPT', 'MEDIA_TYPE_CHAT', 'MEDIA_TYPE_ALL',
+    // Session events
+    'SESSION_EVENT_ADD', 'SESSION_EVENT_STOP', 'SESSION_EVENT_PAUSE', 'SESSION_EVENT_RESUME',
+    // Event types (for subscribeEvent/onEventEx)
+    'EVENT_UNDEFINED', 'EVENT_FIRST_PACKET_TIMESTAMP', 'EVENT_ACTIVE_SPEAKER_CHANGE',
+    'EVENT_PARTICIPANT_JOIN', 'EVENT_PARTICIPANT_LEAVE',
+    'EVENT_SHARING_START', 'EVENT_SHARING_STOP', 'EVENT_MEDIA_CONNECTION_INTERRUPTED',
+    'EVENT_CONSUMER_ANSWERED', 'EVENT_CONSUMER_END',
+    'EVENT_USER_ANSWERED', 'EVENT_USER_END', 'EVENT_USER_HOLD', 'EVENT_USER_UNHOLD',
+    // SDK status codes
+    'RTMS_SDK_OK', 'RTMS_SDK_FAILURE', 'RTMS_SDK_TIMEOUT',
+    'RTMS_SDK_NOT_EXIST', 'RTMS_SDK_WRONG_TYPE', 'RTMS_SDK_INVALID_STATUS', 'RTMS_SDK_INVALID_ARGS',
+    // Session status
+    'SESS_STATUS_ACTIVE', 'SESS_STATUS_PAUSED'
+  ];
+
+  for (const name of knownConstants) {
+    if (typeof nativeModule[name] === 'number') {
+      numberConstants[name] = nativeModule[name];
+    }
+  }
+
+  return numberConstants;
 }
 
 /**
@@ -304,7 +341,7 @@ function ensureInitialized(caPath?: string, isVerifyCert?: number, agent?: strin
   const certPath = findCACertificate(caPath);
   
   try {
-    Logger.info('rtms', `Initializing RTMS SDK with CA certificate: ${certPath || 'none'}`);
+    Logger.debug('rtms', `Initializing RTMS SDK with CA certificate: ${certPath || 'none'}`);
     // Handle undefined values by providing defaults
     nativeRtms.Client.initialize(
       certPath, 
@@ -312,7 +349,7 @@ function ensureInitialized(caPath?: string, isVerifyCert?: number, agent?: strin
       agent ?? undefined
     );
     isInitialized = true;
-    Logger.info('rtms', 'RTMS SDK initialized successfully');
+    Logger.debug('rtms', 'RTMS SDK initialized successfully');
     return true;
   } catch (error: unknown) {
     isInitialized = false;
@@ -425,9 +462,9 @@ export function createWebhookHandler(callback: WebhookCallbackUnion, path: strin
         const payload = JSON.parse(body);
         
         // Log the webhook event
-        Logger.info('webhook', `Received event: ${payload.event || 'unknown'}`, { 
-          eventType: payload.event, 
-          payloadSize: body.length 
+        Logger.info('webhook', `Received event: ${payload.event || 'unknown'}`, {
+          eventType: payload.event,
+          payloadSize: body.length
         });
         
         // Check if this is a raw webhook callback
@@ -517,7 +554,7 @@ export function onWebhookEvent(callback: WebhookCallback | RawWebhookCallback): 
   
   if (useSecureServer) {
     // Set up HTTPS server with the provided certificates
-    Logger.info('webhook', 'Creating secure HTTPS webhook server', {
+    Logger.debug('webhook', 'Creating secure HTTPS webhook server', {
       port,
       path,
       cert: certPath,
@@ -545,7 +582,7 @@ export function onWebhookEvent(callback: WebhookCallback | RawWebhookCallback): 
     }
   } else {
     // Fall back to regular HTTP server
-    Logger.info('webhook', 'Creating standard HTTP webhook server', { port, path });
+    Logger.debug('webhook', 'Creating standard HTTP webhook server', { port, path });
     webhookServer = http.createServer(requestHandler);
   }
 
@@ -831,35 +868,35 @@ class Client extends nativeRtms.Client {
       // Parse and dispatch to typed callbacks
       try {
         const data = JSON.parse(eventData);
-        const eventType = data.event?.event_type;
+        const eventType = data.event_type;
 
         switch (eventType) {
           case nativeRtms.EVENT_PARTICIPANT_JOIN:
             if (this.participantEventCallback) {
-              const participants = (data.event?.participants || []).map((p: any) => ({
+              const participants = (data.participants || []).map((p: any) => ({
                 userId: p.user_id,
                 userName: p.user_name
               }));
-              this.participantEventCallback('join', data.event?.timestamp || 0, participants);
+              this.participantEventCallback('join', data.timestamp || 0, participants);
             }
             break;
 
           case nativeRtms.EVENT_PARTICIPANT_LEAVE:
             if (this.participantEventCallback) {
-              const participants = (data.event?.participants || []).map((p: any) => ({
+              const participants = (data.participants || []).map((p: any) => ({
                 userId: p.user_id,
                 userName: p.user_name
               }));
-              this.participantEventCallback('leave', data.event?.timestamp || 0, participants);
+              this.participantEventCallback('leave', data.timestamp || 0, participants);
             }
             break;
 
           case nativeRtms.EVENT_ACTIVE_SPEAKER_CHANGE:
             if (this.activeSpeakerEventCallback) {
               this.activeSpeakerEventCallback(
-                data.event?.timestamp || 0,
-                data.event?.user_id || 0,
-                data.event?.user_name || ''
+                data.timestamp || 0,
+                data.user_id || 0,
+                data.user_name || ''
               );
             }
             break;
@@ -868,9 +905,9 @@ class Client extends nativeRtms.Client {
             if (this.sharingEventCallback) {
               this.sharingEventCallback(
                 'start',
-                data.event?.timestamp || 0,
-                data.event?.user_id,
-                data.event?.user_name
+                data.timestamp || 0,
+                data.user_id,
+                data.user_name
               );
             }
             break;
@@ -879,7 +916,7 @@ class Client extends nativeRtms.Client {
             if (this.sharingEventCallback) {
               this.sharingEventCallback(
                 'stop',
-                data.event?.timestamp || 0
+                data.timestamp || 0
               );
             }
             break;
@@ -1184,6 +1221,7 @@ function configureLogger(options: Partial<LoggerConfig>): void {
 }
 
 const nativeConstants = exposeNativeConstants(nativeRtms);
+const numberConstants = exposeNumberConstants(nativeRtms);
 
 /**
  * Default export object for the RTMS module
@@ -1203,6 +1241,9 @@ export default {
   LogLevel,
   LogFormat,
 
-  // Native constants (media types, codecs, etc.)
+  // Native constant objects (AudioCodec, VideoResolution, etc.)
   ...nativeConstants,
+
+  // Individual number constants (EVENT_PARTICIPANT_JOIN, RTMS_SDK_OK, etc.)
+  ...numberConstants,
 };

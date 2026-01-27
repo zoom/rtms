@@ -438,13 +438,23 @@ SESSION_EVENT_RESUME: int
 
 # ============================================================================
 # Constants - Event Types (for subscribeEvent/unsubscribeEvent)
+# These match RTMS_EVENT_TYPE from Zoom's C SDK
 # ============================================================================
 
+EVENT_UNDEFINED: int
+EVENT_FIRST_PACKET_TIMESTAMP: int
 EVENT_ACTIVE_SPEAKER_CHANGE: int
 EVENT_PARTICIPANT_JOIN: int
 EVENT_PARTICIPANT_LEAVE: int
 EVENT_SHARING_START: int
 EVENT_SHARING_STOP: int
+EVENT_MEDIA_CONNECTION_INTERRUPTED: int
+EVENT_CONSUMER_ANSWERED: int
+EVENT_CONSUMER_END: int
+EVENT_USER_ANSWERED: int
+EVENT_USER_END: int
+EVENT_USER_HOLD: int
+EVENT_USER_UNHOLD: int
 
 # ============================================================================
 # Constants - Status Codes

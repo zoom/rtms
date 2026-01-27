@@ -381,7 +381,8 @@ media_parameters MediaParams::toNative() const {
 Client::Client()
     : sdk_(nullptr),
       enabled_media_types_(0),
-      media_params_updated_(false) {
+      media_params_updated_(false),
+      join_confirmed_(false) {
     sdk_ = rtms_alloc();
     if (!sdk_) {
         throw Exception(RTMS_SDK_FAILURE, "Failed to allocate RTMS SDK instance");
@@ -489,6 +490,11 @@ void Client::setOnSessionUpdate(SessionUpdateFn callback) {
     session_update_callback_ = std::move(callback);
 }
 
+void Client::setOnUserUpdate(UserUpdateFn callback) {
+    lock_guard<mutex> lock(mutex_);
+    user_update_callback_ = std::move(callback);
+}
+
 void Client::setOnDeskshareData(DsDataFn callback){
     lock_guard<mutex> lock(mutex_);
     ds_data_callback_ = std::move(callback);
@@ -533,11 +539,30 @@ void Client::subscribeEvent(const std::vector<int>& events) {
         throw Exception(RTMS_SDK_INVALID_STATUS, "SDK not initialized");
     }
 
+    lock_guard<mutex> lock(mutex_);
+
+    // If not yet joined, queue the subscriptions for later
+    if (!join_confirmed_) {
+        for (int event : events) {
+            if (std::find(pending_event_subscriptions_.begin(),
+                         pending_event_subscriptions_.end(), event) ==
+                         pending_event_subscriptions_.end()) {
+                pending_event_subscriptions_.push_back(event);
+            }
+        }
+        return;
+    }
+
+    // Already joined - subscribe immediately (release lock first to avoid holding during SDK call)
+    mutex_.unlock();
     int result = rtms_subscribe_event(sdk_, const_cast<int*>(events.data()), static_cast<int>(events.size()));
-    throwIfError(result, "subscribe_event");
+    mutex_.lock();
+
+    if (result != RTMS_SDK_OK) {
+        throw Exception(result, "subscribe_event failed");
+    }
 
     // Track subscribed events for cleanup
-    lock_guard<mutex> lock(mutex_);
     for (int event : events) {
         if (std::find(subscribed_events_.begin(), subscribed_events_.end(), event) == subscribed_events_.end()) {
             subscribed_events_.push_back(event);
@@ -621,12 +646,20 @@ void Client::poll() {
 void Client::release() {
     int result = rtms_release(sdk_);
     throwIfError(result, "release");
-    
+
     {
         lock_guard<mutex> lock(registry_mutex_);
         sdk_registry_.erase(sdk_);
     }
-    
+
+    // Reset join state
+    {
+        lock_guard<mutex> lock(mutex_);
+        join_confirmed_ = false;
+        pending_event_subscriptions_.clear();
+        subscribed_events_.clear();
+    }
+
     sdk_ = nullptr;
 }
 
@@ -679,10 +712,39 @@ Client* Client::getClient(struct rtms_csdk* sdk) {
     return it->second;
 }
 
+void Client::processPendingSubscriptions() {
+    // Called with mutex_ already held
+    if (pending_event_subscriptions_.empty()) return;
+
+    // Process all pending subscriptions now that we're joined
+    int result = rtms_subscribe_event(sdk_,
+                                       const_cast<int*>(pending_event_subscriptions_.data()),
+                                       static_cast<int>(pending_event_subscriptions_.size()));
+
+    if (result == RTMS_SDK_OK) {
+        // Move pending to subscribed
+        for (int event : pending_event_subscriptions_) {
+            if (std::find(subscribed_events_.begin(), subscribed_events_.end(), event) ==
+                subscribed_events_.end()) {
+                subscribed_events_.push_back(event);
+            }
+        }
+    }
+    pending_event_subscriptions_.clear();
+}
+
 void Client::handleJoinConfirm(struct rtms_csdk* sdk, int reason) {
     Client* client = getClient(sdk);
     if (client) {
         lock_guard<mutex> lock(client->mutex_);
+
+        // Mark as joined FIRST
+        client->join_confirmed_ = true;
+
+        // Process any pending event subscriptions before user callback
+        client->processPendingSubscriptions();
+
+        // Then invoke user callback
         if (client->join_confirm_callback_) {
             client->join_confirm_callback_(reason);
         }
@@ -701,12 +763,14 @@ void Client::handleSessionUpdate(struct rtms_csdk* sdk, int op, struct session_i
 }
 
 void Client::handleUserUpdate(struct rtms_csdk* sdk, int op, struct participant_info* pi) {
-    // Note: User events are now delivered via on_event_ex callback as JSON.
-    // This callback is kept for SDK compatibility but is no longer used.
-    // Use onEventEx and subscribeEvent(EVENT_PARTICIPANT_JOIN/LEAVE) instead.
-    (void)sdk;
-    (void)op;
-    (void)pi;
+    Client* client = getClient(sdk);
+    if (client && pi) {
+        lock_guard<mutex> lock(client->mutex_);
+        if (client->user_update_callback_) {
+            Participant participant(*pi);
+            client->user_update_callback_(op, participant);
+        }
+    }
 }
 
 void Client::handleDsData(rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, rtms_metadata* md) {

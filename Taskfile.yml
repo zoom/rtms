@@ -283,7 +283,7 @@ tasks:
   manual:py:linux:
     desc: "Run interactive Python manual test in Linux Docker"
     cmds:
-      - docker compose run --rm -it --service-ports test-py sh -c "task build:py && pip install --force-reinstall dist/py/*manylinux*.whl && python3 test.py"
+      - docker compose run --rm -it --service-ports test-py sh -c "task build:py && task repair:py && pip install --force-reinstall dist/py/*manylinux*.whl && python3 test.py"
 
   # =============================================================================
   # Documentation Tasks

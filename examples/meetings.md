@@ -377,8 +377,10 @@ client.onSessionUpdate((event, session) => {
 });
 
 // Participant events
-client.onUserUpdate((event, user) => {
-    console.log(`User ${event}: ${user.userName} (${user.userId})`);
+client.onParticipantEvent((event, timestamp, participants) => {
+    participants.forEach(p => {
+        console.log(`User ${event}: ${p.userName} (${p.userId})`);
+    });
 });
 
 client.onLeave((reason) => {
@@ -409,9 +411,10 @@ def on_session(event, session):
     print(f'Session ID: {session.sessionId}')
     print(f'Meeting ID: {session.meetingId}')
 
-@client.onUserUpdate
-def on_user(event, user):
-    print(f'User {event}: {user.userName} ({user.userId})')
+@client.onParticipantEvent
+def on_participant(event, timestamp, participants):
+    for p in participants:
+        print(f'User {event}: {p.get("user_name")} ({p.get("user_id")})')
 
 @client.onLeave
 def on_leave(reason):

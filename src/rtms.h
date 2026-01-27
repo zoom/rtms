@@ -209,6 +209,7 @@ class Client {
 public:
     using JoinConfirmFn = function<void(int)>;
     using SessionUpdateFn = function<void(int, const Session&)>;
+    using UserUpdateFn = function<void(int, const Participant&)>;
     using DsDataFn = function<void(const vector<uint8_t>&, uint64_t,  const Metadata&)>;
     using AudioDataFn = function<void(const vector<uint8_t>&, uint64_t, const Metadata&)>;
     using VideoDataFn = function<void(const vector<uint8_t>&, uint64_t,  const Metadata&)>;
@@ -227,13 +228,23 @@ public:
     };
 
     // Event types for subscribeEvent/unsubscribeEvent
-    // These are used with on_event_ex callback (JSON events)
+    // These match the RTMS_EVENT_TYPE enum from Zoom's C SDK
+    // Used with on_event_ex callback (JSON events)
     enum EventType {
-        EVENT_ACTIVE_SPEAKER_CHANGE = 0,
-        EVENT_PARTICIPANT_JOIN = 1,
-        EVENT_PARTICIPANT_LEAVE = 2,
-        EVENT_SHARING_START = 3,
-        EVENT_SHARING_STOP = 4
+        EVENT_UNDEFINED = 0,
+        EVENT_FIRST_PACKET_TIMESTAMP = 1,
+        EVENT_ACTIVE_SPEAKER_CHANGE = 2,
+        EVENT_PARTICIPANT_JOIN = 3,
+        EVENT_PARTICIPANT_LEAVE = 4,
+        EVENT_SHARING_START = 5,
+        EVENT_SHARING_STOP = 6,
+        EVENT_MEDIA_CONNECTION_INTERRUPTED = 7,
+        EVENT_CONSUMER_ANSWERED = 8,
+        EVENT_CONSUMER_END = 9,
+        EVENT_USER_ANSWERED = 10,
+        EVENT_USER_END = 11,
+        EVENT_USER_HOLD = 12,
+        EVENT_USER_UNHOLD = 13
     };
 
     Client();
@@ -250,6 +261,7 @@ public:
 
     void setOnJoinConfirm(JoinConfirmFn callback);
     void setOnSessionUpdate(SessionUpdateFn callback);
+    void setOnUserUpdate(UserUpdateFn callback);
     void setOnDeskshareData(DsDataFn callback);
     void setOnAudioData(AudioDataFn callback);
     void setOnVideoData(VideoDataFn callback);
@@ -285,6 +297,7 @@ private:
 
     JoinConfirmFn join_confirm_callback_;
     SessionUpdateFn session_update_callback_;
+    UserUpdateFn user_update_callback_;
     DsDataFn ds_data_callback_;
     AudioDataFn audio_data_callback_;
     VideoDataFn video_data_callback_;
@@ -293,6 +306,11 @@ private:
     EventExFn event_ex_callback_;
 
     std::vector<int> subscribed_events_;
+
+    // Event subscription timing: subscriptions must be deferred until after join is confirmed
+    bool join_confirmed_;
+    std::vector<int> pending_event_subscriptions_;
+    void processPendingSubscriptions();
 
     static void handleJoinConfirm(struct rtms_csdk* sdk, int reason);
     static void handleSessionUpdate(struct rtms_csdk* sdk, int op, struct session_info* sess);
