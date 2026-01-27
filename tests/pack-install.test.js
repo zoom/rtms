@@ -4,29 +4,131 @@
  * This test validates the end-user installation flow by:
  * 1. Creating an npm tarball with `npm pack`
  * 2. Installing the tarball in a temporary directory
- * 3. Copying the local build (simulating prebuild-install)
+ * 3. Copying the local build or extracting prebuilds
  * 4. Verifying the native module loads correctly
  *
  * This catches issues like missing files, broken package.json config,
  * or module resolution problems that would affect users.
  *
- * Note: This test uses the local build directory instead of downloading
- * prebuilds from GitHub, since we need to test BEFORE publishing.
+ * Supports two modes:
+ * - Local development: Uses build/Release/ from `task build:js`
+ * - CI: Uses prebuilds/*.tar.gz downloaded from build artifacts
  */
 
 const { execSync } = require('child_process');
 const { mkdtempSync, rmSync, existsSync, readdirSync, writeFileSync, cpSync } = require('fs');
 const { join } = require('path');
 const { tmpdir } = require('os');
+const tar = require('tar');
 
 // Path to local build directory (created by `task build:js`)
 const LOCAL_BUILD_DIR = join(process.cwd(), 'build', 'Release');
+// Path to prebuilds directory (downloaded from CI artifacts)
+const PREBUILDS_DIR = join(process.cwd(), 'prebuilds');
 
 /**
- * Install package from tarball and copy local build
- * This simulates what prebuild-install does, but uses local build for testing
+ * Find the appropriate prebuild tarball for the current platform
+ * Searches in prebuilds/ and prebuilds/@zoom/ directories
  */
-function installWithLocalBuild(tempDir, tarballPath) {
+function findPrebuildTarball() {
+  if (!existsSync(PREBUILDS_DIR)) {
+    return null;
+  }
+
+  const platform = process.platform;
+  const arch = process.arch;
+
+  // Search directories where prebuilds might be located
+  const searchDirs = [
+    PREBUILDS_DIR,
+    join(PREBUILDS_DIR, '@zoom'),
+    join(PREBUILDS_DIR, '@zoom', 'rtms')
+  ];
+
+  for (const dir of searchDirs) {
+    if (!existsSync(dir)) continue;
+
+    const files = readdirSync(dir);
+    // Format: rtms-v{version}-napi-v{napi}-{platform}-{arch}.tar.gz
+    const tarball = files.find(f =>
+      f.endsWith('.tar.gz') &&
+      f.includes(platform) &&
+      f.includes(arch)
+    );
+
+    if (tarball) {
+      return join(dir, tarball);
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Get the build directory - either local build or extract from prebuild
+ */
+function prepareBuildDir() {
+  // First, check for local build (from task build:js)
+  if (existsSync(LOCAL_BUILD_DIR) && existsSync(join(LOCAL_BUILD_DIR, 'rtms.node'))) {
+    return LOCAL_BUILD_DIR;
+  }
+
+  // Second, check for prebuild tarball (from CI artifacts)
+  const tarball = findPrebuildTarball();
+  if (tarball) {
+    // Extract prebuild to project root (tarball contains build/Release/ prefix)
+    // This extracts to ./build/Release/
+    tar.extract({
+      file: tarball,
+      cwd: process.cwd(),
+      sync: true
+    });
+
+    // The tarball extracts to build/Release/ at project root
+    const buildDir = join(process.cwd(), 'build', 'Release');
+    return buildDir;
+  }
+
+  return null;
+}
+
+/**
+ * Extract macOS framework archives (.framework.tar.gz) in a directory
+ * Same logic as scripts/install.js extractFrameworks()
+ */
+function extractFrameworks(buildDir) {
+  if (process.platform !== 'darwin') {
+    return;
+  }
+
+  if (!existsSync(buildDir)) {
+    return;
+  }
+
+  const files = readdirSync(buildDir);
+  const frameworkArchives = files.filter(f => f.endsWith('.framework.tar.gz'));
+
+  for (const archive of frameworkArchives) {
+    const archivePath = join(buildDir, archive);
+    try {
+      tar.extract({
+        file: archivePath,
+        cwd: buildDir,
+        sync: true
+      });
+      // Remove the archive after extraction
+      rmSync(archivePath);
+    } catch (err) {
+      console.warn(`Failed to extract ${archive}: ${err.message}`);
+    }
+  }
+}
+
+/**
+ * Install package from tarball and copy build artifacts
+ * This simulates what prebuild-install does, using local build or extracted prebuilds
+ */
+function installWithLocalBuild(tempDir, tarballPath, buildDir) {
   // Create minimal package.json for ESM
   writeFileSync(join(tempDir, 'package.json'), JSON.stringify({ type: 'module' }));
 
@@ -37,23 +139,36 @@ function installWithLocalBuild(tempDir, tarballPath) {
     env: { ...process.env, npm_config_loglevel: 'error' }
   });
 
-  // Copy local build to simulate prebuild-install
+  // Copy build artifacts to simulate prebuild-install
   const targetBuildDir = join(tempDir, 'node_modules/@zoom/rtms/build/Release');
-  if (!existsSync(LOCAL_BUILD_DIR)) {
-    throw new Error(`Local build not found at ${LOCAL_BUILD_DIR}. Run 'task build:js' first.`);
-  }
-  cpSync(LOCAL_BUILD_DIR, targetBuildDir, { recursive: true });
+  cpSync(buildDir, targetBuildDir, { recursive: true });
+
+  // Extract framework archives (same as scripts/install.js does)
+  extractFrameworks(targetBuildDir);
 }
 
 describe('npm pack → install → load integration', () => {
   let tempDir;
   let tarballPath;
+  let buildDir;
 
   beforeAll(() => {
-    // Verify local build exists before running tests
-    if (!existsSync(LOCAL_BUILD_DIR)) {
-      throw new Error(`Local build not found at ${LOCAL_BUILD_DIR}. Run 'task build:js' first.`);
+    // Prepare build directory (local build or extracted prebuild)
+    buildDir = prepareBuildDir();
+    if (!buildDir) {
+      throw new Error(
+        'No build artifacts found. Either:\n' +
+        '  - Run "task build:js" for local development, or\n' +
+        '  - Ensure prebuilds/*.tar.gz exists (downloaded from CI artifacts)'
+      );
     }
+
+    // Verify the build directory has the native module
+    if (!existsSync(join(buildDir, 'rtms.node'))) {
+      throw new Error(`Native module not found at ${buildDir}/rtms.node`);
+    }
+
+    console.log(`Using build artifacts from: ${buildDir}`);
 
     // Create tarball from current package
     const output = execSync('npm pack --json', { encoding: 'utf8' });
@@ -101,7 +216,7 @@ describe('npm pack → install → load integration', () => {
   });
 
   test('native module loads after install from tarball', () => {
-    installWithLocalBuild(tempDir, tarballPath);
+    installWithLocalBuild(tempDir, tarballPath, buildDir);
 
     // Verify native module loads and has expected exports (matching test.js usage patterns)
     const testScript = `
@@ -129,10 +244,10 @@ describe('npm pack → install → load integration', () => {
       return;
     }
 
-    installWithLocalBuild(tempDir, tarballPath);
+    installWithLocalBuild(tempDir, tarballPath, buildDir);
 
-    const buildDir = join(tempDir, 'node_modules/@zoom/rtms/build/Release');
-    const files = readdirSync(buildDir);
+    const installedBuildDir = join(tempDir, 'node_modules/@zoom/rtms/build/Release');
+    const files = readdirSync(installedBuildDir);
 
     // Frameworks should be present as directories (copied from local build)
     expect(files).toContain('tp.framework');
@@ -140,13 +255,13 @@ describe('npm pack → install → load integration', () => {
     expect(files).toContain('curl64.framework');
 
     // Verify frameworks are actually directories with content
-    const tpFramework = join(buildDir, 'tp.framework');
+    const tpFramework = join(installedBuildDir, 'tp.framework');
     expect(existsSync(tpFramework)).toBe(true);
     expect(readdirSync(tpFramework).length).toBeGreaterThan(0);
   });
 
   test('Client can be instantiated', () => {
-    installWithLocalBuild(tempDir, tarballPath);
+    installWithLocalBuild(tempDir, tarballPath, buildDir);
 
     // Test that Client class works
     const testScript = `
