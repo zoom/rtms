@@ -436,9 +436,9 @@ jobs:
   # DOCUMENTATION JOBS
   # ============================================================================
 
-  # Test application build and generate documentation
-  test-and-build-docs:
-    name: Test Application & Build Documentation
+  # Build documentation (after tests pass)
+  build-docs:
+    name: Build Documentation
     runs-on: ubuntu-latest
     needs: [test-nodejs-linux, test-nodejs-macos, test-python-linux, test-python-macos]
     # Only run on main/master branches and if tests pass, or via workflow_dispatch
@@ -467,10 +467,10 @@ jobs:
         retention-days: 30
 
   # Deploy documentation site to GitHub Pages
-  deploy-documentation:
-    name: Deploy Documentation Site
+  deploy-docs:
+    name: Deploy Documentation to GitHub Pages
     runs-on: ubuntu-latest
-    needs: [test-and-build-docs]
+    needs: [build-docs]
     # Only deploy from main/master branch
     if: |
       success() &&
