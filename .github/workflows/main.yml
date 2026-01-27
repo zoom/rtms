@@ -225,7 +225,7 @@ jobs:
       run: npm install
 
     - name: Run Node.js tests
-      run: npx jest tests/
+      run: npx jest tests/rtms.test.ts
 
   # Test Node.js SDK on macOS using pre-built prebuilds
   test-nodejs-macos:
@@ -252,7 +252,34 @@ jobs:
       run: npm install
 
     - name: Run Node.js tests
-      run: npx jest tests/
+      run: npx jest tests/rtms.test.ts
+
+  # Integration test: npm pack → install → load (validates end-user install flow)
+  test-nodejs-integration-macos:
+    name: Test Node.js Install Flow (macOS)
+    runs-on: macos-latest
+    needs: [build-nodejs-macos]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js 24.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24.x'
+
+    - name: Download prebuilds
+      uses: actions/download-artifact@v4
+      with:
+        name: prebuilds-darwin
+        path: prebuilds/
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Run integration test (npm pack → install → load)
+      run: npx jest tests/pack-install.test.js --testTimeout=120000
 
   # Test Python SDK on Linux using pre-built wheels
   test-python-linux:
@@ -350,7 +377,7 @@ jobs:
   check-version-change:
     name: Check for Version Changes
     runs-on: ubuntu-latest
-    needs: [test-nodejs-linux, test-nodejs-macos, test-python-linux, test-python-macos]
+    needs: [test-nodejs-linux, test-nodejs-macos, test-nodejs-integration-macos, test-python-linux, test-python-macos]
     if: |
       success() &&
       github.event_name == 'push' &&
