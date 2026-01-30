@@ -80,10 +80,7 @@ The RTMS SDK requires Python 3.10 or higher.
 # Check your Python version
 python3 --version
 
-# Install from TestPyPI (Current)
-pip install -i https://test.pypi.org/simple/ rtms
-
-# Install from PyPI (Coming Soon)
+# Install from PyPI
 pip install rtms
 ```
 
@@ -432,7 +429,7 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install python-dotenv
 
 # Install RTMS SDK
-pip install -i https://test.pypi.org/simple/ rtms
+pip install rtms
 ```
 
 Create a `.env` file:
