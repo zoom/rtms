@@ -218,6 +218,7 @@ class Client:
     def join(
         self,
         meeting_uuid: Optional[str] = None,
+        session_id: Optional[str] = None,
         rtms_stream_id: Optional[str] = None,
         server_urls: Optional[str] = None,
         signature: Optional[str] = None,
@@ -228,7 +229,11 @@ class Client:
         poll_interval: int = 10,
         **kwargs: Any
     ) -> bool:
-        """Join a Zoom RTMS session"""
+        """Join a Zoom RTMS session.
+
+        For Meeting SDK events (meeting.rtms_started), use meeting_uuid.
+        For Video SDK events (session.rtms_started), use session_id.
+        """
         ...
 
     def poll(self) -> None:

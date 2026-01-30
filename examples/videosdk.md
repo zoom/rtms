@@ -14,6 +14,7 @@ The API is identical to Meetings. See the [Meetings Node.js Quick Start](meeting
 
 Key differences:
 - Webhook event: `session.rtms_started` (Video SDK uses session events)
+- Webhook payload contains `session_id` instead of `meeting_uuid`
 - Join parameters come from Video SDK webhook payload
 
 ```javascript
@@ -32,6 +33,8 @@ rtms.onWebhookEvent(({event, payload}) => {
         console.log(`Video SDK video: ${metadata.width}x${metadata.height}`);
     });
 
+    // Video SDK payload contains session_id (not meeting_uuid)
+    // The SDK accepts both - just pass the payload directly
     client.join(payload);
 });
 ```
@@ -42,6 +45,7 @@ The API is identical to Meetings. See the [Meetings Python Quick Start](meetings
 
 Key differences:
 - Webhook event: `session.rtms_started` (Video SDK uses session events)
+- Webhook payload contains `session_id` instead of `meeting_uuid`
 
 ```python
 import rtms
@@ -53,7 +57,8 @@ def handle_webhook(payload):
     if payload.get('event') == 'session.rtms_started':
         rtms_payload = payload.get('payload', {})
         client.join(
-            meeting_uuid=rtms_payload.get('meeting_uuid'),
+            # Video SDK uses session_id instead of meeting_uuid
+            session_id=rtms_payload.get('session_id'),
             rtms_stream_id=rtms_payload.get('rtms_stream_id'),
             server_urls=rtms_payload.get('server_urls')
         )

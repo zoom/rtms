@@ -559,6 +559,7 @@ class Client(_ClientBase):
 
     def join(self,
              meeting_uuid: str = None,
+             session_id: str = None,
              rtms_stream_id: str = None,
              server_urls: str = None,
              signature: str = None,
@@ -574,7 +575,8 @@ class Client(_ClientBase):
         Can be called with positional arguments or with a dictionary of parameters.
 
         Args:
-            meeting_uuid (str): Meeting UUID
+            meeting_uuid (str): Meeting UUID (for Meeting SDK events)
+            session_id (str): Session ID (for Video SDK events) - used when meeting_uuid is not provided
             rtms_stream_id (str): RTMS stream ID
             server_urls (str): Server URLs (comma-separated)
             signature (str, optional): Authentication signature. If not provided, will be generated
@@ -595,6 +597,7 @@ class Client(_ClientBase):
                 # If additional kwargs are provided, merge them with the named parameters
                 params = {
                     'meeting_uuid': meeting_uuid,
+                    'session_id': session_id,
                     'rtms_stream_id': rtms_stream_id,
                     'server_urls': server_urls,
                     'signature': signature,
@@ -615,6 +618,7 @@ class Client(_ClientBase):
             # Otherwise, use the parameters directly
             return self._join_with_params(
                 meeting_uuid=meeting_uuid,
+                session_id=session_id,
                 rtms_stream_id=rtms_stream_id,
                 server_urls=server_urls,
                 signature=signature,
@@ -651,6 +655,7 @@ class Client(_ClientBase):
         try:
             # Extract parameters with defaults
             meeting_uuid = params.get('meeting_uuid')
+            session_id = params.get('session_id')
             rtms_stream_id = params.get('rtms_stream_id')
             server_urls = params.get('server_urls')
             signature = params.get('signature')
@@ -660,9 +665,11 @@ class Client(_ClientBase):
             secret = params.get('secret', os.getenv('ZM_RTMS_SECRET'))
             poll_interval = params.get('poll_interval', 10)
 
+            # Use meeting_uuid for Meeting SDK events, session_id for Video SDK events
+            instance_id = meeting_uuid or session_id
 
-            if not meeting_uuid:
-                raise ValueError("Meeting UUID is required")
+            if not instance_id:
+                raise ValueError("Either meeting_uuid or session_id is required")
             if not rtms_stream_id:
                 raise ValueError("RTMS Stream ID is required")
             if not server_urls:
@@ -671,7 +678,7 @@ class Client(_ClientBase):
             # Generate signature if not provided
             if not signature:
                 try:
-                    signature = generate_signature(client, secret, meeting_uuid, rtms_stream_id)
+                    signature = generate_signature(client, secret, instance_id, rtms_stream_id)
                 except Exception as e:
                     log_error("client", f"Error generating signature: {e}")
                     raise
@@ -679,17 +686,17 @@ class Client(_ClientBase):
             # Store polling interval
             self._polling_interval = poll_interval
 
-            # Join the meeting
-            log_info("client", f"Joining meeting: {meeting_uuid}")
-            super().join(meeting_uuid, rtms_stream_id, signature, server_urls, timeout)
+            # Join the meeting/session
+            log_info("client", f"Joining {'meeting' if meeting_uuid else 'session'}: {instance_id}")
+            super().join(instance_id, rtms_stream_id, signature, server_urls, timeout)
 
             # Start polling thread
             self._start_polling()
 
-            log_info("client", "Successfully joined meeting")
+            log_info("client", "Successfully joined")
             return True
         except Exception as e:
-            log_error("client", f"Error joining meeting: {e}")
+            log_error("client", f"Error joining: {e}")
             traceback.print_exc()
             return False
 
