@@ -6,6 +6,8 @@ Real-time media streaming from custom Zoom Video SDK applications.
 
 The RTMS SDK provides the same API for accessing real-time media streams from applications built with Zoom Video SDK. This enables you to build custom video experiences and still access the underlying media streams for processing, recording, or integration.
 
+> **Audio Configuration:** This SDK uses different default audio parameters than the raw RTMS WebSocket protocol. See [Audio Configuration](meetings.md#audio-configuration) in the Meetings documentation for details on SDK defaults vs WebSocket defaults.
+
 ## Quick Start
 
 ### Node.js

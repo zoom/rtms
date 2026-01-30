@@ -545,63 +545,13 @@ task doctor                   # Check Node, Python, CMake, Docker versions
 # Setup project
 task setup                    # Fetch SDK and install dependencies
 
-# Building modules
-task build:js                 # Build Node.js for current platform
-task build:js:linux           # Build Node.js for Linux (via Docker)
-task build:js:darwin          # Build Node.js for macOS
-
-task build:py                 # Build Python for current platform
-task build:py:linux           # Build Python wheel for Linux (via Docker)
-task build:py:darwin          # Build Python wheel for macOS
-
-task build:local              # Build all bindings for local platform
-task build:linux              # Build all bindings for Linux (via Docker)
-task build:all                # Build everything for all platforms
-
-# Creating prebuilds for distribution
-task prebuild:js              # Create Node.js prebuilds for all platforms
-task prebuild:js:linux        # Create Node.js prebuild for Linux only
-task prebuild:js:darwin       # Create Node.js prebuild for macOS only
-
-# Testing
-task test:js                  # Run Node.js tests (local)
-task test:js:linux            # Run Node.js tests in Linux Docker
-task test:py                  # Run Python tests (local)
-task test:py:linux            # Run Python tests in Linux Docker
-task test:local               # Run all tests locally
-task test:linux               # Run all tests in Linux Docker
-task test:all                 # Run tests on all platforms
-
-# Manual/Interactive testing
-task manual:js                # Run interactive Node.js test
-task manual:py                # Run interactive Python test
-
-# Publishing to registries
-task publish:js               # Upload Node.js prebuilds to GitHub releases
-task publish:py               # Upload Python wheels to production PyPI
-task publish:py:test          # Upload Python wheels to TestPyPI
-
-# Documentation
-task docs:js                  # Generate Node.js API documentation
-task docs:py                  # Generate Python API documentation
-task docs:all                 # Generate all documentation
-
-# Utility commands
-task clean                    # Remove all build artifacts
-task clean:build              # Remove only build outputs (keep dependencies)
-
 # Build modes
 BUILD_TYPE=Debug task build:js    # Build in debug mode
 BUILD_TYPE=Release task build:js  # Build in release mode (default)
+
+# Debug logging for C SDK callbacks
+RTMS_DEBUG=ON task build:js       # Enable verbose callback logging
 ```
-
-**Task Features:**
-- **Smart caching**: Skips unchanged builds (checksum-based)
-- **Parallel execution**: Runs independent tasks concurrently
-- **Environment checks**: Validates versions before building
-- **Cross-platform**: Works on macOS, Linux, Windows
-
-These commands help you manage different aspects of the build process and testing workflow. The unified structure makes it easy to build, package, and publish for multiple languages and platforms.
 
 ## Troubleshooting
 
@@ -655,6 +605,28 @@ Try both debug and release modes (`npm run debug` or `npm run release`)
 
 ### 5. Dependencies
 Verify all prerequisites are installed
+
+### 6. Audio Defaults Mismatch
+This SDK uses different default audio parameters than the raw RTMS WebSocket protocol for better out-of-the-box quality. If you need to match the WebSocket protocol defaults, see [#92](https://github.com/zoom/rtms/issues/92) for details.
+
+### 7. Identifying Speakers with Mixed Audio Streams
+When using `AUDIO_MIXED_STREAM`, the audio callback's metadata does not identify the current speaker since all participants are mixed into a single stream. To identify who is speaking, use the `onActiveSpeakerEvent` callback:
+
+**Node.js:**
+```javascript
+client.onActiveSpeakerEvent((timestamp, userId, userName) => {
+    console.log(`Active speaker: ${userName} (${userId})`);
+});
+```
+
+**Python:**
+```python
+@client.onActiveSpeakerEvent
+def on_active_speaker(timestamp, user_id, user_name):
+    print(f"Active speaker: {user_name} ({user_id})")
+```
+
+This callback notifies your application whenever the active speaker changes in the meeting. You can also use the lower-level `onEventEx` function with the active speaker event type directly. See [#80](https://github.com/zoom/rtms/issues/80) for more details.
 
 ## For Maintainers
 

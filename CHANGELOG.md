@@ -5,6 +5,28 @@ All notable changes to the Zoom RTMS SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-01-30
+
+### Added
+
+- **Video SDK support**: Added `session_id` parameter to `join()` for Video SDK events (`session.rtms_started`) alongside existing Meeting SDK support (`meeting.rtms_started`) ([#80](https://github.com/zoom/rtms/issues/80))
+- **Python `rtms.run()`**: New simplified threading model that handles event loop management, client polling, and graceful shutdown automatically ([#88](https://github.com/zoom/rtms/issues/88))
+
+### Fixed
+
+- **Default media params**: Apply sensible defaults (e.g., `AUDIO_MULTI_STREAMS`) when callbacks are registered without explicit media configuration
+- **Media param reconfiguration**: Calling `setAudioParams()`/`setVideoParams()` after registering a callback now triggers reconfiguration
+- **Codec validation**: Added validation at C++ layer - JPG/PNG codecs require fps ≤ 5, H264 allows fps up to 30
+- **Python docs deployment**: Fixed documentation deployment path (renamed `docs/rtms` to `docs/py`)
+
+### Security
+
+- Upgraded cmake-js to v8 to resolve tar dependency vulnerabilities (GHSA-8qq5-rm4j-mr97, GHSA-r6q2-hw4h-h46w, GHSA-34x7-hfp2-rc4v)
+
+### Changed
+
+- Updated Python installation instructions to use production PyPI instead of TestPyPI
+
 ## [1.0.0] - 2026-01-22
 
 ### Added

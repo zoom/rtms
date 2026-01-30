@@ -6,6 +6,8 @@ Real-time media streaming from Zoom Webinars.
 
 The RTMS SDK provides the same API for accessing real-time media streams from Zoom Webinars. The key difference is in how you obtain the webhook payload and join parameters from Zoom's Webinar RTMS webhooks.
 
+> **Audio Configuration:** This SDK uses different default audio parameters than the raw RTMS WebSocket protocol. See [Audio Configuration](meetings.md#audio-configuration) in the Meetings documentation for details on SDK defaults vs WebSocket defaults.
+
 ## Quick Start
 
 ### Node.js

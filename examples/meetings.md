@@ -218,6 +218,74 @@ def handle_webhook(payload, request, response):
     response.send({'status': 'ok'})
 ```
 
+## Audio Configuration
+
+### SDK Defaults vs WebSocket Defaults
+
+> **Note:** This SDK uses different default audio parameters than the raw RTMS WebSocket protocol. This provides better quality out-of-the-box but may require adjustment if you need to match the WebSocket defaults. This will be aligned in v2.0 ([#92](https://github.com/zoom/rtms/issues/92)).
+
+| Parameter | SDK Default | WebSocket Default |
+|-----------|-------------|-------------------|
+| Codec | OPUS (4) | L16 (1) |
+| Sample Rate | 48kHz (3) | 16kHz (1) |
+| Channel | Stereo (2) | Mono (1) |
+| Data Option | AUDIO_MULTI_STREAMS (2) | AUDIO_MIXED_STREAM (1) |
+| Duration | 20ms | 20ms |
+| Frame Size | 960 | 320 |
+
+### Using SDK Defaults (Recommended for v1.x)
+
+The SDK defaults provide high-quality audio with per-speaker attribution:
+
+```javascript
+// No configuration needed - SDK defaults are applied automatically
+client.onAudioData((data, timestamp, metadata) => {
+    // metadata.userId and metadata.userName are populated
+    console.log(`Audio from ${metadata.userName}`);
+});
+```
+
+### Matching WebSocket Defaults
+
+If you need to match the raw WebSocket protocol defaults:
+
+```javascript
+client.setAudioParams({
+    contentType: rtms.AudioContentType.RAW_AUDIO,
+    codec: rtms.AudioCodec.L16,
+    sampleRate: rtms.AudioSampleRate.SR_16K,
+    channel: rtms.AudioChannel.MONO,
+    dataOpt: rtms.AudioDataOption.AUDIO_MIXED_STREAM,
+    duration: 20,
+    frameSize: 320  // 16000 * 0.02 * 1
+});
+
+client.onAudioData((data, timestamp, metadata) => {
+    // Note: AUDIO_MIXED_STREAM does not provide per-speaker metadata
+    console.log(`Mixed audio: ${data.length} bytes`);
+});
+```
+
+### Python Configuration
+
+```python
+# Using SDK defaults (recommended for v1.x)
+@client.onAudioData
+def on_audio(data, size, timestamp, metadata):
+    print(f'Audio from {metadata.userName}')
+
+# Matching WebSocket defaults
+client.set_audio_params(
+    content_type=rtms.AudioContentType.RAW_AUDIO,
+    codec=rtms.AudioCodec.L16,
+    sample_rate=rtms.AudioSampleRate.SR_16K,
+    channel=rtms.AudioChannel.MONO,
+    data_opt=rtms.AudioDataOption.AUDIO_MIXED_STREAM,
+    duration=20,
+    frame_size=320
+)
+```
+
 ## Processing Media Streams
 
 ### Node.js - Audio Processing
