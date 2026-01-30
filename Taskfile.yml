@@ -312,7 +312,10 @@ tasks:
     desc: "Generate Python API documentation"
     cmds:
       - mkdir -p docs
-      - pdoc3 -o docs/py/ --force --html rtms
+      - pdoc3 -o docs/ --force --html rtms
+      # pdoc3 creates docs/rtms/, rename to docs/py/ for clean URL
+      - rm -rf docs/py
+      - mv docs/rtms docs/py
     sources:
       - src/**/*.py
       - src/**/*.pyi
