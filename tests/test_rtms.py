@@ -317,11 +317,15 @@ class TestModuleExports:
 class TestThreadSafety:
     """Test thread-safe features"""
 
-    def test_client_has_join_queue(self):
-        """Test client has join queue for thread safety"""
-        client = rtms.Client()
-        assert hasattr(client, '_join_queue')
-        assert hasattr(client, '_process_join_queue')
+    def test_module_has_run_function(self):
+        """Test module has run() function for event loop"""
+        assert hasattr(rtms, 'run')
+        assert callable(rtms.run)
+
+    def test_module_has_stop_function(self):
+        """Test module has stop() function to signal shutdown"""
+        assert hasattr(rtms, 'stop')
+        assert callable(rtms.stop)
 
     def test_client_has_polling_control(self):
         """Test client has polling control"""

@@ -4,7 +4,7 @@ Bindings for real-time audio, video, and transcript streams from Zoom Meetings
 
 [![npm](https://img.shields.io/npm/v/@zoom/rtms)](https://www.npmjs.com/package/@zoom/rtms)
 [![PyPI](https://img.shields.io/pypi/v/rtms)](https://pypi.org/project/rtms/)
-[![docs](https://img.shields.io/badge/docs-online-blue)](https://zoom.github.io/rtms/js/)
+[![docs](https://img.shields.io/badge/docs-online-blue)](https://zoom.github.io/rtms/)
 
 ## Supported Products
 
@@ -80,10 +80,7 @@ The RTMS SDK requires Python 3.10 or higher.
 # Check your Python version
 python3 --version
 
-# Install from TestPyPI (Current)
-pip install -i https://test.pypi.org/simple/ rtms
-
-# Install from PyPI (Coming Soon)
+# Install from PyPI
 pip install rtms
 ```
 
@@ -432,7 +429,7 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install python-dotenv
 
 # Install RTMS SDK
-pip install -i https://test.pypi.org/simple/ rtms
+pip install rtms
 ```
 
 Create a `.env` file:

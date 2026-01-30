@@ -279,6 +279,46 @@ video_parameters VideoParams::toNative() const {
     return params;
 }
 
+// Shared validation for video/deskshare codec and fps compatibility
+static void validateCodecFps(int codec, int fps, const std::string& param_type) {
+    // Codec constants from MEDIA_PAYLOAD_TYPE enum
+    const int CODEC_JPG = 5;
+    const int CODEC_PNG = 6;
+    const int CODEC_H264 = 7;
+
+    if (codec == CODEC_JPG || codec == CODEC_PNG) {
+        if (fps > 5) {
+            throw std::invalid_argument(
+                param_type + ": JPG/PNG codec requires fps <= 5 (got " + std::to_string(fps) +
+                "). Use H264 codec for higher frame rates."
+            );
+        }
+    } else if (codec == CODEC_H264) {
+        if (fps > 30) {
+            throw std::invalid_argument(
+                param_type + ": H264 codec supports max fps of 30 (got " + std::to_string(fps) + ")"
+            );
+        }
+        if (fps <= 0) {
+            throw std::invalid_argument(
+                param_type + ": fps must be > 0 for H264 codec"
+            );
+        }
+    }
+}
+
+void VideoParams::validate() const {
+    validateCodecFps(codec(), fps_, "VideoParams");
+
+    if (resolution_ == 0) {
+        throw std::invalid_argument("VideoParams: resolution must be set (e.g., HD=2)");
+    }
+}
+
+void DeskshareParams::validate() const {
+    validateCodecFps(codec(), fps_, "DeskshareParams");
+}
+
 void DeskshareParams::setResolution(int resolution)
 {
     resolution_ = resolution;
@@ -426,15 +466,52 @@ void Client::configure(const MediaParams& params, int media_types, bool enable_a
     media_params_ = params;
     enabled_media_types_ = media_types;
     media_params_updated_ = true;
-    
-    if (!params.hasAudioParams() && !params.hasVideoParams() && !params.hasDeskshareParams()) {
+
+    // If media types are enabled but no params were set, use sensible defaults
+    // This ensures proper metadata attribution (e.g., AUDIO_MULTI_STREAMS for audio)
+    if ((media_types & MediaType::AUDIO) && !media_params_.hasAudioParams()) {
+#ifdef RTMS_DEBUG
+        cerr << "[DEBUG CONFIG] Audio enabled but no params set, using defaults (AUDIO_MULTI_STREAMS)" << endl;
+#endif
+        media_params_.setAudioParams(AudioParams());
+    }
+
+    if ((media_types & MediaType::VIDEO) && !media_params_.hasVideoParams()) {
+#ifdef RTMS_DEBUG
+        cerr << "[DEBUG CONFIG] Video enabled but no params set, using defaults" << endl;
+#endif
+        media_params_.setVideoParams(VideoParams());
+    }
+
+    if ((media_types & MediaType::DESKSHARE) && !media_params_.hasDeskshareParams()) {
+#ifdef RTMS_DEBUG
+        cerr << "[DEBUG CONFIG] Deskshare enabled but no params set, using defaults" << endl;
+#endif
+        media_params_.setDeskshareParams(DeskshareParams());
+    }
+
+    if (!media_params_.hasAudioParams() && !media_params_.hasVideoParams() && !media_params_.hasDeskshareParams()) {
+#ifdef RTMS_DEBUG
+        cerr << "[DEBUG CONFIG] Calling rtms_config with NULL params, media_types=" << media_types << endl;
+#endif
         int result = rtms_config(sdk_, NULL, media_types, enable_application_layer_encryption ? 1 : 0);
         throwIfError(result, "configure with null params");
         return;
     }
     
-    media_parameters native_params = params.toNative();
-    
+    media_parameters native_params = media_params_.toNative();
+
+#ifdef RTMS_DEBUG
+    cerr << "[DEBUG CONFIG] Calling rtms_config with params, media_types=" << media_types << endl;
+    if (native_params.audio_param) {
+        cerr << "[DEBUG CONFIG] audio_param: data_opt=" << native_params.audio_param->data_opt
+             << " content_type=" << native_params.audio_param->content_type
+             << " codec=" << native_params.audio_param->codec << endl;
+    } else {
+        cerr << "[DEBUG CONFIG] audio_param is NULL" << endl;
+    }
+#endif
+
     int result = rtms_config(sdk_, &native_params, media_types, enable_application_layer_encryption ? 1 : 0);
     
     if (native_params.audio_param) {
@@ -591,17 +668,53 @@ void Client::unsubscribeEvent(const std::vector<int>& events) {
 
 void Client::setDeskshareParams(const DeskshareParams& ds_params)
 {
+    // Validate before setting (throws on invalid params)
+    ds_params.validate();
+
     media_params_.setDeskshareParams(ds_params);
+
+    // If deskshare is already enabled, reconfigure with the new params
+    if (enabled_media_types_ & MediaType::DESKSHARE) {
+        try {
+            configure(media_params_, enabled_media_types_, false);
+        } catch (const Exception& e) {
+            cerr << "Warning: Failed to reconfigure deskshare params: " << e.what() << endl;
+        }
+    }
 }
 
 void Client::setVideoParams(const VideoParams& video_params)
 {
+    // Validate before setting (throws on invalid params)
+    video_params.validate();
+
     media_params_.setVideoParams(video_params);
+
+    // If video is already enabled, reconfigure with the new params
+    if (enabled_media_types_ & MediaType::VIDEO) {
+        try {
+            configure(media_params_, enabled_media_types_, false);
+        } catch (const Exception& e) {
+            cerr << "Warning: Failed to reconfigure video params: " << e.what() << endl;
+        }
+    }
 }
 
 void Client::setAudioParams(const AudioParams& audio_params)
 {
+    // Validate before setting (throws on invalid params)
+    audio_params.validate();
+
     media_params_.setAudioParams(audio_params);
+
+    // If audio is already enabled, reconfigure with the new params
+    if (enabled_media_types_ & MediaType::AUDIO) {
+        try {
+            configure(media_params_, enabled_media_types_, false);
+        } catch (const Exception& e) {
+            cerr << "Warning: Failed to reconfigure audio params: " << e.what() << endl;
+        }
+    }
 }
 
 void Client::join(const string& meeting_uuid, const string& rtms_stream_id, 
@@ -788,6 +901,10 @@ void Client::handleDsData(rtms_csdk* sdk, unsigned char* buf, int size, uint64_t
 void Client::handleAudioData(struct rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, struct rtms_metadata* md) {
     Client* client = getClient(sdk);
     if (client && buf && size > 0 && md) {
+#ifdef RTMS_DEBUG
+        cerr << "[DEBUG AUDIO] md->user_id=" << md->user_id
+             << " md->user_name=" << (md->user_name ? md->user_name : "(null)") << endl;
+#endif
         lock_guard<mutex> lock(client->mutex_);
         if (client->audio_data_callback_) {
             vector<uint8_t> data(buf, buf + size);
@@ -812,6 +929,10 @@ void Client::handleVideoData(struct rtms_csdk* sdk, unsigned char* buf, int size
 void Client::handleTranscriptData(struct rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, struct rtms_metadata* md) {
     Client* client = getClient(sdk);
     if (client && buf && size > 0 && md) {
+#ifdef RTMS_DEBUG
+        cerr << "[DEBUG TRANSCRIPT] md->user_id=" << md->user_id
+             << " md->user_name=" << (md->user_name ? md->user_name : "(null)") << endl;
+#endif
         lock_guard<mutex> lock(client->mutex_);
         if (client->transcript_data_callback_) {
             vector<uint8_t> data(buf, buf + size);

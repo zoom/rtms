@@ -947,6 +947,7 @@ class Client extends nativeRtms.Client {
 
     const {
       meeting_uuid,
+      session_id,
       rtms_stream_id,
       server_urls,
       signature: providedSignature,
@@ -956,34 +957,40 @@ class Client extends nativeRtms.Client {
       pollInterval = 0
     } = options;
 
+    // Use meeting_uuid for Meeting SDK events, session_id for Video SDK events
+    const instance_id = meeting_uuid || session_id;
+
     this.pollRate = pollInterval;
 
-    Logger.info('client', `Joining meeting: ${meeting_uuid}`, {
+    Logger.info('client', `Joining ${meeting_uuid ? 'meeting' : 'session'}: ${instance_id}`, {
       streamId: rtms_stream_id,
       serverUrls: server_urls,
       timeout: providedTimeout,
       pollInterval
     });
-    
+
+    if (!instance_id) {
+      throw new Error('Either meeting_uuid or session_id must be provided');
+    }
 
     const finalSignature = providedSignature || generateSignature({
       client,
       secret,
-      uuid: meeting_uuid,
+      uuid: instance_id,
       streamId: rtms_stream_id
     });
 
     try {
-      ret = super.join(meeting_uuid, rtms_stream_id, finalSignature, server_urls, providedTimeout);
-      
+      ret = super.join(instance_id, rtms_stream_id, finalSignature, server_urls, providedTimeout);
+
       if (ret) {
-        Logger.info('client', `Successfully joined meeting: ${meeting_uuid}`);
+        Logger.info('client', `Successfully joined: ${instance_id}`);
       } else {
-        Logger.error('client', `Failed to join meeting: ${meeting_uuid}`);
+        Logger.error('client', `Failed to join: ${instance_id}`);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      Logger.error('client', `Error joining meeting: ${errorMessage}`, { meeting_uuid });
+      Logger.error('client', `Error joining: ${errorMessage}`, { instance_id });
       throw error;
     }
 

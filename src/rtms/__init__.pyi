@@ -218,6 +218,7 @@ class Client:
     def join(
         self,
         meeting_uuid: Optional[str] = None,
+        session_id: Optional[str] = None,
         rtms_stream_id: Optional[str] = None,
         server_urls: Optional[str] = None,
         signature: Optional[str] = None,
@@ -228,7 +229,11 @@ class Client:
         poll_interval: int = 10,
         **kwargs: Any
     ) -> bool:
-        """Join a Zoom RTMS session"""
+        """Join a Zoom RTMS session.
+
+        For Meeting SDK events (meeting.rtms_started), use meeting_uuid.
+        For Video SDK events (session.rtms_started), use session_id.
+        """
         ...
 
     def poll(self) -> None:
@@ -572,6 +577,50 @@ def onWebhookEvent(
 
 # Alias for backwards compatibility
 on_webhook_event = onWebhookEvent
+
+# ============================================================================
+# Event Loop Functions
+# ============================================================================
+
+def run(poll_interval: float = 0.01, stop_on_empty: bool = False) -> None:
+    """
+    Start the RTMS event loop.
+
+    This function blocks and handles:
+    - Polling all active clients
+    - Processing pending operations from other threads (like webhook handlers)
+    - Graceful shutdown on KeyboardInterrupt
+
+    With this function, you can create clients and call join() directly from
+    webhook handlers without manual queue management.
+
+    Args:
+        poll_interval: Time in seconds between poll cycles (default: 0.01 = 10ms)
+        stop_on_empty: If True, stop when no clients remain (default: False)
+
+    Example:
+        >>> import rtms
+        >>>
+        >>> clients = {}
+        >>>
+        >>> @rtms.onWebhookEvent
+        >>> def handle(payload):
+        >>>     client = rtms.Client()
+        >>>     clients[payload['payload']['rtms_stream_id']] = client
+        >>>     client.onTranscriptData(lambda d,s,t,m: print(m.userName, d))
+        >>>     client.join(payload['payload'])
+        >>>
+        >>> rtms.run()  # Blocks until interrupted
+    """
+    ...
+
+def stop() -> None:
+    """
+    Signal the event loop to stop.
+
+    Call this from another thread to gracefully stop the rtms.run() loop.
+    """
+    ...
 
 # ============================================================================
 # Logging

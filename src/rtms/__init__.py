@@ -7,7 +7,7 @@ import time
 import sys
 import traceback
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Callable, Dict, Any, Optional, Union
+from typing import Callable, Dict, Any, Optional, Union, List, Tuple
 from enum import IntEnum, Enum
 from pathlib import Path
 
@@ -66,6 +66,15 @@ class LogFormat(str, Enum):
 
 # Global webhook server
 _webhook_server = None
+
+# Global client registry for run() event loop
+_clients: Dict[int, 'Client'] = {}
+_clients_lock = threading.Lock()
+_pending_operations: List[Tuple[Callable, tuple, dict]] = []
+_pending_lock = threading.Lock()
+_main_thread_id: Optional[int] = None
+_running = False
+_stop_event = threading.Event()
 
 def _log(level, component, message, details=None):
     """Log a message at the specified level"""
@@ -553,12 +562,14 @@ class Client(_ClientBase):
         self._polling_interval = 10  # milliseconds
         self._running = False
         self._webhook_server = None
-        self._main_thread_id = threading.get_ident()  # Remember the main thread ID
-        self._join_queue = []  # Queue for pending join requests
-        self._join_lock = threading.Lock()  # Lock for join queue
+
+        # Register with global client registry
+        with _clients_lock:
+            _clients[id(self)] = self
 
     def join(self,
              meeting_uuid: str = None,
+             session_id: str = None,
              rtms_stream_id: str = None,
              server_urls: str = None,
              signature: str = None,
@@ -574,7 +585,8 @@ class Client(_ClientBase):
         Can be called with positional arguments or with a dictionary of parameters.
 
         Args:
-            meeting_uuid (str): Meeting UUID
+            meeting_uuid (str): Meeting UUID (for Meeting SDK events)
+            session_id (str): Session ID (for Video SDK events) - used when meeting_uuid is not provided
             rtms_stream_id (str): RTMS stream ID
             server_urls (str): Server URLs (comma-separated)
             signature (str, optional): Authentication signature. If not provided, will be generated
@@ -595,6 +607,7 @@ class Client(_ClientBase):
                 # If additional kwargs are provided, merge them with the named parameters
                 params = {
                     'meeting_uuid': meeting_uuid,
+                    'session_id': session_id,
                     'rtms_stream_id': rtms_stream_id,
                     'server_urls': server_urls,
                     'signature': signature,
@@ -615,6 +628,7 @@ class Client(_ClientBase):
             # Otherwise, use the parameters directly
             return self._join_with_params(
                 meeting_uuid=meeting_uuid,
+                session_id=session_id,
                 rtms_stream_id=rtms_stream_id,
                 server_urls=server_urls,
                 signature=signature,
@@ -634,23 +648,30 @@ class Client(_ClientBase):
         Internal method to join with parameter dictionary.
 
         IMPORTANT: Due to SDK threading constraints, the actual join() must be called
-        from the same thread that initialized the SDK (the main thread). If this is
-        called from a different thread (e.g., webhook handler), we queue the request.
+        from the same thread that runs the event loop. If rtms.run() hasn't been called,
+        we proceed directly (backwards compatible). Otherwise, we queue for main thread.
         """
-        # Check if we're on the main thread
-        current_thread_id = threading.get_ident()
-        if current_thread_id != self._main_thread_id:
-            log_debug("client", f"Join called from non-main thread {current_thread_id}, queuing request")
-            # Queue the join request for processing on the main thread
-            with self._join_lock:
-                self._join_queue.append(params)
-            log_debug("client", "Join request queued, will be processed by main thread")
-            return True  # Return immediately; actual join happens later
+        # If rtms.run() hasn't been called yet, proceed directly (backwards compatible)
+        if _main_thread_id is None:
+            return self._do_join(**params)
 
-        # We're on the main thread, proceed with join
+        # If on main thread (where rtms.run() is executing), join directly
+        if threading.get_ident() == _main_thread_id:
+            return self._do_join(**params)
+
+        # Queue the join for main thread execution
+        log_debug("client", "Join called from non-main thread, queuing request")
+        with _pending_lock:
+            _pending_operations.append((self._do_join, (), params))
+        log_debug("client", "Join request queued, will be processed by rtms.run()")
+        return True  # Return immediately; actual join happens later
+
+    def _do_join(self, **params):
+        """Actually perform the join - always called on main thread or when no event loop"""
         try:
             # Extract parameters with defaults
             meeting_uuid = params.get('meeting_uuid')
+            session_id = params.get('session_id')
             rtms_stream_id = params.get('rtms_stream_id')
             server_urls = params.get('server_urls')
             signature = params.get('signature')
@@ -660,9 +681,11 @@ class Client(_ClientBase):
             secret = params.get('secret', os.getenv('ZM_RTMS_SECRET'))
             poll_interval = params.get('poll_interval', 10)
 
+            # Use meeting_uuid for Meeting SDK events, session_id for Video SDK events
+            instance_id = meeting_uuid or session_id
 
-            if not meeting_uuid:
-                raise ValueError("Meeting UUID is required")
+            if not instance_id:
+                raise ValueError("Either meeting_uuid or session_id is required")
             if not rtms_stream_id:
                 raise ValueError("RTMS Stream ID is required")
             if not server_urls:
@@ -671,7 +694,7 @@ class Client(_ClientBase):
             # Generate signature if not provided
             if not signature:
                 try:
-                    signature = generate_signature(client, secret, meeting_uuid, rtms_stream_id)
+                    signature = generate_signature(client, secret, instance_id, rtms_stream_id)
                 except Exception as e:
                     log_error("client", f"Error generating signature: {e}")
                     raise
@@ -679,32 +702,19 @@ class Client(_ClientBase):
             # Store polling interval
             self._polling_interval = poll_interval
 
-            # Join the meeting
-            log_info("client", f"Joining meeting: {meeting_uuid}")
-            super().join(meeting_uuid, rtms_stream_id, signature, server_urls, timeout)
+            # Join the meeting/session
+            log_info("client", f"Joining {'meeting' if meeting_uuid else 'session'}: {instance_id}")
+            super().join(instance_id, rtms_stream_id, signature, server_urls, timeout)
 
             # Start polling thread
             self._start_polling()
 
-            log_info("client", "Successfully joined meeting")
+            log_info("client", "Successfully joined")
             return True
         except Exception as e:
-            log_error("client", f"Error joining meeting: {e}")
+            log_error("client", f"Error joining: {e}")
             traceback.print_exc()
             return False
-
-    def _process_join_queue(self):
-        """Process any pending join requests from the queue"""
-        with self._join_lock:
-            if not self._join_queue:
-                return
-            # Process all pending requests
-            requests = self._join_queue[:]
-            self._join_queue.clear()
-
-        for params in requests:
-            log_debug("client", "Processing queued join request")
-            self._join_with_params(**params)
 
     def _initialize_rtms(self, ca_path=None):
         """Initialize the RTMS SDK with the best available CA certificate"""
@@ -984,6 +994,10 @@ class Client(_ClientBase):
         # Stop polling thread
         self._stop_polling()
 
+        # Unregister from global client registry
+        with _clients_lock:
+            _clients.pop(id(self), None)
+
         # Stop webhook server if we have one
         if self._webhook_server:
             self._webhook_server.stop()
@@ -1136,6 +1150,112 @@ def onWebhookEvent(callback=None, port=None, path=None):
 # Alias for backwards compatibility
 on_webhook_event = onWebhookEvent
 
+
+def _process_pending_operations():
+    """Process operations queued from other threads"""
+    with _pending_lock:
+        if not _pending_operations:
+            return
+        operations = _pending_operations[:]
+        _pending_operations.clear()
+
+    for func, args, kwargs in operations:
+        try:
+            func(*args, **kwargs)
+        except Exception as e:
+            log_error('rtms', f'Error processing pending operation: {e}')
+            traceback.print_exc()
+
+
+def _cleanup_all_clients():
+    """Clean up all clients on shutdown"""
+    with _clients_lock:
+        for client in list(_clients.values()):
+            try:
+                client.leave()
+            except Exception:
+                pass
+        _clients.clear()
+
+
+def run(poll_interval: float = 0.01, stop_on_empty: bool = False):
+    """
+    Start the RTMS event loop.
+
+    This function blocks and handles:
+    - Polling all active clients
+    - Processing pending operations from other threads (like webhook handlers)
+    - Graceful shutdown on KeyboardInterrupt
+
+    Args:
+        poll_interval: Time in seconds between poll cycles (default: 0.01 = 10ms)
+        stop_on_empty: If True, stop when no clients remain (default: False)
+
+    Example:
+        >>> import rtms
+        >>>
+        >>> clients = {}
+        >>>
+        >>> @rtms.onWebhookEvent
+        >>> def handle(payload):
+        >>>     client = rtms.Client()
+        >>>     clients[payload['payload']['rtms_stream_id']] = client
+        >>>     client.onTranscriptData(lambda d,s,t,m: print(m.userName, d))
+        >>>     client.join(payload['payload'])
+        >>>
+        >>> rtms.run()  # Blocks until interrupted
+    """
+    global _main_thread_id, _running
+
+    _main_thread_id = threading.get_ident()
+    _running = True
+    _stop_event.clear()
+
+    log_info('rtms', f'Starting RTMS event loop (poll_interval={poll_interval}s)')
+
+    try:
+        while _running and not _stop_event.is_set():
+            # Process pending operations from other threads
+            _process_pending_operations()
+
+            # Poll all active clients
+            with _clients_lock:
+                clients_to_poll = list(_clients.values())
+
+            for client in clients_to_poll:
+                if client._running:
+                    try:
+                        client.poll()
+                    except Exception as e:
+                        log_error('rtms', f'Error polling client: {e}')
+
+            # Check stop_on_empty condition
+            if stop_on_empty and not clients_to_poll:
+                log_info('rtms', 'No active clients, stopping event loop')
+                break
+
+            time.sleep(poll_interval)
+
+    except KeyboardInterrupt:
+        log_info('rtms', 'Received interrupt, shutting down...')
+    finally:
+        _running = False
+        _main_thread_id = None
+        _cleanup_all_clients()
+
+
+def stop():
+    """
+    Signal the event loop to stop.
+
+    Call this from another thread to gracefully stop the rtms.run() loop.
+    """
+    global _running
+    _running = False
+    _stop_event.set()
+    log_info('rtms', 'Stop signal received')
+
+
 __all__ = [
     # Classes
     "Client",
@@ -1217,6 +1337,10 @@ __all__ = [
     # Webhook functions
     "onWebhookEvent",
     "on_webhook_event",
+
+    # Event loop functions
+    "run",
+    "stop",
 
     # Logging functions
     "log_debug",

@@ -144,8 +144,13 @@ Napi::Value NodeClient::setDeskshareParams(const Napi::CallbackInfo& info)
     }
     Napi::Object params = info[0].As<Napi::Object>();
     auto ds_params = readDsParams(params);
-    
-    client_->setDeskshareParams(ds_params);
+
+    try {
+        client_->setDeskshareParams(ds_params);
+    } catch (const std::invalid_argument& e) {
+        Napi::Error::New(env, e.what()).ThrowAsJavaScriptException();
+        return env.Null();
+    }
 
     return Napi::Boolean::New(env, true);
 }
@@ -199,15 +204,12 @@ Napi::Value NodeClient::setAudioParams(const Napi::CallbackInfo& info)
     Napi::Object params = info[0].As<Napi::Object>();
     auto audio_params = readAudioParams(params);
 
-    // Validate parameters before setting
     try {
-        audio_params.validate();
+        client_->setAudioParams(audio_params);
     } catch (const std::invalid_argument& e) {
         Napi::Error::New(env, e.what()).ThrowAsJavaScriptException();
         return env.Null();
     }
-
-    client_->setAudioParams(audio_params);
 
     return Napi::Boolean::New(env, true);
 }
@@ -250,8 +252,14 @@ Napi::Value NodeClient::setVideoParams(const Napi::CallbackInfo& info) {
 
     Napi::Object params = info[0].As<Napi::Object>();
     auto video_params = readVideoParams(params);
-    client_->setVideoParams(video_params);
-    
+
+    try {
+        client_->setVideoParams(video_params);
+    } catch (const std::invalid_argument& e) {
+        Napi::Error::New(env, e.what()).ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
     return Napi::Boolean::New(env, true);
 }
 

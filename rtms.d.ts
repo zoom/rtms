@@ -303,12 +303,18 @@ export interface DeskshareParams {
 
 /**
  * Parameters for joining a Zoom RTMS session
- * 
+ *
+ * For Meeting SDK events (meeting.rtms_started), use meeting_uuid.
+ * For Video SDK events (session.rtms_started), use session_id.
+ * If both are provided, meeting_uuid takes precedence.
+ *
  * @category Common Interfaces
  */
 export interface JoinParams {
-  /** The UUID of the Zoom meeting */
-  meeting_uuid: string;
+  /** The UUID of the Zoom meeting (for Meeting SDK events) */
+  meeting_uuid?: string;
+  /** The session ID (for Video SDK events) - used when meeting_uuid is not provided */
+  session_id?: string;
   /** The RTMS stream ID for this connection */
   rtms_stream_id: string;
   /** The server URL(s) to connect to */
@@ -333,7 +339,7 @@ export interface JoinParams {
 
 /**
  * Parameters for generating an authentication signature
- * 
+ *
  * @category Common Interfaces
  */
 export interface SignatureParams {
@@ -341,7 +347,7 @@ export interface SignatureParams {
   client: string;
   /** The Zoom OAuth client secret */
   secret: string;
-  /** The UUID of the Zoom meeting */
+  /** The identifier: meeting_uuid for Meeting SDK, session_id for Video SDK */
   uuid: string;
   /** The RTMS stream ID for this connection */
   streamId: string;

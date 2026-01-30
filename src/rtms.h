@@ -93,6 +93,12 @@ public:
         int resolution() const;
         int fps() const;
 
+        /**
+         * Validate deskshare parameters for consistency
+         * Throws std::invalid_argument if parameters are invalid or incompatible
+         */
+        void validate() const;
+
         ds_parameters toNative() const;
 
 private:
@@ -148,6 +154,14 @@ public:
     void setFps(int fps);
     int resolution() const;
     int fps() const;
+
+    /**
+     * Validate video parameters for consistency
+     * Throws std::invalid_argument if parameters are invalid or incompatible
+     * - JPG/PNG codecs require fps <= 5
+     * - H264 codec allows fps up to 30
+     */
+    void validate() const;
 
     video_parameters toNative() const;
 
