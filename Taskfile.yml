@@ -3,6 +3,7 @@ version: '3'
 # Global variables
 vars:
   BUILD_TYPE: '{{.BUILD_TYPE | default "Release"}}'
+  RTMS_DEBUG: '{{.RTMS_DEBUG | default "OFF"}}'
   NODE_VERSION: "22"
   PYTHON_VERSION: "3.13"
   CMAKE_VERSION: "3.25"
@@ -39,7 +40,7 @@ tasks:
   build:js:
     desc: "Build Node.js bindings (local platform)"
     cmds:
-      - npx cmake-js compile --CDCMAKE_BUILD_TYPE={{.BUILD_TYPE}}
+      - npx cmake-js compile --CDCMAKE_BUILD_TYPE={{.BUILD_TYPE}} --CDRTMS_DEBUG={{.RTMS_DEBUG}}
     sources:
       - src/**/*.cpp
       - src/**/*.h
@@ -53,7 +54,7 @@ tasks:
   build:js:linux:
     desc: "Build Node.js bindings for Linux (via Docker)"
     cmds:
-      - docker compose run --rm build task build:js BUILD_TYPE={{.BUILD_TYPE}}
+      - docker compose run --rm build task build:js BUILD_TYPE={{.BUILD_TYPE}} RTMS_DEBUG={{.RTMS_DEBUG}}
 
   build:js:darwin:
     desc: "Build Node.js bindings for macOS"
@@ -284,7 +285,7 @@ tasks:
   manual:js:linux:
     desc: "Run interactive Node.js manual test in Linux Docker"
     cmds:
-      - docker compose run --rm -it --service-ports test-js sh -c "task build:js && NODE_ENV=test node --trace-deprecation --force-node-api-uncaught-exceptions-policy=true --env-file=.env test.js"
+      - docker compose run --rm -it --service-ports test-js sh -c "task build:js RTMS_DEBUG={{.RTMS_DEBUG}} && NODE_ENV=test node --trace-deprecation --force-node-api-uncaught-exceptions-policy=true --env-file=.env test.js"
 
   manual:py:linux:
     desc: "Run interactive Python manual test in Linux Docker"

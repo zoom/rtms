@@ -7,6 +7,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 cmake_policy(SET CMP0091 NEW)
 
+# ===== Debug options =====
+option(RTMS_DEBUG "Enable RTMS debug logging for C SDK callbacks" OFF)
+if(RTMS_DEBUG)
+  add_compile_definitions(RTMS_DEBUG)
+  message(STATUS "RTMS debug logging enabled")
+endif()
+
 # ===== Platform detection =====
 if(APPLE)
   set(RTMS_PLATFORM "darwin")
