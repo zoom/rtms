@@ -609,6 +609,25 @@ Verify all prerequisites are installed
 ### 6. Audio Defaults Mismatch
 This SDK uses different default audio parameters than the raw RTMS WebSocket protocol for better out-of-the-box quality. If you need to match the WebSocket protocol defaults, see [#92](https://github.com/zoom/rtms/issues/92) for details.
 
+### 7. Identifying Speakers with Mixed Audio Streams
+When using `AUDIO_MIXED_STREAM`, the audio callback's metadata does not identify the current speaker since all participants are mixed into a single stream. To identify who is speaking, use the `onActiveSpeakerEvent` callback:
+
+**Node.js:**
+```javascript
+client.onActiveSpeakerEvent((timestamp, userId, userName) => {
+    console.log(`Active speaker: ${userName} (${userId})`);
+});
+```
+
+**Python:**
+```python
+@client.onActiveSpeakerEvent
+def on_active_speaker(timestamp, user_id, user_name):
+    print(f"Active speaker: {user_name} ({user_id})")
+```
+
+This callback notifies your application whenever the active speaker changes in the meeting. You can also use the lower-level `onEventEx` function with the active speaker event type directly. See [#80](https://github.com/zoom/rtms/issues/80) for more details.
+
 ## For Maintainers
 
 If you're a maintainer looking to build, test, or publish new releases of the RTMS SDK, please refer to [PUBLISHING.md](PUBLISHING.md) for comprehensive documentation on:
