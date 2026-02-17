@@ -453,23 +453,20 @@ export function createWebhookHandler(callback: WebhookCallbackUnion, path: strin
       return;
     }
 
-    let body = '';
-    req.on('data', chunk => body += chunk.toString());
-
-    req.on('end', () => {
+    const processPayload = (body: string) => {
       try {
         Logger.debug('webhook', `Received webhook request: ${req.url}`);
         const payload = JSON.parse(body);
-        
+
         // Log the webhook event
         Logger.info('webhook', `Received event: ${payload.event || 'unknown'}`, {
           eventType: payload.event,
           payloadSize: body.length
         });
-        
+
         // Check if this is a raw webhook callback
         const isRawCallback = isRawWebhookCallback(callback);
-        
+
         if (isRawCallback) {
           // For raw callbacks, pass req and res objects
           process.nextTick(() => {
@@ -493,7 +490,7 @@ export function createWebhookHandler(callback: WebhookCallbackUnion, path: strin
               Logger.error('webhook', `Error in webhook callback: ${err instanceof Error ? err.message : 'Unknown error'}`);
             }
           });
-          
+
           res.writeHead(200, headers);
           res.end(JSON.stringify({ status: 'ok' }));
         }
@@ -502,7 +499,19 @@ export function createWebhookHandler(callback: WebhookCallbackUnion, path: strin
         res.writeHead(400, headers);
         res.end(JSON.stringify({ error: 'Invalid JSON received' }));
       }
-    });
+    };
+
+    // Check if body was already parsed by middleware (e.g., express.json())
+    if ((req as any).body !== undefined) {
+      const body = typeof (req as any).body === 'string'
+        ? (req as any).body
+        : JSON.stringify((req as any).body);
+      processPayload(body);
+    } else {
+      let body = '';
+      req.on('data', chunk => body += chunk.toString());
+      req.on('end', () => processPayload(body));
+    }
   };
 }
 
