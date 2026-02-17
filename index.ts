@@ -460,7 +460,15 @@ export function createWebhookHandler(callback: WebhookCallbackUnion, path: strin
       try {
         Logger.debug('webhook', `Received webhook request: ${req.url}`);
         const payload = JSON.parse(body);
-        
+
+        // Validate required webhook fields
+        if (!payload.event || typeof payload.event !== 'string') {
+          Logger.warn('webhook', 'Received webhook payload missing required "event" field');
+          res.writeHead(400, headers);
+          res.end(JSON.stringify({ error: 'Invalid webhook payload: missing required "event" field' }));
+          return;
+        }
+
         // Log the webhook event
         Logger.info('webhook', `Received event: ${payload.event || 'unknown'}`, {
           eventType: payload.event,

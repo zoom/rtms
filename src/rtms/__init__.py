@@ -270,6 +270,16 @@ class WebhookHandler(BaseHTTPRequestHandler):
 
         try:
             payload = json.loads(body.decode('utf-8'))
+
+            # Validate required webhook fields
+            if not isinstance(payload.get('event'), str):
+                log_warn("webhook", "Received webhook payload missing required 'event' field")
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(b'{"error": "Invalid webhook payload: missing required event field"}')
+                return
+
             event_type = payload.get('event', 'unknown')
             log_info("webhook", f"Received event: {event_type}")
             log_debug("webhook", f"Received webhook payload: {payload}")
