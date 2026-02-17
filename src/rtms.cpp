@@ -758,8 +758,8 @@ void Client::poll() {
 
 void Client::release() {
     int result = rtms_release(sdk_);
-    throwIfError(result, "release");
 
+    // Always clean up, even if release returned an error
     {
         lock_guard<mutex> lock(registry_mutex_);
         sdk_registry_.erase(sdk_);
@@ -774,6 +774,11 @@ void Client::release() {
     }
 
     sdk_ = nullptr;
+
+    // RTMS_SDK_NOT_EXIST means the resource was already released — that's fine
+    if (result != RTMS_SDK_OK && result != RTMS_SDK_NOT_EXIST) {
+        throwIfError(result, "release");
+    }
 }
 
 string Client::uuid() const {
