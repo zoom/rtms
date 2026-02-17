@@ -862,6 +862,7 @@ class Client extends nativeRtms.Client {
   private activeSpeakerEventCallback: ((timestamp: number, userId: number, userName: string) => void) | null = null;
   private sharingEventCallback: ((event: 'start' | 'stop', timestamp: number, userId?: number, userName?: string) => void) | null = null;
   private rawEventCallback: ((eventData: string) => void) | null = null;
+  private mediaConnectionInterruptedCallback: ((timestamp: number) => void) | null = null;
   private eventHandlerRegistered: boolean = false;
 
   constructor() {
@@ -935,6 +936,12 @@ class Client extends nativeRtms.Client {
                 'stop',
                 data.timestamp || 0
               );
+            }
+            break;
+
+          case nativeRtms.EVENT_MEDIA_CONNECTION_INTERRUPTED:
+            if (this.mediaConnectionInterruptedCallback) {
+              this.mediaConnectionInterruptedCallback(data.timestamp || 0);
             }
             break;
         }
@@ -1136,6 +1143,34 @@ class Client extends nativeRtms.Client {
       super.subscribeEvent([nativeRtms.EVENT_SHARING_START, nativeRtms.EVENT_SHARING_STOP]);
     } catch (e) {
       Logger.warn('client', `Failed to auto-subscribe to sharing events: ${e}`);
+    }
+
+    return true;
+  }
+
+  /**
+   * Register a callback for media connection interrupted events
+   *
+   * This automatically subscribes to EVENT_MEDIA_CONNECTION_INTERRUPTED.
+   *
+   * @param callback Function called when the media connection is interrupted
+   * @returns true if registration succeeds
+   *
+   * @example
+   * ```typescript
+   * client.onMediaConnectionInterrupted((timestamp) => {
+   *   console.log(`Media connection interrupted at ${timestamp}`);
+   * });
+   * ```
+   */
+  onMediaConnectionInterrupted(callback: (timestamp: number) => void): boolean {
+    this.mediaConnectionInterruptedCallback = callback;
+    this.setupEventHandler();
+
+    try {
+      super.subscribeEvent([nativeRtms.EVENT_MEDIA_CONNECTION_INTERRUPTED]);
+    } catch (e) {
+      Logger.warn('client', `Failed to auto-subscribe to media connection interrupted events: ${e}`);
     }
 
     return true;

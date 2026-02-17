@@ -349,6 +349,20 @@ class Client:
         """
         ...
 
+    def onMediaConnectionInterrupted(self, callback: Callable[[int], None]) -> bool:
+        """
+        Register media connection interrupted event callback.
+
+        This automatically subscribes to EVENT_MEDIA_CONNECTION_INTERRUPTED.
+
+        Args:
+            callback: Function called with (timestamp,) when media connection is interrupted
+
+        Returns:
+            True if callback was set successfully
+        """
+        ...
+
     def onEventEx(self, callback: EventExCallback) -> bool:
         """
         Register raw JSON event callback.

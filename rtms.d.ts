@@ -877,6 +877,23 @@ export class Client {
   onSharingEvent(callback: SharingEventCallback): boolean;
 
   /**
+   * Sets a callback for media connection interrupted events
+   *
+   * This automatically subscribes to EVENT_MEDIA_CONNECTION_INTERRUPTED.
+   *
+   * @param callback The callback function to invoke with the event timestamp
+   * @returns true if the callback was set successfully
+   *
+   * @example
+   * ```typescript
+   * client.onMediaConnectionInterrupted((timestamp) => {
+   *   console.log(`Media connection interrupted at ${timestamp}`);
+   * });
+   * ```
+   */
+  onMediaConnectionInterrupted(callback: (timestamp: number) => void): boolean;
+
+  /**
    * Sets a callback for raw event data
    *
    * This provides access to the raw JSON event data from the SDK.

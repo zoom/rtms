@@ -573,6 +573,14 @@ class Client(_ClientBase):
         self._running = False
         self._webhook_server = None
 
+        # Shared event dispatcher state (matches Node.js setupEventHandler pattern)
+        self._event_handler_registered = False
+        self._participant_event_callback = None
+        self._active_speaker_callback = None
+        self._sharing_callback = None
+        self._media_interrupted_callback = None
+        self._raw_event_callback = None
+
         # Register with global client registry
         with _clients_lock:
             _clients[id(self)] = self
@@ -855,6 +863,73 @@ class Client(_ClientBase):
         """
         return super().unsubscribeEvent(events)
 
+    def _setup_event_handler(self):
+        """
+        Internal shared event dispatcher that routes events to typed callbacks.
+        Matches the Node.js setupEventHandler() pattern. Only registers once.
+        """
+        if self._event_handler_registered:
+            return
+        self._event_handler_registered = True
+
+        def event_dispatcher(event_data: str):
+            if self._raw_event_callback:
+                self._raw_event_callback(event_data)
+            try:
+                data = json.loads(event_data)
+                event_type = data.get('event_type')
+
+                if event_type == EVENT_PARTICIPANT_JOIN:
+                    if self._participant_event_callback:
+                        participants = [
+                            {'user_id': p.get('user_id'), 'user_name': p.get('user_name')}
+                            for p in data.get('participants', [])
+                        ]
+                        self._participant_event_callback('join', data.get('timestamp', 0), participants)
+
+                elif event_type == EVENT_PARTICIPANT_LEAVE:
+                    if self._participant_event_callback:
+                        participants = [
+                            {'user_id': p.get('user_id'), 'user_name': p.get('user_name')}
+                            for p in data.get('participants', [])
+                        ]
+                        self._participant_event_callback('leave', data.get('timestamp', 0), participants)
+
+                elif event_type == EVENT_ACTIVE_SPEAKER_CHANGE:
+                    if self._active_speaker_callback:
+                        self._active_speaker_callback(
+                            data.get('timestamp', 0),
+                            data.get('user_id', 0),
+                            data.get('user_name', '')
+                        )
+
+                elif event_type == EVENT_SHARING_START:
+                    if self._sharing_callback:
+                        self._sharing_callback(
+                            'start',
+                            data.get('timestamp', 0),
+                            data.get('user_id'),
+                            data.get('user_name')
+                        )
+
+                elif event_type == EVENT_SHARING_STOP:
+                    if self._sharing_callback:
+                        self._sharing_callback(
+                            'stop',
+                            data.get('timestamp', 0),
+                            None,
+                            None
+                        )
+
+                elif event_type == EVENT_MEDIA_CONNECTION_INTERRUPTED:
+                    if self._media_interrupted_callback:
+                        self._media_interrupted_callback(data.get('timestamp', 0))
+
+            except Exception as e:
+                log_error('client', f'Failed to parse event: {e}')
+
+        super().onEventEx(event_dispatcher)
+
     def onParticipantEvent(self, callback: Callable[[str, int, list], None]) -> bool:
         """
         Register a callback for participant join/leave events.
@@ -876,27 +951,8 @@ class Client(_ClientBase):
             ...     print(f"Participant {event}: {participants}")
             >>> client.onParticipantEvent(on_participant)
         """
-        def event_handler(event_data: str):
-            try:
-                data = json.loads(event_data)
-                event_type = data.get('event_type')
-
-                if event_type == EVENT_PARTICIPANT_JOIN:
-                    participants = [
-                        {'user_id': p.get('user_id'), 'user_name': p.get('user_name')}
-                        for p in data.get('participants', [])
-                    ]
-                    callback('join', data.get('timestamp', 0), participants)
-                elif event_type == EVENT_PARTICIPANT_LEAVE:
-                    participants = [
-                        {'user_id': p.get('user_id'), 'user_name': p.get('user_name')}
-                        for p in data.get('participants', [])
-                    ]
-                    callback('leave', data.get('timestamp', 0), participants)
-            except Exception as e:
-                log_error('client', f'Failed to parse participant event: {e}')
-
-        super().onEventEx(event_handler)
+        self._participant_event_callback = callback
+        self._setup_event_handler()
         try:
             self.subscribeEvent([EVENT_PARTICIPANT_JOIN, EVENT_PARTICIPANT_LEAVE])
         except Exception as e:
@@ -920,21 +976,8 @@ class Client(_ClientBase):
             ...     print(f"Active speaker: {user_name} ({user_id})")
             >>> client.onActiveSpeakerEvent(on_speaker)
         """
-        def event_handler(event_data: str):
-            try:
-                data = json.loads(event_data)
-                event_type = data.get('event_type')
-
-                if event_type == EVENT_ACTIVE_SPEAKER_CHANGE:
-                    callback(
-                        data.get('timestamp', 0),
-                        data.get('user_id', 0),
-                        data.get('user_name', '')
-                    )
-            except Exception as e:
-                log_error('client', f'Failed to parse active speaker event: {e}')
-
-        super().onEventEx(event_handler)
+        self._active_speaker_callback = callback
+        self._setup_event_handler()
         try:
             self.subscribeEvent([EVENT_ACTIVE_SPEAKER_CHANGE])
         except Exception as e:
@@ -963,33 +1006,55 @@ class Client(_ClientBase):
             ...     print(f"Sharing {event} by {user_name}")
             >>> client.onSharingEvent(on_sharing)
         """
-        def event_handler(event_data: str):
-            try:
-                data = json.loads(event_data)
-                event_type = data.get('event_type')
-
-                if event_type == EVENT_SHARING_START:
-                    callback(
-                        'start',
-                        data.get('timestamp', 0),
-                        data.get('user_id'),
-                        data.get('user_name')
-                    )
-                elif event_type == EVENT_SHARING_STOP:
-                    callback(
-                        'stop',
-                        data.get('timestamp', 0),
-                        None,
-                        None
-                    )
-            except Exception as e:
-                log_error('client', f'Failed to parse sharing event: {e}')
-
-        super().onEventEx(event_handler)
+        self._sharing_callback = callback
+        self._setup_event_handler()
         try:
             self.subscribeEvent([EVENT_SHARING_START, EVENT_SHARING_STOP])
         except Exception as e:
             log_warn('client', f'Failed to auto-subscribe to sharing events: {e}')
+        return True
+
+    def onMediaConnectionInterrupted(self, callback: Callable[[int], None]) -> bool:
+        """
+        Register a callback for media connection interrupted events.
+
+        This automatically subscribes to EVENT_MEDIA_CONNECTION_INTERRUPTED.
+
+        Args:
+            callback: Function called with (timestamp,) when the media connection is interrupted
+
+        Returns:
+            bool: True if registration succeeds
+
+        Example:
+            >>> def on_interrupted(timestamp):
+            ...     print(f"Media connection interrupted at {timestamp}")
+            >>> client.onMediaConnectionInterrupted(on_interrupted)
+        """
+        self._media_interrupted_callback = callback
+        self._setup_event_handler()
+        try:
+            self.subscribeEvent([EVENT_MEDIA_CONNECTION_INTERRUPTED])
+        except Exception as e:
+            log_warn('client', f'Failed to auto-subscribe to media connection interrupted events: {e}')
+        return True
+
+    def onEventEx(self, callback: Callable[[str], None]) -> bool:
+        """
+        Register a callback for raw event data.
+
+        This provides access to the raw JSON event data from the SDK.
+        Use this when you need custom event handling or access to all event types.
+        This callback is called IN ADDITION to typed callbacks, not instead of.
+
+        Args:
+            callback: Function called with raw JSON event data string
+
+        Returns:
+            bool: True if registration succeeds
+        """
+        self._raw_event_callback = callback
+        self._setup_event_handler()
         return True
 
     def leave(self):
