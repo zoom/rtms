@@ -5,6 +5,15 @@ All notable changes to the Zoom RTMS SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2026-02-17
+
+### Fixed
+
+- **Release crash on ended sessions**: `release()` no longer throws when the meeting has already ended externally; cleanup always completes and `RTMS_SDK_NOT_EXIST` is treated as success ([#93](https://github.com/zoom/rtms/issues/93))
+- **Video params ignored after audio params**: Calling `setAudioParams()` before `setVideoParams()` no longer overwrites video configuration with defaults; individual param setters skip the default-filling logic ([#94](https://github.com/zoom/rtms/issues/94))
+- **Express middleware compatibility**: `createWebhookHandler` now reads from `req.body` when pre-parsed by middleware (e.g., `express.json()`), preventing hangs when the request stream has already been consumed ([#96](https://github.com/zoom/rtms/issues/96))
+- **Webhook schema validation**: Webhook handlers (Node.js and Python) now validate that the `event` field is present in the payload and return 400 Bad Request for invalid payloads ([#95](https://github.com/zoom/rtms/issues/95))
+
 ## [1.0.2] - 2026-01-30
 
 ### Added
