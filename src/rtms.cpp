@@ -461,7 +461,7 @@ void Client::uninitialize() {
     rtms_uninit();
 }
 
-void Client::configure(const MediaParams& params, int media_types, bool enable_application_layer_encryption) {
+void Client::configure(const MediaParams& params, int media_types, bool enable_application_layer_encryption, bool apply_defaults) {
     // Store the media parameters for future use
     media_params_ = params;
     enabled_media_types_ = media_types;
@@ -469,25 +469,29 @@ void Client::configure(const MediaParams& params, int media_types, bool enable_a
 
     // If media types are enabled but no params were set, use sensible defaults
     // This ensures proper metadata attribution (e.g., AUDIO_MULTI_STREAMS for audio)
-    if ((media_types & MediaType::AUDIO) && !media_params_.hasAudioParams()) {
+    // Skip defaults when called from setAudioParams/setVideoParams/setDeskshareParams
+    // to avoid prematurely filling in default params for other media types
+    if (apply_defaults) {
+        if ((media_types & MediaType::AUDIO) && !media_params_.hasAudioParams()) {
 #ifdef RTMS_DEBUG
-        cerr << "[DEBUG CONFIG] Audio enabled but no params set, using defaults (AUDIO_MULTI_STREAMS)" << endl;
+            cerr << "[DEBUG CONFIG] Audio enabled but no params set, using defaults (AUDIO_MULTI_STREAMS)" << endl;
 #endif
-        media_params_.setAudioParams(AudioParams());
-    }
+            media_params_.setAudioParams(AudioParams());
+        }
 
-    if ((media_types & MediaType::VIDEO) && !media_params_.hasVideoParams()) {
+        if ((media_types & MediaType::VIDEO) && !media_params_.hasVideoParams()) {
 #ifdef RTMS_DEBUG
-        cerr << "[DEBUG CONFIG] Video enabled but no params set, using defaults" << endl;
+            cerr << "[DEBUG CONFIG] Video enabled but no params set, using defaults" << endl;
 #endif
-        media_params_.setVideoParams(VideoParams());
-    }
+            media_params_.setVideoParams(VideoParams());
+        }
 
-    if ((media_types & MediaType::DESKSHARE) && !media_params_.hasDeskshareParams()) {
+        if ((media_types & MediaType::DESKSHARE) && !media_params_.hasDeskshareParams()) {
 #ifdef RTMS_DEBUG
-        cerr << "[DEBUG CONFIG] Deskshare enabled but no params set, using defaults" << endl;
+            cerr << "[DEBUG CONFIG] Deskshare enabled but no params set, using defaults" << endl;
 #endif
-        media_params_.setDeskshareParams(DeskshareParams());
+            media_params_.setDeskshareParams(DeskshareParams());
+        }
     }
 
     if (!media_params_.hasAudioParams() && !media_params_.hasVideoParams() && !media_params_.hasDeskshareParams()) {
@@ -674,9 +678,10 @@ void Client::setDeskshareParams(const DeskshareParams& ds_params)
     media_params_.setDeskshareParams(ds_params);
 
     // If deskshare is already enabled, reconfigure with the new params
+    // Pass apply_defaults=false to avoid filling in defaults for other media types
     if (enabled_media_types_ & MediaType::DESKSHARE) {
         try {
-            configure(media_params_, enabled_media_types_, false);
+            configure(media_params_, enabled_media_types_, false, false);
         } catch (const Exception& e) {
             cerr << "Warning: Failed to reconfigure deskshare params: " << e.what() << endl;
         }
@@ -691,9 +696,10 @@ void Client::setVideoParams(const VideoParams& video_params)
     media_params_.setVideoParams(video_params);
 
     // If video is already enabled, reconfigure with the new params
+    // Pass apply_defaults=false to avoid filling in defaults for other media types
     if (enabled_media_types_ & MediaType::VIDEO) {
         try {
-            configure(media_params_, enabled_media_types_, false);
+            configure(media_params_, enabled_media_types_, false, false);
         } catch (const Exception& e) {
             cerr << "Warning: Failed to reconfigure video params: " << e.what() << endl;
         }
@@ -708,9 +714,10 @@ void Client::setAudioParams(const AudioParams& audio_params)
     media_params_.setAudioParams(audio_params);
 
     // If audio is already enabled, reconfigure with the new params
+    // Pass apply_defaults=false to avoid filling in defaults for other media types
     if (enabled_media_types_ & MediaType::AUDIO) {
         try {
-            configure(media_params_, enabled_media_types_, false);
+            configure(media_params_, enabled_media_types_, false, false);
         } catch (const Exception& e) {
             cerr << "Warning: Failed to reconfigure audio params: " << e.what() << endl;
         }

@@ -266,7 +266,7 @@ public:
 
     static void initialize(const string& ca, int is_verify_cert = 1, const char* agent = nullptr);
     static void uninitialize();
-    void configure(const MediaParams& params, int media_types, bool enable_application_layer_encryption = false);
+    void configure(const MediaParams& params, int media_types, bool enable_application_layer_encryption = false, bool apply_defaults = true);
 
     void enableVideo(bool enable);
     void enableAudio(bool enable);
