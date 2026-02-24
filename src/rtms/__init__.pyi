@@ -218,6 +218,7 @@ class Client:
     def join(
         self,
         meeting_uuid: Optional[str] = None,
+        webinar_uuid: Optional[str] = None,
         session_id: Optional[str] = None,
         rtms_stream_id: Optional[str] = None,
         server_urls: Optional[str] = None,
@@ -232,6 +233,7 @@ class Client:
         """Join a Zoom RTMS session.
 
         For Meeting SDK events (meeting.rtms_started), use meeting_uuid.
+        For Webinar events (webinar.rtms_started), use webinar_uuid.
         For Video SDK events (session.rtms_started), use session_id.
         """
         ...
@@ -349,6 +351,20 @@ class Client:
         """
         ...
 
+    def onMediaConnectionInterrupted(self, callback: Callable[[int], None]) -> bool:
+        """
+        Register media connection interrupted event callback.
+
+        This automatically subscribes to EVENT_MEDIA_CONNECTION_INTERRUPTED.
+
+        Args:
+            callback: Function called with (timestamp,) when media connection is interrupted
+
+        Returns:
+            True if callback was set successfully
+        """
+        ...
+
     def onEventEx(self, callback: EventExCallback) -> bool:
         """
         Register raw JSON event callback.
@@ -440,6 +456,13 @@ SESSION_EVENT_ADD: int
 SESSION_EVENT_STOP: int
 SESSION_EVENT_PAUSE: int
 SESSION_EVENT_RESUME: int
+
+# ============================================================================
+# Constants - User Events
+# ============================================================================
+
+USER_JOIN: int
+USER_LEAVE: int
 
 # ============================================================================
 # Constants - Event Types (for subscribeEvent/unsubscribeEvent)

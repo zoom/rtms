@@ -305,14 +305,17 @@ export interface DeskshareParams {
  * Parameters for joining a Zoom RTMS session
  *
  * For Meeting SDK events (meeting.rtms_started), use meeting_uuid.
+ * For Webinar events (webinar.rtms_started), use webinar_uuid.
  * For Video SDK events (session.rtms_started), use session_id.
- * If both are provided, meeting_uuid takes precedence.
+ * Priority: meeting_uuid > webinar_uuid > session_id.
  *
  * @category Common Interfaces
  */
 export interface JoinParams {
   /** The UUID of the Zoom meeting (for Meeting SDK events) */
   meeting_uuid?: string;
+  /** The UUID of the Zoom webinar (for Webinar events) */
+  webinar_uuid?: string;
   /** The session ID (for Video SDK events) - used when meeting_uuid is not provided */
   session_id?: string;
   /** The RTMS stream ID for this connection */
@@ -875,6 +878,23 @@ export class Client {
    * ```
    */
   onSharingEvent(callback: SharingEventCallback): boolean;
+
+  /**
+   * Sets a callback for media connection interrupted events
+   *
+   * This automatically subscribes to EVENT_MEDIA_CONNECTION_INTERRUPTED.
+   *
+   * @param callback The callback function to invoke with the event timestamp
+   * @returns true if the callback was set successfully
+   *
+   * @example
+   * ```typescript
+   * client.onMediaConnectionInterrupted((timestamp) => {
+   *   console.log(`Media connection interrupted at ${timestamp}`);
+   * });
+   * ```
+   */
+  onMediaConnectionInterrupted(callback: (timestamp: number) => void): boolean;
 
   /**
    * Sets a callback for raw event data

@@ -246,6 +246,8 @@ function exposeNumberConstants(nativeModule: any): Record<string, number> {
     'MEDIA_TYPE_TRANSCRIPT', 'MEDIA_TYPE_CHAT', 'MEDIA_TYPE_ALL',
     // Session events
     'SESSION_EVENT_ADD', 'SESSION_EVENT_STOP', 'SESSION_EVENT_PAUSE', 'SESSION_EVENT_RESUME',
+    // User events
+    'USER_JOIN', 'USER_LEAVE',
     // Event types (for subscribeEvent/onEventEx)
     'EVENT_UNDEFINED', 'EVENT_FIRST_PACKET_TIMESTAMP', 'EVENT_ACTIVE_SPEAKER_CHANGE',
     'EVENT_PARTICIPANT_JOIN', 'EVENT_PARTICIPANT_LEAVE',
@@ -453,23 +455,28 @@ export function createWebhookHandler(callback: WebhookCallbackUnion, path: strin
       return;
     }
 
-    let body = '';
-    req.on('data', chunk => body += chunk.toString());
-
-    req.on('end', () => {
+    const processPayload = (body: string) => {
       try {
         Logger.debug('webhook', `Received webhook request: ${req.url}`);
         const payload = JSON.parse(body);
-        
+
+        // Validate required webhook fields
+        if (!payload.event || typeof payload.event !== 'string') {
+          Logger.warn('webhook', 'Received webhook payload missing required "event" field');
+          res.writeHead(400, headers);
+          res.end(JSON.stringify({ error: 'Invalid webhook payload: missing required "event" field' }));
+          return;
+        }
+
         // Log the webhook event
         Logger.info('webhook', `Received event: ${payload.event || 'unknown'}`, {
           eventType: payload.event,
           payloadSize: body.length
         });
-        
+
         // Check if this is a raw webhook callback
         const isRawCallback = isRawWebhookCallback(callback);
-        
+
         if (isRawCallback) {
           // For raw callbacks, pass req and res objects
           process.nextTick(() => {
@@ -493,7 +500,7 @@ export function createWebhookHandler(callback: WebhookCallbackUnion, path: strin
               Logger.error('webhook', `Error in webhook callback: ${err instanceof Error ? err.message : 'Unknown error'}`);
             }
           });
-          
+
           res.writeHead(200, headers);
           res.end(JSON.stringify({ status: 'ok' }));
         }
@@ -502,7 +509,19 @@ export function createWebhookHandler(callback: WebhookCallbackUnion, path: strin
         res.writeHead(400, headers);
         res.end(JSON.stringify({ error: 'Invalid JSON received' }));
       }
-    });
+    };
+
+    // Check if body was already parsed by middleware (e.g., express.json())
+    if ((req as any).body !== undefined) {
+      const body = typeof (req as any).body === 'string'
+        ? (req as any).body
+        : JSON.stringify((req as any).body);
+      processPayload(body);
+    } else {
+      let body = '';
+      req.on('data', chunk => body += chunk.toString());
+      req.on('end', () => processPayload(body));
+    }
   };
 }
 
@@ -845,6 +864,7 @@ class Client extends nativeRtms.Client {
   private activeSpeakerEventCallback: ((timestamp: number, userId: number, userName: string) => void) | null = null;
   private sharingEventCallback: ((event: 'start' | 'stop', timestamp: number, userId?: number, userName?: string) => void) | null = null;
   private rawEventCallback: ((eventData: string) => void) | null = null;
+  private mediaConnectionInterruptedCallback: ((timestamp: number) => void) | null = null;
   private eventHandlerRegistered: boolean = false;
 
   constructor() {
@@ -920,6 +940,12 @@ class Client extends nativeRtms.Client {
               );
             }
             break;
+
+          case nativeRtms.EVENT_MEDIA_CONNECTION_INTERRUPTED:
+            if (this.mediaConnectionInterruptedCallback) {
+              this.mediaConnectionInterruptedCallback(data.timestamp || 0);
+            }
+            break;
         }
       } catch (e) {
         Logger.error('client', `Failed to parse event: ${e}`);
@@ -947,6 +973,7 @@ class Client extends nativeRtms.Client {
 
     const {
       meeting_uuid,
+      webinar_uuid,
       session_id,
       rtms_stream_id,
       server_urls,
@@ -957,12 +984,12 @@ class Client extends nativeRtms.Client {
       pollInterval = 0
     } = options;
 
-    // Use meeting_uuid for Meeting SDK events, session_id for Video SDK events
-    const instance_id = meeting_uuid || session_id;
+    // Use meeting_uuid for Meeting SDK, webinar_uuid for Webinar, session_id for Video SDK
+    const instance_id = meeting_uuid || webinar_uuid || session_id;
 
     this.pollRate = pollInterval;
 
-    Logger.info('client', `Joining ${meeting_uuid ? 'meeting' : 'session'}: ${instance_id}`, {
+    Logger.info('client', `Joining ${meeting_uuid ? 'meeting' : webinar_uuid ? 'webinar' : 'session'}: ${instance_id}`, {
       streamId: rtms_stream_id,
       serverUrls: server_urls,
       timeout: providedTimeout,
@@ -970,7 +997,7 @@ class Client extends nativeRtms.Client {
     });
 
     if (!instance_id) {
-      throw new Error('Either meeting_uuid or session_id must be provided');
+      throw new Error('Either meeting_uuid, webinar_uuid, or session_id must be provided');
     }
 
     const finalSignature = providedSignature || generateSignature({
@@ -1119,6 +1146,34 @@ class Client extends nativeRtms.Client {
       super.subscribeEvent([nativeRtms.EVENT_SHARING_START, nativeRtms.EVENT_SHARING_STOP]);
     } catch (e) {
       Logger.warn('client', `Failed to auto-subscribe to sharing events: ${e}`);
+    }
+
+    return true;
+  }
+
+  /**
+   * Register a callback for media connection interrupted events
+   *
+   * This automatically subscribes to EVENT_MEDIA_CONNECTION_INTERRUPTED.
+   *
+   * @param callback Function called when the media connection is interrupted
+   * @returns true if registration succeeds
+   *
+   * @example
+   * ```typescript
+   * client.onMediaConnectionInterrupted((timestamp) => {
+   *   console.log(`Media connection interrupted at ${timestamp}`);
+   * });
+   * ```
+   */
+  onMediaConnectionInterrupted(callback: (timestamp: number) => void): boolean {
+    this.mediaConnectionInterruptedCallback = callback;
+    this.setupEventHandler();
+
+    try {
+      super.subscribeEvent([nativeRtms.EVENT_MEDIA_CONNECTION_INTERRUPTED]);
+    } catch (e) {
+      Logger.warn('client', `Failed to auto-subscribe to media connection interrupted events: ${e}`);
     }
 
     return true;

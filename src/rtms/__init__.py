@@ -23,6 +23,9 @@ from ._rtms import (
     # Session event constants
     SESSION_EVENT_ADD, SESSION_EVENT_STOP, SESSION_EVENT_PAUSE, SESSION_EVENT_RESUME,
 
+    # User event constants
+    USER_JOIN, USER_LEAVE,
+
     # Event types for subscribeEvent/unsubscribeEvent (used with onEventEx callback)
     # These match RTMS_EVENT_TYPE from Zoom's C SDK
     EVENT_UNDEFINED, EVENT_FIRST_PACKET_TIMESTAMP,
@@ -270,6 +273,16 @@ class WebhookHandler(BaseHTTPRequestHandler):
 
         try:
             payload = json.loads(body.decode('utf-8'))
+
+            # Validate required webhook fields
+            if not isinstance(payload.get('event'), str):
+                log_warn("webhook", "Received webhook payload missing required 'event' field")
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(b'{"error": "Invalid webhook payload: missing required event field"}')
+                return
+
             event_type = payload.get('event', 'unknown')
             log_info("webhook", f"Received event: {event_type}")
             log_debug("webhook", f"Received webhook payload: {payload}")
@@ -563,12 +576,21 @@ class Client(_ClientBase):
         self._running = False
         self._webhook_server = None
 
+        # Shared event dispatcher state (matches Node.js setupEventHandler pattern)
+        self._event_handler_registered = False
+        self._participant_event_callback = None
+        self._active_speaker_callback = None
+        self._sharing_callback = None
+        self._media_interrupted_callback = None
+        self._raw_event_callback = None
+
         # Register with global client registry
         with _clients_lock:
             _clients[id(self)] = self
 
     def join(self,
              meeting_uuid: str = None,
+             webinar_uuid: str = None,
              session_id: str = None,
              rtms_stream_id: str = None,
              server_urls: str = None,
@@ -586,6 +608,7 @@ class Client(_ClientBase):
 
         Args:
             meeting_uuid (str): Meeting UUID (for Meeting SDK events)
+            webinar_uuid (str): Webinar UUID (for Webinar events)
             session_id (str): Session ID (for Video SDK events) - used when meeting_uuid is not provided
             rtms_stream_id (str): RTMS stream ID
             server_urls (str): Server URLs (comma-separated)
@@ -607,6 +630,7 @@ class Client(_ClientBase):
                 # If additional kwargs are provided, merge them with the named parameters
                 params = {
                     'meeting_uuid': meeting_uuid,
+                    'webinar_uuid': webinar_uuid,
                     'session_id': session_id,
                     'rtms_stream_id': rtms_stream_id,
                     'server_urls': server_urls,
@@ -628,6 +652,7 @@ class Client(_ClientBase):
             # Otherwise, use the parameters directly
             return self._join_with_params(
                 meeting_uuid=meeting_uuid,
+                webinar_uuid=webinar_uuid,
                 session_id=session_id,
                 rtms_stream_id=rtms_stream_id,
                 server_urls=server_urls,
@@ -671,6 +696,7 @@ class Client(_ClientBase):
         try:
             # Extract parameters with defaults
             meeting_uuid = params.get('meeting_uuid')
+            webinar_uuid = params.get('webinar_uuid')
             session_id = params.get('session_id')
             rtms_stream_id = params.get('rtms_stream_id')
             server_urls = params.get('server_urls')
@@ -681,11 +707,11 @@ class Client(_ClientBase):
             secret = params.get('secret', os.getenv('ZM_RTMS_SECRET'))
             poll_interval = params.get('poll_interval', 10)
 
-            # Use meeting_uuid for Meeting SDK events, session_id for Video SDK events
-            instance_id = meeting_uuid or session_id
+            # Use meeting_uuid for Meeting SDK, webinar_uuid for Webinar, session_id for Video SDK
+            instance_id = meeting_uuid or webinar_uuid or session_id
 
             if not instance_id:
-                raise ValueError("Either meeting_uuid or session_id is required")
+                raise ValueError("Either meeting_uuid, webinar_uuid, or session_id is required")
             if not rtms_stream_id:
                 raise ValueError("RTMS Stream ID is required")
             if not server_urls:
@@ -702,8 +728,8 @@ class Client(_ClientBase):
             # Store polling interval
             self._polling_interval = poll_interval
 
-            # Join the meeting/session
-            log_info("client", f"Joining {'meeting' if meeting_uuid else 'session'}: {instance_id}")
+            # Join the meeting/webinar/session
+            log_info("client", f"Joining {'meeting' if meeting_uuid else 'webinar' if webinar_uuid else 'session'}: {instance_id}")
             super().join(instance_id, rtms_stream_id, signature, server_urls, timeout)
 
             # Start polling thread
@@ -845,6 +871,73 @@ class Client(_ClientBase):
         """
         return super().unsubscribeEvent(events)
 
+    def _setup_event_handler(self):
+        """
+        Internal shared event dispatcher that routes events to typed callbacks.
+        Matches the Node.js setupEventHandler() pattern. Only registers once.
+        """
+        if self._event_handler_registered:
+            return
+        self._event_handler_registered = True
+
+        def event_dispatcher(event_data: str):
+            if self._raw_event_callback:
+                self._raw_event_callback(event_data)
+            try:
+                data = json.loads(event_data)
+                event_type = data.get('event_type')
+
+                if event_type == EVENT_PARTICIPANT_JOIN:
+                    if self._participant_event_callback:
+                        participants = [
+                            {'user_id': p.get('user_id'), 'user_name': p.get('user_name')}
+                            for p in data.get('participants', [])
+                        ]
+                        self._participant_event_callback('join', data.get('timestamp', 0), participants)
+
+                elif event_type == EVENT_PARTICIPANT_LEAVE:
+                    if self._participant_event_callback:
+                        participants = [
+                            {'user_id': p.get('user_id'), 'user_name': p.get('user_name')}
+                            for p in data.get('participants', [])
+                        ]
+                        self._participant_event_callback('leave', data.get('timestamp', 0), participants)
+
+                elif event_type == EVENT_ACTIVE_SPEAKER_CHANGE:
+                    if self._active_speaker_callback:
+                        self._active_speaker_callback(
+                            data.get('timestamp', 0),
+                            data.get('user_id', 0),
+                            data.get('user_name', '')
+                        )
+
+                elif event_type == EVENT_SHARING_START:
+                    if self._sharing_callback:
+                        self._sharing_callback(
+                            'start',
+                            data.get('timestamp', 0),
+                            data.get('user_id'),
+                            data.get('user_name')
+                        )
+
+                elif event_type == EVENT_SHARING_STOP:
+                    if self._sharing_callback:
+                        self._sharing_callback(
+                            'stop',
+                            data.get('timestamp', 0),
+                            None,
+                            None
+                        )
+
+                elif event_type == EVENT_MEDIA_CONNECTION_INTERRUPTED:
+                    if self._media_interrupted_callback:
+                        self._media_interrupted_callback(data.get('timestamp', 0))
+
+            except Exception as e:
+                log_error('client', f'Failed to parse event: {e}')
+
+        super().onEventEx(event_dispatcher)
+
     def onParticipantEvent(self, callback: Callable[[str, int, list], None]) -> bool:
         """
         Register a callback for participant join/leave events.
@@ -866,27 +959,8 @@ class Client(_ClientBase):
             ...     print(f"Participant {event}: {participants}")
             >>> client.onParticipantEvent(on_participant)
         """
-        def event_handler(event_data: str):
-            try:
-                data = json.loads(event_data)
-                event_type = data.get('event_type')
-
-                if event_type == EVENT_PARTICIPANT_JOIN:
-                    participants = [
-                        {'user_id': p.get('user_id'), 'user_name': p.get('user_name')}
-                        for p in data.get('participants', [])
-                    ]
-                    callback('join', data.get('timestamp', 0), participants)
-                elif event_type == EVENT_PARTICIPANT_LEAVE:
-                    participants = [
-                        {'user_id': p.get('user_id'), 'user_name': p.get('user_name')}
-                        for p in data.get('participants', [])
-                    ]
-                    callback('leave', data.get('timestamp', 0), participants)
-            except Exception as e:
-                log_error('client', f'Failed to parse participant event: {e}')
-
-        super().onEventEx(event_handler)
+        self._participant_event_callback = callback
+        self._setup_event_handler()
         try:
             self.subscribeEvent([EVENT_PARTICIPANT_JOIN, EVENT_PARTICIPANT_LEAVE])
         except Exception as e:
@@ -910,21 +984,8 @@ class Client(_ClientBase):
             ...     print(f"Active speaker: {user_name} ({user_id})")
             >>> client.onActiveSpeakerEvent(on_speaker)
         """
-        def event_handler(event_data: str):
-            try:
-                data = json.loads(event_data)
-                event_type = data.get('event_type')
-
-                if event_type == EVENT_ACTIVE_SPEAKER_CHANGE:
-                    callback(
-                        data.get('timestamp', 0),
-                        data.get('user_id', 0),
-                        data.get('user_name', '')
-                    )
-            except Exception as e:
-                log_error('client', f'Failed to parse active speaker event: {e}')
-
-        super().onEventEx(event_handler)
+        self._active_speaker_callback = callback
+        self._setup_event_handler()
         try:
             self.subscribeEvent([EVENT_ACTIVE_SPEAKER_CHANGE])
         except Exception as e:
@@ -953,33 +1014,55 @@ class Client(_ClientBase):
             ...     print(f"Sharing {event} by {user_name}")
             >>> client.onSharingEvent(on_sharing)
         """
-        def event_handler(event_data: str):
-            try:
-                data = json.loads(event_data)
-                event_type = data.get('event_type')
-
-                if event_type == EVENT_SHARING_START:
-                    callback(
-                        'start',
-                        data.get('timestamp', 0),
-                        data.get('user_id'),
-                        data.get('user_name')
-                    )
-                elif event_type == EVENT_SHARING_STOP:
-                    callback(
-                        'stop',
-                        data.get('timestamp', 0),
-                        None,
-                        None
-                    )
-            except Exception as e:
-                log_error('client', f'Failed to parse sharing event: {e}')
-
-        super().onEventEx(event_handler)
+        self._sharing_callback = callback
+        self._setup_event_handler()
         try:
             self.subscribeEvent([EVENT_SHARING_START, EVENT_SHARING_STOP])
         except Exception as e:
             log_warn('client', f'Failed to auto-subscribe to sharing events: {e}')
+        return True
+
+    def onMediaConnectionInterrupted(self, callback: Callable[[int], None]) -> bool:
+        """
+        Register a callback for media connection interrupted events.
+
+        This automatically subscribes to EVENT_MEDIA_CONNECTION_INTERRUPTED.
+
+        Args:
+            callback: Function called with (timestamp,) when the media connection is interrupted
+
+        Returns:
+            bool: True if registration succeeds
+
+        Example:
+            >>> def on_interrupted(timestamp):
+            ...     print(f"Media connection interrupted at {timestamp}")
+            >>> client.onMediaConnectionInterrupted(on_interrupted)
+        """
+        self._media_interrupted_callback = callback
+        self._setup_event_handler()
+        try:
+            self.subscribeEvent([EVENT_MEDIA_CONNECTION_INTERRUPTED])
+        except Exception as e:
+            log_warn('client', f'Failed to auto-subscribe to media connection interrupted events: {e}')
+        return True
+
+    def onEventEx(self, callback: Callable[[str], None]) -> bool:
+        """
+        Register a callback for raw event data.
+
+        This provides access to the raw JSON event data from the SDK.
+        Use this when you need custom event handling or access to all event types.
+        This callback is called IN ADDITION to typed callbacks, not instead of.
+
+        Args:
+            callback: Function called with raw JSON event data string
+
+        Returns:
+            bool: True if registration succeeds
+        """
+        self._raw_event_callback = callback
+        self._setup_event_handler()
         return True
 
     def leave(self):
@@ -1281,6 +1364,10 @@ __all__ = [
     "SESSION_EVENT_STOP",
     "SESSION_EVENT_PAUSE",
     "SESSION_EVENT_RESUME",
+
+    # Constants - User Events
+    "USER_JOIN",
+    "USER_LEAVE",
 
     # Constants - Event Types (for subscribeEvent/onEventEx)
     # These match RTMS_EVENT_TYPE from Zoom's C SDK

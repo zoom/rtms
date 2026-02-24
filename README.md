@@ -141,6 +141,10 @@ For detailed contribution guidelines, build instructions, and troubleshooting, s
 
 ## Usage
 
+> **Speaker Identification with Mixed Audio**
+>
+> When using `AUDIO_MIXED_STREAM` (the default), all participants are mixed into a single audio stream and the audio callback's metadata will **not** identify the current speaker. To identify who is speaking, register an `onActiveSpeakerEvent` callback — it fires whenever the active speaker changes. See [Troubleshooting #7](#7-identifying-speakers-with-mixed-audio-streams) and [#80](https://github.com/zoom/rtms/issues/80) for details.
+
 ### Node.js - Webhook Integration
 
 Easily respond to Zoom webhooks and connect to RTMS streams:
