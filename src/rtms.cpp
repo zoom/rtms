@@ -572,8 +572,11 @@ void Client::setOnSessionUpdate(SessionUpdateFn callback) {
 }
 
 void Client::setOnUserUpdate(UserUpdateFn callback) {
-    lock_guard<mutex> lock(mutex_);
-    user_update_callback_ = std::move(callback);
+    {
+        lock_guard<mutex> lock(mutex_);
+        user_update_callback_ = std::move(callback);
+    }
+    subscribeEvent({EVENT_ACTIVE_SPEAKER_CHANGE, EVENT_PARTICIPANT_JOIN, EVENT_PARTICIPANT_LEAVE});
 }
 
 void Client::setOnDeskshareData(DsDataFn callback){
