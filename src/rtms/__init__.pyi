@@ -458,6 +458,13 @@ SESSION_EVENT_PAUSE: int
 SESSION_EVENT_RESUME: int
 
 # ============================================================================
+# Constants - User Events
+# ============================================================================
+
+USER_JOIN: int
+USER_LEAVE: int
+
+# ============================================================================
 # Constants - Event Types (for subscribeEvent/unsubscribeEvent)
 # These match RTMS_EVENT_TYPE from Zoom's C SDK
 # ============================================================================

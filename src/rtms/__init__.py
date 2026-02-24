@@ -23,6 +23,9 @@ from ._rtms import (
     # Session event constants
     SESSION_EVENT_ADD, SESSION_EVENT_STOP, SESSION_EVENT_PAUSE, SESSION_EVENT_RESUME,
 
+    # User event constants
+    USER_JOIN, USER_LEAVE,
+
     # Event types for subscribeEvent/unsubscribeEvent (used with onEventEx callback)
     # These match RTMS_EVENT_TYPE from Zoom's C SDK
     EVENT_UNDEFINED, EVENT_FIRST_PACKET_TIMESTAMP,
@@ -1361,6 +1364,10 @@ __all__ = [
     "SESSION_EVENT_STOP",
     "SESSION_EVENT_PAUSE",
     "SESSION_EVENT_RESUME",
+
+    # Constants - User Events
+    "USER_JOIN",
+    "USER_LEAVE",
 
     # Constants - Event Types (for subscribeEvent/onEventEx)
     # These match RTMS_EVENT_TYPE from Zoom's C SDK
