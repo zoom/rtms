@@ -246,6 +246,8 @@ function exposeNumberConstants(nativeModule: any): Record<string, number> {
     'MEDIA_TYPE_TRANSCRIPT', 'MEDIA_TYPE_CHAT', 'MEDIA_TYPE_ALL',
     // Session events
     'SESSION_EVENT_ADD', 'SESSION_EVENT_STOP', 'SESSION_EVENT_PAUSE', 'SESSION_EVENT_RESUME',
+    // User events
+    'USER_JOIN', 'USER_LEAVE',
     // Event types (for subscribeEvent/onEventEx)
     'EVENT_UNDEFINED', 'EVENT_FIRST_PACKET_TIMESTAMP', 'EVENT_ACTIVE_SPEAKER_CHANGE',
     'EVENT_PARTICIPANT_JOIN', 'EVENT_PARTICIPANT_LEAVE',
