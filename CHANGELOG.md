@@ -7,13 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.3] - 2026-02-17
 
-### Added
-
-- **Webinar support**: Added `webinar_uuid` parameter to `join()` for Zoom Webinar events (`webinar.rtms_started`); priority: `meeting_uuid` > `webinar_uuid` > `session_id`
-- **`onMediaConnectionInterrupted` callback**: New high-level callback for `EVENT_MEDIA_CONNECTION_INTERRUPTED` events with auto-subscription (Node.js and Python)
-
 ### Fixed
-
+- **Fixed Webinar support**: Fixed UUID priroity for `webinar_uuid` parameter to `join()` for Zoom Webinar events (`webinar.rtms_started`); priority: `meeting_uuid` > `webinar_uuid` > `session_id`
+- **Exposed `onMediaConnectionInterrupted` callback**: The callback for `EVENT_MEDIA_CONNECTION_INTERRUPTED` events was previously not configured for auto-subscription (Node.js and Python)
 - **Release crash on ended sessions**: `release()` no longer throws when the meeting has already ended externally; cleanup always completes and `RTMS_SDK_NOT_EXIST` is treated as success ([#93](https://github.com/zoom/rtms/issues/93))
 - **Video params ignored after audio params**: Calling `setAudioParams()` before `setVideoParams()` no longer overwrites video configuration with defaults; individual param setters skip the default-filling logic ([#94](https://github.com/zoom/rtms/issues/94))
 - **Express middleware compatibility**: `createWebhookHandler` now reads from `req.body` when pre-parsed by middleware (e.g., `express.json()`), preventing hangs when the request stream has already been consumed ([#96](https://github.com/zoom/rtms/issues/96))
@@ -22,13 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.2] - 2026-01-30
 
-### Added
-
-- **Video SDK support**: Added `session_id` parameter to `join()` for Video SDK events (`session.rtms_started`) alongside existing Meeting SDK support (`meeting.rtms_started`) ([#80](https://github.com/zoom/rtms/issues/80))
-- **Python `rtms.run()`**: New simplified threading model that handles event loop management, client polling, and graceful shutdown automatically ([#88](https://github.com/zoom/rtms/issues/88))
-
 ### Fixed
-
+- **Fixed Video SDK support**: Exposed `session_id` parameter to `join()` for Video SDK events (`session.rtms_started`) alongside existing Meeting/Webinar support (`meeting.rtms_started`) ([#80](https://github.com/zoom/rtms/issues/80))
+- **Python `rtms.run()`**: Resolved threading model that handles event loop management, client polling, and graceful shutdown automatically ([#88](https://github.com/zoom/rtms/issues/88))
 - **Default media params**: Apply sensible defaults (e.g., `AUDIO_MULTI_STREAMS`) when callbacks are registered without explicit media configuration
 - **Media param reconfiguration**: Calling `setAudioParams()`/`setVideoParams()` after registering a callback now triggers reconfiguration
 - **Codec validation**: Added validation at C++ layer - JPG/PNG codecs require fps ≤ 5, H264 allows fps up to 30
