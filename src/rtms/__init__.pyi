@@ -220,6 +220,7 @@ class Client:
         meeting_uuid: Optional[str] = None,
         webinar_uuid: Optional[str] = None,
         session_id: Optional[str] = None,
+        engagement_id: Optional[str] = None,
         rtms_stream_id: Optional[str] = None,
         server_urls: Optional[str] = None,
         signature: Optional[str] = None,
@@ -235,6 +236,7 @@ class Client:
         For Meeting SDK events (meeting.rtms_started), use meeting_uuid.
         For Webinar events (webinar.rtms_started), use webinar_uuid.
         For Video SDK events (session.rtms_started), use session_id.
+        For ZCC events (engagement.rtms_started), use engagement_id.
         """
         ...
 
