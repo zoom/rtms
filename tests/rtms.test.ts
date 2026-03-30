@@ -219,7 +219,24 @@ describe('RTMS Node.JS Addon Comprehensive Test Suite', () => {
           timeout: 5000,
           pollInterval: 100
         };
-        
+
+        const result = client.join(joinParams);
+        expect(client.join).toHaveBeenCalledWith(joinParams);
+        expect(result).toBe(true);
+      });
+
+      // ZCC engagement_id tests
+      // NOTE: The test module is fully mocked so client.join always returns true
+      // regardless of params. These tests document the expected API contract.
+      // The real routing logic is validated in the Python tests and by TypeScript
+      // compilation (engagement_id must appear in the JoinParams interface).
+      test('client.join accepts engagement_id for ZCC sessions', () => {
+        const joinParams = {
+          engagement_id: "engagement-abc-123",
+          rtms_stream_id: "stream-xyz",
+          server_urls: "wss://rtms.zoom.us",
+          signature: "mock-sig",
+        };
         const result = client.join(joinParams);
         expect(client.join).toHaveBeenCalledWith(joinParams);
         expect(result).toBe(true);
