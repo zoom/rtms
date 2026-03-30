@@ -241,6 +241,13 @@ tasks:
     cmds:
       - docker compose run --rm test-py
 
+  test:cpp:
+    desc: "Build and run C++ unit tests (no SDK binary required)"
+    cmds:
+      - cmake -B build/tests -DRTMS_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Debug
+      - cmake --build build/tests --target rtms_tests -j$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
+      - cd build/tests && ctest --output-on-failure
+
   test:local:
     desc: "Run all tests locally"
     cmds:
