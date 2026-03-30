@@ -1,0 +1,26 @@
+# Dev/build dependencies pinned to non-vulnerable versions.
+# Audit: pip-audit found CVE-2026-4539 in pygments<2.20.0
+
+# Build
+build==1.3.0
+scikit_build_core==0.11.6
+pybind11==3.0.1
+pybind11-global==3.0.1
+wheel==0.46.3
+
+# Testing
+pytest==9.0.2
+python-dotenv==1.2.1
+
+# Publishing
+twine==6.2.0
+
+# Multi-version wheel building
+cibuildwheel==3.3.1
+
+# Documentation
+pdoc3==0.11.6
+Pygments>=2.20.0  # CVE-2026-4539 fixed in 2.20.0
+
+# Auditing
+pip-audit==2.10.0
