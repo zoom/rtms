@@ -57,7 +57,7 @@ set(RTMS_SEARCH_PATHS
 
 # ===== Locate library and headers =====
 find_path(RTMS_HEADER_DIR
-  NAMES rtms_csdk.h rtms_common.h
+  NAMES rtms_sdk.h rtms_common.h
   PATHS ${RTMS_INCLUDE_DIR} ${RTMS_SEARCH_PATHS}
   DOC "RTMS SDK headers"
 )
