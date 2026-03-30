@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25.1)
-project(rtms VERSION 0.0.1 LANGUAGES CXX)
+project(rtms VERSION 1.1.0 LANGUAGES CXX)
 
 # ===== Build settings =====
 set(CMAKE_CXX_STANDARD 20)
@@ -68,8 +68,13 @@ find_library(RTMS_LIBRARY
   DOC "RTMS SDK library"
 )
 
-# Error if not found
-if(NOT RTMS_LIBRARY)
+# ===== Test-only build option =====
+# When RTMS_BUILD_TESTS=ON the SDK binary is replaced by tests/mock_sdk.cpp,
+# so the real library is not required.
+option(RTMS_BUILD_TESTS "Build C++ unit tests using the mock SDK (no real SDK binary needed)" OFF)
+
+# Error if not found (skip library check for pure test builds)
+if(NOT RTMS_LIBRARY AND NOT RTMS_BUILD_TESTS)
   message(FATAL_ERROR "RTMS SDK library not found. Please install it or specify its location.")
 endif()
 
@@ -296,4 +301,42 @@ elseif(DEFINED SKBUILD_PROJECT_NAME)
 # ===== Go binding target (placeholder) =====
 elseif(GO)
   message(STATUS "Go bindings not yet implemented")
+endif()
+
+# ============================================================================
+# C++ Unit Tests
+# Uses mock_sdk.cpp in place of the real Zoom SDK binary.
+# Configure with: cmake -B build/tests -DRTMS_BUILD_TESTS=ON
+# ============================================================================
+if(RTMS_BUILD_TESTS)
+  message(STATUS "Configuring C++ unit tests (mock SDK)")
+
+  include(FetchContent)
+  FetchContent_Declare(
+    Catch2
+    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+    GIT_TAG        v3.5.3
+    GIT_SHALLOW    TRUE
+  )
+  FetchContent_MakeAvailable(Catch2)
+
+  add_executable(rtms_tests
+    "${RTMS_SOURCE_DIR}/rtms.cpp"
+    "${CMAKE_SOURCE_DIR}/tests/mock_sdk.cpp"
+    "${CMAKE_SOURCE_DIR}/tests/test_cpp_wrapper.cpp"
+  )
+
+  target_include_directories(rtms_tests PRIVATE
+    ${RTMS_HEADER_DIR}
+    ${RTMS_SOURCE_DIR}
+    "${CMAKE_SOURCE_DIR}/tests"
+  )
+
+  target_compile_features(rtms_tests PRIVATE cxx_std_20)
+  target_link_libraries(rtms_tests PRIVATE Catch2::Catch2WithMain)
+
+  include(CTest)
+  list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
+  include(Catch)
+  catch_discover_tests(rtms_tests)
 endif()
