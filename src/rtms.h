@@ -1,12 +1,11 @@
 #ifndef RTMS_H
 #define RTMS_H
 
-#include "rtms_csdk.h"
+#include "rtms_sdk.h"
 #include <functional>
 #include <sstream>
 #include <thread>
 #include <mutex>
-#include <unordered_map>
 #include <vector>
 
 using namespace std;
@@ -182,7 +181,7 @@ class MediaParams {
                 } else {
                     audio_params_.reset();
                 }
-                
+
                 if (other.hasVideoParams()) {
                     video_params_ = std::make_unique<VideoParams>(other.videoParams());
                 } else {
@@ -197,28 +196,28 @@ class MediaParams {
             }
             return *this;
         }
-        
+
         void setDeskshareParams(const DeskshareParams& ds_params);
         void setAudioParams(const AudioParams& audio_params);
         void setVideoParams(const VideoParams& video_params);
-        
+
         const DeskshareParams& deskshareParams() const;
         const AudioParams& audioParams() const;
         const VideoParams& videoParams() const;
-        
+
         bool hasDeskshareParams() const;
         bool hasAudioParams() const;
         bool hasVideoParams() const;
-        
+
         media_parameters toNative() const;
-    
+
     private:
         std::unique_ptr<DeskshareParams> ds_params_;
         std::unique_ptr<AudioParams> audio_params_;
         std::unique_ptr<VideoParams> video_params_;
     };
 
-class Client {
+class Client : public rtms_sdk_sink {
 
 public:
     using JoinConfirmFn = function<void(int)>;
@@ -242,7 +241,7 @@ public:
     };
 
     // Event types for subscribeEvent/unsubscribeEvent
-    // These match the RTMS_EVENT_TYPE enum from Zoom's C SDK
+    // These match the RTMS_EVENT_TYPE enum from Zoom's C++ SDK
     // Used with on_event_ex callback (JSON events)
     enum EventType {
         EVENT_UNDEFINED = 0,
@@ -294,20 +293,31 @@ public:
 
     void poll();
     void release();
-    
+
     string uuid() const;
     string streamId() const;
+
+    // rtms_sdk_sink overrides — called by the SDK from within poll()
+    void on_join_confirm(int reason) override;
+    void on_session_update(int op, struct session_info* sess) override;
+    void on_user_update(int op, struct participant_info* pi) override;
+    void on_audio_data(unsigned char* data_buf, int size, uint64_t timestamp, struct rtms_metadata* md) override;
+    void on_video_data(unsigned char* data_buf, int size, uint64_t timestamp, struct rtms_metadata* md) override;
+    void on_ds_data(unsigned char* data_buf, int size, uint64_t timestamp, struct rtms_metadata* md) override;
+    void on_transcript_data(unsigned char* data_buf, int size, uint64_t timestamp, struct rtms_metadata* md) override;
+    void on_leave(int reason) override;
+    void on_event_ex(const std::string& compact_str) override;
+
 private:
     mutable mutex mutex_;
-    rtms_csdk* sdk_;
+    rtms_sdk* sdk_;
 
     string meeting_uuid_;
     string rtms_stream_id_;
-    
+
     int enabled_media_types_;
     bool media_params_updated_;
     MediaParams media_params_;
-
 
     JoinConfirmFn join_confirm_callback_;
     SessionUpdateFn session_update_callback_;
@@ -326,22 +336,7 @@ private:
     std::vector<int> pending_event_subscriptions_;
     void processPendingSubscriptions();
 
-    static void handleJoinConfirm(struct rtms_csdk* sdk, int reason);
-    static void handleSessionUpdate(struct rtms_csdk* sdk, int op, struct session_info* sess);
-    static void handleUserUpdate(struct rtms_csdk* sdk, int op, struct participant_info* pi);
-    static void handleDsData(struct rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, struct rtms_metadata* md);
-    static void handleAudioData(struct rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, struct rtms_metadata* md);
-    static void handleVideoData(struct rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, struct rtms_metadata* md);
-    static void handleTranscriptData(struct rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, struct rtms_metadata* md);
-    static void handleLeave(struct rtms_csdk* sdk, int reason);
-    static void handleEventEx(struct rtms_csdk* sdk, const char* buf, int size);
-
-    static unordered_map<struct rtms_csdk*, Client*> sdk_registry_;
-    static mutex registry_mutex_;
-
     void throwIfError(int result, const std::string& operation) const;
-    static Client* getClient(struct rtms_csdk* sdk);
-    
     void updateMediaConfiguration(int mediaType, bool enable = true);
 };
 }

@@ -12,6 +12,7 @@ __pycache__/
 ### Dev Only
 docs/*
 !docs/*.md
+spec.md
 
 ### Build
 dist
