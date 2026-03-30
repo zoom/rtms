@@ -334,6 +334,85 @@ class TestThreadSafety:
         assert hasattr(client, '_running')
 
 
+class TestZccEngagementId:
+    """Test ZCC engagement_id support in join()
+
+    ZCC (Zoom Contact Center) identifies sessions with an engagement_id instead
+    of a meeting_uuid. join() must accept engagement_id and route it as the
+    instance identifier to the native SDK.
+
+    These tests fail before implementation because _do_join() raises:
+        ValueError("Either meeting_uuid, webinar_uuid, or session_id is required")
+    when only engagement_id is supplied.
+    """
+
+    def _make_client_with_mocked_native(self):
+        """Return a Client instance with native join() and polling mocked out."""
+        client = rtms.Client()
+        # Patch the native C++ join on the base class so no real SDK call is made
+        NativeClient = rtms.Client.__bases__[0]
+        return client, NativeClient
+
+    def test_join_with_engagement_id_returns_true(self):
+        """join() called with engagement_id should return True, not False."""
+        client, NativeClient = self._make_client_with_mocked_native()
+        with patch.object(NativeClient, 'join', return_value=None), \
+             patch.object(client, '_start_polling'):
+            result = client.join(
+                engagement_id='engagement-abc-123',
+                rtms_stream_id='stream-xyz',
+                server_urls='wss://rtms.zoom.us',
+                signature='mock-sig',
+            )
+        # Before implementation: False (ValueError caught, swallowed, returns False)
+        # After implementation: True
+        assert result is True
+
+    def test_do_join_with_engagement_id_does_not_raise(self):
+        """_do_join() with engagement_id should not raise a missing-identifier error."""
+        client, NativeClient = self._make_client_with_mocked_native()
+        with patch.object(NativeClient, 'join', return_value=None), \
+             patch.object(client, '_start_polling'):
+            # Before implementation: raises ValueError
+            # After implementation: should complete cleanly
+            client._do_join(
+                engagement_id='engagement-abc-123',
+                rtms_stream_id='stream-xyz',
+                server_urls='wss://rtms.zoom.us',
+                signature='mock-sig',
+            )
+
+    def test_engagement_id_passed_as_first_arg_to_native_join(self):
+        """engagement_id should be forwarded as the meeting_uuid positional arg."""
+        client, NativeClient = self._make_client_with_mocked_native()
+        with patch.object(NativeClient, 'join', return_value=None) as mock_native_join, \
+             patch.object(client, '_start_polling'):
+            client._do_join(
+                engagement_id='eng-abc-123',
+                rtms_stream_id='stream-xyz',
+                server_urls='wss://rtms.zoom.us',
+                signature='mock-sig',
+            )
+        mock_native_join.assert_called_once_with(
+            'eng-abc-123', 'stream-xyz', 'mock-sig', 'wss://rtms.zoom.us', -1
+        )
+
+    def test_engagement_id_lower_priority_than_meeting_uuid(self):
+        """When both meeting_uuid and engagement_id are supplied, meeting_uuid wins."""
+        client, NativeClient = self._make_client_with_mocked_native()
+        with patch.object(NativeClient, 'join', return_value=None) as mock_native_join, \
+             patch.object(client, '_start_polling'):
+            client._do_join(
+                meeting_uuid='meeting-uuid-wins',
+                engagement_id='engagement-id-loses',
+                rtms_stream_id='stream-xyz',
+                server_urls='wss://rtms.zoom.us',
+                signature='mock-sig',
+            )
+        first_arg = mock_native_join.call_args[0][0]
+        assert first_arg == 'meeting-uuid-wins'
+
+
 # Run tests
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
