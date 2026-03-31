@@ -248,6 +248,35 @@ int VideoParams::fps() const {
     return fps_;
 }
 
+TranscriptParams::TranscriptParams()
+    : BaseMediaParams(), src_language_(-1), enable_lid_(true) {
+    setContentType(5);  // TEXT
+}
+
+void TranscriptParams::setSrcLanguage(int src_language) {
+    src_language_ = src_language;
+}
+
+void TranscriptParams::setEnableLid(bool enable_lid) {
+    enable_lid_ = enable_lid;
+}
+
+int TranscriptParams::srcLanguage() const {
+    return src_language_;
+}
+
+bool TranscriptParams::enableLid() const {
+    return enable_lid_;
+}
+
+transcript_parameters TranscriptParams::toNative() const {
+    transcript_parameters p{};
+    p.content_type  = contentType();
+    p.src_language  = src_language_;
+    p.enable_lid    = enable_lid_;
+    return p;
+}
+
 DeskshareParams::DeskshareParams()
     : BaseMediaParams(), resolution_(0), fps_(0) {}
 
@@ -388,6 +417,21 @@ bool MediaParams::hasVideoParams() const {
     return video_params_ != nullptr;
 }
 
+void MediaParams::setTranscriptParams(const TranscriptParams& transcript_params) {
+    transcript_params_ = make_unique<TranscriptParams>(transcript_params);
+}
+
+const TranscriptParams& MediaParams::transcriptParams() const {
+    if (!transcript_params_) {
+        throw Exception(RTMS_SDK_NOT_EXIST, "Transcript parameters not set");
+    }
+    return *transcript_params_;
+}
+
+bool MediaParams::hasTranscriptParams() const {
+    return transcript_params_ != nullptr;
+}
+
 media_parameters MediaParams::toNative() const {
     media_parameters params;
     memset(&params, 0, sizeof(params));
@@ -412,6 +456,12 @@ media_parameters MediaParams::toNative() const {
         ds_parameters* ds_params = new ds_parameters();
         *ds_params = ds_params_->toNative();
         params.ds_param = ds_params;
+    }
+
+    if (transcript_params_) {
+        transcript_parameters* tr_params = new transcript_parameters();
+        *tr_params = transcript_params_->toNative();
+        params.tr_param = tr_params;
     }
 
     return params;
@@ -721,6 +771,20 @@ void Client::setAudioParams(const AudioParams& audio_params)
             configure(media_params_, enabled_media_types_, false, false);
         } catch (const Exception& e) {
             cerr << "Warning: Failed to reconfigure audio params: " << e.what() << endl;
+        }
+    }
+}
+
+void Client::setTranscriptParams(const TranscriptParams& transcript_params)
+{
+    media_params_.setTranscriptParams(transcript_params);
+
+    // If transcript is already enabled, reconfigure with the new params
+    if (enabled_media_types_ & MediaType::TRANSCRIPT) {
+        try {
+            configure(media_params_, enabled_media_types_, false, false);
+        } catch (const Exception& e) {
+            cerr << "Warning: Failed to reconfigure transcript params: " << e.what() << endl;
         }
     }
 }

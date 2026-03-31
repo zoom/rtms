@@ -5,9 +5,9 @@ import { createHmac } from 'crypto';
 import { createRequire } from 'module';
 import { IncomingMessage, Server, ServerResponse } from 'http';
 
-import type { 
+import type {
   JoinParams, SignatureParams, WebhookCallback, RawWebhookCallback,
-  VideoParams, AudioParams, DeskshareParams
+  VideoParams, AudioParams, DeskshareParams, TranscriptParams
 } from "./rtms.d.ts";
 
 const require = createRequire(import.meta.url);
@@ -1055,17 +1055,29 @@ class Client extends nativeRtms.Client {
     );
   }
 
-  /** 
-  * Sets deskshare parameters for the client
-  */
- setDeskshareParams(params: DeskshareParams): boolean {
-   return setParameters<DeskshareParams>(
-     'client',
-     'deskshare',
-     params,
-     (p) => super.setDeskshareParams(p)
-   );
- }
+  /**
+   * Sets deskshare parameters for the client
+   */
+  setDeskshareParams(params: DeskshareParams): boolean {
+    return setParameters<DeskshareParams>(
+      'client',
+      'deskshare',
+      params,
+      (p) => super.setDeskshareParams(p)
+    );
+  }
+
+  /**
+   * Sets transcript parameters for the client
+   */
+  setTranscriptParams(params: TranscriptParams): boolean {
+    return setParameters<TranscriptParams>(
+      'client',
+      'transcript',
+      params,
+      (p) => super.setTranscriptParams(p)
+    );
+  }
 
   /**
    * Register a callback for participant join/leave events

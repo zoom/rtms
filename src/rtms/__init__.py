@@ -14,7 +14,7 @@ from pathlib import Path
 from ._rtms import (
     # Classes
     Client as _ClientBase, Session, Participant, Metadata,
-    AudioParams, VideoParams, DeskshareParams,
+    AudioParams, VideoParams, DeskshareParams, TranscriptParams,
 
     # Media type constants
     MEDIA_TYPE_AUDIO, MEDIA_TYPE_VIDEO, MEDIA_TYPE_DESKSHARE,
@@ -44,7 +44,10 @@ from ._rtms import (
     # Parameter dictionaries - import directly with their original names
     AudioContentType, AudioCodec, AudioSampleRate, AudioChannel, AudioDataOption,
     VideoContentType, VideoCodec, VideoResolution, VideoDataOption,
-    MediaDataType, SessionState, StreamState, EventType, MessageType, StopReason
+    MediaDataType, SessionState, StreamState, EventType, MessageType, StopReason,
+
+    # Transcript language dict (mirrors AudioCodec/VideoCodec pattern)
+    TranscriptLanguage,
 )
 
 
@@ -851,6 +854,21 @@ class Client(_ClientBase):
         _validate_deskshare_params(params)
         return super().setDeskshareParams(params)
 
+    def setTranscriptParams(self, params):
+        """
+        Set transcript parameters.
+
+        Args:
+            params (TranscriptParams): Transcript parameters object
+
+        Returns:
+            bool: True if parameters were set successfully
+        """
+        return super().setTranscriptParams(params)
+
+    # snake_case alias
+    set_transcript_params = setTranscriptParams
+
     def subscribeEvent(self, events):
         """
         Subscribe to receive specific event types.
@@ -1355,6 +1373,7 @@ __all__ = [
     "AudioParams",
     "VideoParams",
     "DeskshareParams",
+    "TranscriptParams",
     "LogLevel",
     "LogFormat",
 
@@ -1403,6 +1422,9 @@ __all__ = [
     "RTMS_SDK_INVALID_ARGS",
     "SESS_STATUS_ACTIVE",
     "SESS_STATUS_PAUSED",
+
+    # Transcript language constants dict (mirrors AudioCodec/VideoCodec pattern)
+    "TranscriptLanguage",
 
     # Parameter dictionaries
     "AudioContentType",
