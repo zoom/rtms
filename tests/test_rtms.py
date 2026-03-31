@@ -334,6 +334,68 @@ class TestThreadSafety:
         assert hasattr(client, '_running')
 
 
+class TestTranscriptParams:
+    """Test TranscriptParams class and setTranscriptParams/set_transcript_params.
+
+    These tests fail before implementation because TranscriptParams does not exist
+    and Client has no set_transcript_params() method.
+    """
+
+    def test_transcript_params_class_exists(self):
+        """rtms.TranscriptParams should be importable."""
+        assert hasattr(rtms, 'TranscriptParams')
+
+    def test_transcript_params_default_content_type(self):
+        """Default content_type should be 5 (TEXT)."""
+        p = rtms.TranscriptParams()
+        assert p.content_type == 5
+
+    def test_transcript_params_default_src_language(self):
+        """Default src_language should be -1 (LANGUAGE_ID_NONE, auto-detect)."""
+        p = rtms.TranscriptParams()
+        assert p.src_language == -1
+
+    def test_transcript_params_default_enable_lid(self):
+        """Default enable_lid should be True."""
+        p = rtms.TranscriptParams()
+        assert p.enable_lid is True
+
+    def test_transcript_params_setters(self):
+        """src_language and enable_lid setters should round-trip."""
+        p = rtms.TranscriptParams()
+        p.src_language = 9   # LANGUAGE_ID_ENGLISH
+        p.enable_lid = False
+        assert p.src_language == 9
+        assert p.enable_lid is False
+
+    def test_language_id_english_constant(self):
+        """LANGUAGE_ID_ENGLISH should be 9."""
+        assert rtms.LANGUAGE_ID_ENGLISH == 9
+
+    def test_language_id_none_constant(self):
+        """LANGUAGE_ID_NONE should be -1."""
+        assert rtms.LANGUAGE_ID_NONE == -1
+
+    def test_client_has_set_transcript_params(self):
+        """Client should expose set_transcript_params() method."""
+        client = rtms.Client()
+        assert hasattr(client, 'set_transcript_params')
+        assert callable(client.set_transcript_params)
+
+    def test_set_transcript_params_does_not_raise(self):
+        """Calling set_transcript_params with a valid TranscriptParams should not raise."""
+        client = rtms.Client()
+        p = rtms.TranscriptParams()
+        p.src_language = 9
+        client.set_transcript_params(p)
+
+    def test_transcript_params_exported_in_all(self):
+        """TranscriptParams and language constants should appear in rtms.__all__."""
+        assert 'TranscriptParams' in rtms.__all__
+        assert 'LANGUAGE_ID_ENGLISH' in rtms.__all__
+        assert 'LANGUAGE_ID_NONE' in rtms.__all__
+
+
 class TestZccEngagementId:
     """Test ZCC engagement_id support in join()
 

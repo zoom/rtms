@@ -26,6 +26,7 @@ jest.mock("../index.ts", () => {
       setAudioParams: jest.fn().mockReturnValue(true),
       setVideoParams: jest.fn().mockReturnValue(true),
       setDeskshareParams: jest.fn().mockReturnValue(true),
+      setTranscriptParams: jest.fn().mockReturnValue(true),
       
       // Callback methods
       onJoinConfirm: jest.fn().mockReturnValue(true),
@@ -44,6 +45,23 @@ jest.mock("../index.ts", () => {
       subscribeEvent: jest.fn().mockReturnValue(true),
       unsubscribeEvent: jest.fn().mockReturnValue(true),
     })),
+
+    // TranscriptParams class
+    TranscriptParams: jest.fn().mockImplementation(() => ({
+      contentType: 5,
+      srcLanguage: -1,
+      enableLid: true,
+      setSrcLanguage: jest.fn(),
+      setEnableLid: jest.fn(),
+    })),
+
+    // Language ID constants
+    LANGUAGE_ID_NONE: -1,
+    LANGUAGE_ID_ENGLISH: 9,
+    LANGUAGE_ID_FRENCH_FRANCE: 13,
+    LANGUAGE_ID_GERMAN: 14,
+    LANGUAGE_ID_JAPANESE: 20,
+    LANGUAGE_ID_SPANISH: 28,
 
     // Utility functions
     initialize: jest.fn().mockReturnValue(true),
@@ -335,6 +353,24 @@ describe('RTMS Node.JS Addon Comprehensive Test Suite', () => {
         const result = client.setDeskshareParams(deskshareParams);
         expect(client.setDeskshareParams).toHaveBeenCalledWith(deskshareParams);
         expect(result).toBe(true);
+      });
+
+      // TranscriptParams tests
+      // NOTE: The module is fully mocked; these document the expected API shape.
+      // The real default values and toNative() mapping are verified in the C++ tests.
+      test('client.setTranscriptParams accepts a TranscriptParams object', () => {
+        const params = new rtms.TranscriptParams();
+        const result = client.setTranscriptParams(params);
+        expect(client.setTranscriptParams).toHaveBeenCalledWith(params);
+        expect(result).toBe(true);
+      });
+
+      test('LANGUAGE_ID_ENGLISH constant equals 9', () => {
+        expect(rtms.LANGUAGE_ID_ENGLISH).toBe(9);
+      });
+
+      test('LANGUAGE_ID_NONE constant equals -1', () => {
+        expect(rtms.LANGUAGE_ID_NONE).toBe(-1);
       });
     });
 
