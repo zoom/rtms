@@ -975,6 +975,7 @@ class Client extends nativeRtms.Client {
       meeting_uuid,
       webinar_uuid,
       session_id,
+      engagement_id,
       rtms_stream_id,
       server_urls,
       signature: providedSignature,
@@ -984,12 +985,14 @@ class Client extends nativeRtms.Client {
       pollInterval = 0
     } = options;
 
-    // Use meeting_uuid for Meeting SDK, webinar_uuid for Webinar, session_id for Video SDK
-    const instance_id = meeting_uuid || webinar_uuid || session_id;
+    // Use meeting_uuid for Meeting SDK, webinar_uuid for Webinar,
+    // session_id for Video SDK, engagement_id for ZCC
+    const instance_id = meeting_uuid || webinar_uuid || session_id || engagement_id;
 
     this.pollRate = pollInterval;
 
-    Logger.info('client', `Joining ${meeting_uuid ? 'meeting' : webinar_uuid ? 'webinar' : 'session'}: ${instance_id}`, {
+    const sessionType = meeting_uuid ? 'meeting' : webinar_uuid ? 'webinar' : engagement_id ? 'engagement' : 'session';
+    Logger.info('client', `Joining ${sessionType}: ${instance_id}`, {
       streamId: rtms_stream_id,
       serverUrls: server_urls,
       timeout: providedTimeout,
@@ -997,7 +1000,7 @@ class Client extends nativeRtms.Client {
     });
 
     if (!instance_id) {
-      throw new Error('Either meeting_uuid, webinar_uuid, or session_id must be provided');
+      throw new Error('Either meeting_uuid, webinar_uuid, session_id, or engagement_id must be provided');
     }
 
     const finalSignature = providedSignature || generateSignature({

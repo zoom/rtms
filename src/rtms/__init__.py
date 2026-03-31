@@ -592,6 +592,7 @@ class Client(_ClientBase):
              meeting_uuid: str = None,
              webinar_uuid: str = None,
              session_id: str = None,
+             engagement_id: str = None,
              rtms_stream_id: str = None,
              server_urls: str = None,
              signature: str = None,
@@ -610,6 +611,7 @@ class Client(_ClientBase):
             meeting_uuid (str): Meeting UUID (for Meeting SDK events)
             webinar_uuid (str): Webinar UUID (for Webinar events)
             session_id (str): Session ID (for Video SDK events) - used when meeting_uuid is not provided
+            engagement_id (str): Engagement ID (for ZCC events) - used when meeting_uuid is not provided
             rtms_stream_id (str): RTMS stream ID
             server_urls (str): Server URLs (comma-separated)
             signature (str, optional): Authentication signature. If not provided, will be generated
@@ -632,6 +634,7 @@ class Client(_ClientBase):
                     'meeting_uuid': meeting_uuid,
                     'webinar_uuid': webinar_uuid,
                     'session_id': session_id,
+                    'engagement_id': engagement_id,
                     'rtms_stream_id': rtms_stream_id,
                     'server_urls': server_urls,
                     'signature': signature,
@@ -654,6 +657,7 @@ class Client(_ClientBase):
                 meeting_uuid=meeting_uuid,
                 webinar_uuid=webinar_uuid,
                 session_id=session_id,
+                engagement_id=engagement_id,
                 rtms_stream_id=rtms_stream_id,
                 server_urls=server_urls,
                 signature=signature,
@@ -698,6 +702,7 @@ class Client(_ClientBase):
             meeting_uuid = params.get('meeting_uuid')
             webinar_uuid = params.get('webinar_uuid')
             session_id = params.get('session_id')
+            engagement_id = params.get('engagement_id')
             rtms_stream_id = params.get('rtms_stream_id')
             server_urls = params.get('server_urls')
             signature = params.get('signature')
@@ -707,11 +712,12 @@ class Client(_ClientBase):
             secret = params.get('secret', os.getenv('ZM_RTMS_SECRET'))
             poll_interval = params.get('poll_interval', 10)
 
-            # Use meeting_uuid for Meeting SDK, webinar_uuid for Webinar, session_id for Video SDK
-            instance_id = meeting_uuid or webinar_uuid or session_id
+            # Use meeting_uuid for Meeting SDK, webinar_uuid for Webinar,
+            # session_id for Video SDK, engagement_id for ZCC
+            instance_id = meeting_uuid or webinar_uuid or session_id or engagement_id
 
             if not instance_id:
-                raise ValueError("Either meeting_uuid, webinar_uuid, or session_id is required")
+                raise ValueError("Either meeting_uuid, webinar_uuid, session_id, or engagement_id is required")
             if not rtms_stream_id:
                 raise ValueError("RTMS Stream ID is required")
             if not server_urls:
@@ -728,8 +734,9 @@ class Client(_ClientBase):
             # Store polling interval
             self._polling_interval = poll_interval
 
-            # Join the meeting/webinar/session
-            log_info("client", f"Joining {'meeting' if meeting_uuid else 'webinar' if webinar_uuid else 'session'}: {instance_id}")
+            # Join the meeting/webinar/session/engagement
+            session_type = 'meeting' if meeting_uuid else 'webinar' if webinar_uuid else 'engagement' if engagement_id else 'session'
+            log_info("client", f"Joining {session_type}: {instance_id}")
             super().join(instance_id, rtms_stream_id, signature, server_urls, timeout)
 
             # Start polling thread

@@ -318,6 +318,8 @@ export interface JoinParams {
   webinar_uuid?: string;
   /** The session ID (for Video SDK events) - used when meeting_uuid is not provided */
   session_id?: string;
+  /** The engagement ID (for ZCC events) - used when meeting_uuid is not provided */
+  engagement_id?: string;
   /** The RTMS stream ID for this connection */
   rtms_stream_id: string;
   /** The server URL(s) to connect to */
