@@ -435,47 +435,92 @@ PYBIND11_MODULE(_rtms, m) {
              "Release client resources")
         .def("uuid", &PyClient::uuid,
              "Get meeting UUID")
+        .def("stream_id", &PyClient::streamId,
+             "Get stream ID")
         .def("streamId", &PyClient::streamId,
              "Get stream ID")
+        .def("enable_audio", &PyClient::enableAudio,
+             "Enable/disable audio streaming")
         .def("enableAudio", &PyClient::enableAudio,
              "Enable/disable audio streaming")
+        .def("enable_video", &PyClient::enableVideo,
+             "Enable/disable video streaming")
         .def("enableVideo", &PyClient::enableVideo,
              "Enable/disable video streaming")
+        .def("enable_transcript", &PyClient::enableTranscript,
+             "Enable/disable transcript streaming")
         .def("enableTranscript", &PyClient::enableTranscript,
              "Enable/disable transcript streaming")
+        .def("enable_deskshare", &PyClient::enableDeskshare,
+             "Enable/disable deskshare streaming")
         .def("enableDeskshare", &PyClient::enableDeskshare,
              "Enable/disable deskshare streaming")
+        .def("set_audio_params", &PyClient::setAudioParams,
+             "Set audio parameters")
         .def("setAudioParams", &PyClient::setAudioParams,
              "Set audio parameters")
+        .def("set_video_params", &PyClient::setVideoParams,
+             "Set video parameters")
         .def("setVideoParams", &PyClient::setVideoParams,
              "Set video parameters")
+        .def("set_deskshare_params", &PyClient::setDeskshareParams,
+             "Set deskshare parameters")
         .def("setDeskshareParams", &PyClient::setDeskshareParams,
              "Set deskshare parameters")
+        .def("set_transcript_params", &PyClient::setTranscriptParams,
+             "Set transcript parameters")
         .def("setTranscriptParams", &PyClient::setTranscriptParams,
              "Set transcript parameters")
+        .def("set_proxy", &PyClient::setProxy,
+             "Set proxy for SDK connections",
+             py::arg("proxy_type"), py::arg("proxy_url"))
         .def("setProxy", &PyClient::setProxy,
              "Set proxy for SDK connections",
              py::arg("proxy_type"), py::arg("proxy_url"))
+        .def("on_join_confirm", &PyClient::onJoinConfirm,
+             "Register join confirm callback")
         .def("onJoinConfirm", &PyClient::onJoinConfirm,
              "Register join confirm callback")
+        .def("on_session_update", &PyClient::onSessionUpdate,
+             "Register session update callback")
         .def("onSessionUpdate", &PyClient::onSessionUpdate,
              "Register session update callback")
+        .def("on_user_update", &PyClient::onUserUpdate,
+             "Register user update callback")
         .def("onUserUpdate", &PyClient::onUserUpdate,
              "Register user update callback")
+        .def("on_audio_data", &PyClient::onAudioData,
+             "Register audio data callback")
         .def("onAudioData", &PyClient::onAudioData,
              "Register audio data callback")
+        .def("on_video_data", &PyClient::onVideoData,
+             "Register video data callback")
         .def("onVideoData", &PyClient::onVideoData,
              "Register video data callback")
+        .def("on_deskshare_data", &PyClient::onDeskshareData,
+             "Register deskshare data callback")
         .def("onDeskshareData", &PyClient::onDeskshareData,
              "Register deskshare data callback")
+        .def("on_transcript_data", &PyClient::onTranscriptData,
+             "Register transcript data callback")
         .def("onTranscriptData", &PyClient::onTranscriptData,
              "Register transcript data callback")
+        .def("on_leave", &PyClient::onLeave,
+             "Register leave callback")
         .def("onLeave", &PyClient::onLeave,
              "Register leave callback")
+        .def("on_event_ex", &PyClient::onEventEx,
+             "Register extended event callback")
         .def("onEventEx", &PyClient::onEventEx,
              "Register extended event callback")
+        .def("subscribe_event", &PyClient::subscribeEvent,
+             "Subscribe to receive specific event types",
+             py::arg("events"))
         .def("subscribeEvent", &PyClient::subscribeEvent,
              "Subscribe to receive specific event types",
+             py::arg("events"))
+        .def("unsubscribe_event", &PyClient::unsubscribeEvent,
+             "Unsubscribe from specific event types",
              py::arg("events"))
         .def("unsubscribeEvent", &PyClient::unsubscribeEvent,
              "Unsubscribe from specific event types",

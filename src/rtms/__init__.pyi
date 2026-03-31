@@ -260,55 +260,133 @@ class Client:
         """Get meeting UUID"""
         ...
 
-    def streamId(self) -> str:
+    def stream_id(self) -> str:
         """Get stream ID"""
         ...
+    def streamId(self) -> str:
+        """Get stream ID (legacy camelCase alias)"""
+        ...
 
-    def enableAudio(self, enable: bool) -> None:
+    def enable_audio(self, enable: bool) -> None:
         """Enable/disable audio streaming"""
         ...
+    def enableAudio(self, enable: bool) -> None:
+        """Enable/disable audio streaming (legacy camelCase alias)"""
+        ...
 
-    def enableVideo(self, enable: bool) -> None:
+    def enable_video(self, enable: bool) -> None:
         """Enable/disable video streaming"""
         ...
+    def enableVideo(self, enable: bool) -> None:
+        """Enable/disable video streaming (legacy camelCase alias)"""
+        ...
 
-    def enableTranscript(self, enable: bool) -> None:
+    def enable_transcript(self, enable: bool) -> None:
         """Enable/disable transcript streaming"""
         ...
+    def enableTranscript(self, enable: bool) -> None:
+        """Enable/disable transcript streaming (legacy camelCase alias)"""
+        ...
 
-    def enableDeskshare(self, enable: bool) -> None:
+    def enable_deskshare(self, enable: bool) -> None:
         """Enable/disable deskshare streaming"""
         ...
+    def enableDeskshare(self, enable: bool) -> None:
+        """Enable/disable deskshare streaming (legacy camelCase alias)"""
+        ...
 
-    def setAudioParams(self, params: AudioParams) -> None:
+    def set_audio_params(self, params: AudioParams) -> None:
         """Set audio parameters"""
         ...
-
-    def setVideoParams(self, params: VideoParams) -> None:
-        """Set video parameters"""
+    def setAudioParams(self, params: AudioParams) -> None:
+        """Set audio parameters (legacy camelCase alias)"""
         ...
 
-    def setDeskshareParams(self, params: DeskshareParams) -> None:
+    def set_video_params(self, params: VideoParams) -> None:
+        """Set video parameters"""
+        ...
+    def setVideoParams(self, params: VideoParams) -> None:
+        """Set video parameters (legacy camelCase alias)"""
+        ...
+
+    def set_deskshare_params(self, params: DeskshareParams) -> None:
         """Set deskshare parameters"""
+        ...
+    def setDeskshareParams(self, params: DeskshareParams) -> None:
+        """Set deskshare parameters (legacy camelCase alias)"""
+        ...
+
+    def set_transcript_params(self, params: TranscriptParams) -> None:
+        """Set transcript parameters"""
+        ...
+    def setTranscriptParams(self, params: TranscriptParams) -> None:
+        """Set transcript parameters (legacy camelCase alias)"""
         ...
 
     def set_proxy(self, proxy_type: str, proxy_url: str) -> None:
         """Configure a proxy for SDK connections"""
         ...
-
     def setProxy(self, proxy_type: str, proxy_url: str) -> None:
         """Configure a proxy for SDK connections (legacy camelCase alias)"""
         ...
 
-    def onJoinConfirm(self, callback: Callable[[int], None]) -> None:
+    def on_join_confirm(self, callback: Callable[[int], None]) -> None:
         """Register join confirm callback"""
         ...
-
-    def onSessionUpdate(self, callback: Callable[[int, Session], None]) -> None:
-        """Register session update callback"""
+    def onJoinConfirm(self, callback: Callable[[int], None]) -> None:
+        """Register join confirm callback (legacy camelCase alias)"""
         ...
 
-    def onParticipantEvent(self, callback: ParticipantEventCallback) -> bool:
+    def on_session_update(self, callback: Callable[[int, Session], None]) -> None:
+        """Register session update callback"""
+        ...
+    def onSessionUpdate(self, callback: Callable[[int, Session], None]) -> None:
+        """Register session update callback (legacy camelCase alias)"""
+        ...
+
+    def on_user_update(self, callback: Callable[[int, Participant], None]) -> None:
+        """Register user update callback"""
+        ...
+    def onUserUpdate(self, callback: Callable[[int, Participant], None]) -> None:
+        """Register user update callback (legacy camelCase alias)"""
+        ...
+
+    def on_audio_data(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
+        """Register audio data callback"""
+        ...
+    def onAudioData(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
+        """Register audio data callback (legacy camelCase alias)"""
+        ...
+
+    def on_video_data(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
+        """Register video data callback"""
+        ...
+    def onVideoData(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
+        """Register video data callback (legacy camelCase alias)"""
+        ...
+
+    def on_deskshare_data(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
+        """Register deskshare data callback"""
+        ...
+    def onDeskshareData(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
+        """Register deskshare data callback (legacy camelCase alias)"""
+        ...
+
+    def on_transcript_data(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
+        """Register transcript data callback"""
+        ...
+    def onTranscriptData(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
+        """Register transcript data callback (legacy camelCase alias)"""
+        ...
+
+    def on_leave(self, callback: Callable[[int], None]) -> None:
+        """Register leave callback"""
+        ...
+    def onLeave(self, callback: Callable[[int], None]) -> None:
+        """Register leave callback (legacy camelCase alias)"""
+        ...
+
+    def on_participant_event(self, callback: ParticipantEventCallback) -> bool:
         """
         Register participant join/leave event callback.
 
@@ -324,8 +402,11 @@ class Client:
             True if callback was set successfully
         """
         ...
+    def onParticipantEvent(self, callback: ParticipantEventCallback) -> bool:
+        """Register participant join/leave event callback (legacy camelCase alias)"""
+        ...
 
-    def onActiveSpeakerEvent(self, callback: ActiveSpeakerEventCallback) -> bool:
+    def on_active_speaker_event(self, callback: ActiveSpeakerEventCallback) -> bool:
         """
         Register active speaker change event callback.
 
@@ -341,8 +422,11 @@ class Client:
             True if callback was set successfully
         """
         ...
+    def onActiveSpeakerEvent(self, callback: ActiveSpeakerEventCallback) -> bool:
+        """Register active speaker change event callback (legacy camelCase alias)"""
+        ...
 
-    def onSharingEvent(self, callback: SharingEventCallback) -> bool:
+    def on_sharing_event(self, callback: SharingEventCallback) -> bool:
         """
         Register sharing start/stop event callback.
 
@@ -360,8 +444,11 @@ class Client:
             True if callback was set successfully
         """
         ...
+    def onSharingEvent(self, callback: SharingEventCallback) -> bool:
+        """Register sharing start/stop event callback (legacy camelCase alias)"""
+        ...
 
-    def onMediaConnectionInterrupted(self, callback: Callable[[int], None]) -> bool:
+    def on_media_connection_interrupted(self, callback: Callable[[int], None]) -> bool:
         """
         Register media connection interrupted event callback.
 
@@ -374,8 +461,11 @@ class Client:
             True if callback was set successfully
         """
         ...
+    def onMediaConnectionInterrupted(self, callback: Callable[[int], None]) -> bool:
+        """Register media connection interrupted event callback (legacy camelCase alias)"""
+        ...
 
-    def onEventEx(self, callback: EventExCallback) -> bool:
+    def on_event_ex(self, callback: EventExCallback) -> bool:
         """
         Register raw JSON event callback.
 
@@ -390,32 +480,15 @@ class Client:
             True if callback was set successfully
         """
         ...
-
-    def onAudioData(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
-        """Register audio data callback"""
+    def onEventEx(self, callback: EventExCallback) -> bool:
+        """Register raw JSON event callback (legacy camelCase alias)"""
         ...
 
-    def onVideoData(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
-        """Register video data callback"""
-        ...
-
-    def onDeskshareData(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
-        """Register deskshare data callback"""
-        ...
-
-    def onTranscriptData(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
-        """Register transcript data callback"""
-        ...
-
-    def onLeave(self, callback: Callable[[int], None]) -> None:
-        """Register leave callback"""
-        ...
-
-    def subscribeEvent(self, events: List[int]) -> bool:
+    def subscribe_event(self, events: List[int]) -> bool:
         """
         Subscribe to receive specific event types.
 
-        Note: Typed event callbacks (onParticipantEvent, onActiveSpeakerEvent, etc.)
+        Note: Typed event callbacks (on_participant_event, on_active_speaker_event, etc.)
         automatically subscribe to their respective events.
 
         Args:
@@ -425,8 +498,11 @@ class Client:
             True if subscription was successful
         """
         ...
+    def subscribeEvent(self, events: List[int]) -> bool:
+        """Subscribe to event types (legacy camelCase alias)"""
+        ...
 
-    def unsubscribeEvent(self, events: List[int]) -> bool:
+    def unsubscribe_event(self, events: List[int]) -> bool:
         """
         Unsubscribe from specific event types.
 
@@ -436,6 +512,9 @@ class Client:
         Returns:
             True if unsubscription was successful
         """
+        ...
+    def unsubscribeEvent(self, events: List[int]) -> bool:
+        """Unsubscribe from event types (legacy camelCase alias)"""
         ...
 
     def on_webhook_event(

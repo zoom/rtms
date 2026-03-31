@@ -806,7 +806,7 @@ class Client(_ClientBase):
         """
         return self.leave()
 
-    def setAudioParams(self, params):
+    def set_audio_params(self, params):
         """
         Set audio parameters with validation.
 
@@ -820,9 +820,12 @@ class Client(_ClientBase):
             ValueError: If parameters are invalid
         """
         _validate_audio_params(params)
-        return super().setAudioParams(params)
+        return super().set_audio_params(params)
 
-    def setVideoParams(self, params):
+    # camelCase legacy alias
+    setAudioParams = set_audio_params
+
+    def set_video_params(self, params):
         """
         Set video parameters with validation.
 
@@ -836,9 +839,12 @@ class Client(_ClientBase):
             ValueError: If parameters are invalid
         """
         _validate_video_params(params)
-        return super().setVideoParams(params)
+        return super().set_video_params(params)
 
-    def setDeskshareParams(self, params):
+    # camelCase legacy alias
+    setVideoParams = set_video_params
+
+    def set_deskshare_params(self, params):
         """
         Set deskshare parameters with validation.
 
@@ -852,9 +858,12 @@ class Client(_ClientBase):
             ValueError: If parameters are invalid
         """
         _validate_deskshare_params(params)
-        return super().setDeskshareParams(params)
+        return super().set_deskshare_params(params)
 
-    def setTranscriptParams(self, params):
+    # camelCase legacy alias
+    setDeskshareParams = set_deskshare_params
+
+    def set_transcript_params(self, params):
         """
         Set transcript parameters.
 
@@ -864,10 +873,10 @@ class Client(_ClientBase):
         Returns:
             bool: True if parameters were set successfully
         """
-        return super().setTranscriptParams(params)
+        return super().set_transcript_params(params)
 
-    # snake_case alias
-    set_transcript_params = setTranscriptParams
+    # camelCase legacy alias
+    setTranscriptParams = set_transcript_params
 
     def set_proxy(self, proxy_type: str, proxy_url: str) -> None:
         """Configure a proxy for SDK connections.
@@ -876,16 +885,16 @@ class Client(_ClientBase):
             proxy_type (str): Proxy protocol type (e.g. 'http', 'https').
             proxy_url (str): Full proxy URL including host and port.
         """
-        return super().setProxy(proxy_type, proxy_url)
+        return super().set_proxy(proxy_type, proxy_url)
 
     # camelCase legacy alias
     setProxy = set_proxy
 
-    def subscribeEvent(self, events):
+    def subscribe_event(self, events):
         """
         Subscribe to receive specific event types.
 
-        Note: Calling onParticipantEvent() automatically subscribes to
+        Note: Calling on_participant_event() automatically subscribes to
         EVENT_PARTICIPANT_JOIN and EVENT_PARTICIPANT_LEAVE events.
 
         Args:
@@ -894,9 +903,12 @@ class Client(_ClientBase):
         Returns:
             bool: True if subscription was successful
         """
-        return super().subscribeEvent(events)
+        return super().subscribe_event(events)
 
-    def unsubscribeEvent(self, events):
+    # camelCase legacy alias
+    subscribeEvent = subscribe_event
+
+    def unsubscribe_event(self, events):
         """
         Unsubscribe from specific event types.
 
@@ -906,7 +918,10 @@ class Client(_ClientBase):
         Returns:
             bool: True if unsubscription was successful
         """
-        return super().unsubscribeEvent(events)
+        return super().unsubscribe_event(events)
+
+    # camelCase legacy alias
+    unsubscribeEvent = unsubscribe_event
 
     def _setup_event_handler(self):
         """
@@ -973,9 +988,9 @@ class Client(_ClientBase):
             except Exception as e:
                 log_error('client', f'Failed to parse event: {e}')
 
-        super().onEventEx(event_dispatcher)
+        super().on_event_ex(event_dispatcher)
 
-    def onParticipantEvent(self, callback: Callable[[str, int, list], None]) -> bool:
+    def on_participant_event(self, callback: Callable[[str, int, list], None]) -> bool:
         """
         Register a callback for participant join/leave events.
 
@@ -994,17 +1009,20 @@ class Client(_ClientBase):
         Example:
             >>> def on_participant(event, timestamp, participants):
             ...     print(f"Participant {event}: {participants}")
-            >>> client.onParticipantEvent(on_participant)
+            >>> client.on_participant_event(on_participant)
         """
         self._participant_event_callback = callback
         self._setup_event_handler()
         try:
-            self.subscribeEvent([EVENT_PARTICIPANT_JOIN, EVENT_PARTICIPANT_LEAVE])
+            self.subscribe_event([EVENT_PARTICIPANT_JOIN, EVENT_PARTICIPANT_LEAVE])
         except Exception as e:
             log_warn('client', f'Failed to auto-subscribe to participant events: {e}')
         return True
 
-    def onActiveSpeakerEvent(self, callback: Callable[[int, int, str], None]) -> bool:
+    # camelCase legacy alias
+    onParticipantEvent = on_participant_event
+
+    def on_active_speaker_event(self, callback: Callable[[int, int, str], None]) -> bool:
         """
         Register a callback for active speaker change events.
 
@@ -1019,17 +1037,20 @@ class Client(_ClientBase):
         Example:
             >>> def on_speaker(timestamp, user_id, user_name):
             ...     print(f"Active speaker: {user_name} ({user_id})")
-            >>> client.onActiveSpeakerEvent(on_speaker)
+            >>> client.on_active_speaker_event(on_speaker)
         """
         self._active_speaker_callback = callback
         self._setup_event_handler()
         try:
-            self.subscribeEvent([EVENT_ACTIVE_SPEAKER_CHANGE])
+            self.subscribe_event([EVENT_ACTIVE_SPEAKER_CHANGE])
         except Exception as e:
             log_warn('client', f'Failed to auto-subscribe to active speaker events: {e}')
         return True
 
-    def onSharingEvent(self, callback: Callable[[str, int, Optional[int], Optional[str]], None]) -> bool:
+    # camelCase legacy alias
+    onActiveSpeakerEvent = on_active_speaker_event
+
+    def on_sharing_event(self, callback: Callable[[str, int, Optional[int], Optional[str]], None]) -> bool:
         """
         Register a callback for sharing start/stop events.
 
@@ -1049,17 +1070,20 @@ class Client(_ClientBase):
         Example:
             >>> def on_sharing(event, timestamp, user_id, user_name):
             ...     print(f"Sharing {event} by {user_name}")
-            >>> client.onSharingEvent(on_sharing)
+            >>> client.on_sharing_event(on_sharing)
         """
         self._sharing_callback = callback
         self._setup_event_handler()
         try:
-            self.subscribeEvent([EVENT_SHARING_START, EVENT_SHARING_STOP])
+            self.subscribe_event([EVENT_SHARING_START, EVENT_SHARING_STOP])
         except Exception as e:
             log_warn('client', f'Failed to auto-subscribe to sharing events: {e}')
         return True
 
-    def onMediaConnectionInterrupted(self, callback: Callable[[int], None]) -> bool:
+    # camelCase legacy alias
+    onSharingEvent = on_sharing_event
+
+    def on_media_connection_interrupted(self, callback: Callable[[int], None]) -> bool:
         """
         Register a callback for media connection interrupted events.
 
@@ -1074,17 +1098,20 @@ class Client(_ClientBase):
         Example:
             >>> def on_interrupted(timestamp):
             ...     print(f"Media connection interrupted at {timestamp}")
-            >>> client.onMediaConnectionInterrupted(on_interrupted)
+            >>> client.on_media_connection_interrupted(on_interrupted)
         """
         self._media_interrupted_callback = callback
         self._setup_event_handler()
         try:
-            self.subscribeEvent([EVENT_MEDIA_CONNECTION_INTERRUPTED])
+            self.subscribe_event([EVENT_MEDIA_CONNECTION_INTERRUPTED])
         except Exception as e:
             log_warn('client', f'Failed to auto-subscribe to media connection interrupted events: {e}')
         return True
 
-    def onEventEx(self, callback: Callable[[str], None]) -> bool:
+    # camelCase legacy alias
+    onMediaConnectionInterrupted = on_media_connection_interrupted
+
+    def on_event_ex(self, callback: Callable[[str], None]) -> bool:
         """
         Register a callback for raw event data.
 
@@ -1101,6 +1128,9 @@ class Client(_ClientBase):
         self._raw_event_callback = callback
         self._setup_event_handler()
         return True
+
+    # camelCase legacy alias
+    onEventEx = on_event_ex
 
     def leave(self):
         """
