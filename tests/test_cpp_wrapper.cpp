@@ -774,3 +774,72 @@ TEST_CASE("setOnTranscriptData enables TRANSCRIPT media type via config", "[clie
     REQUIRE(g_mock_state.config_calls >= 1);
     CHECK(g_mock_state.last_media_types & Client::TRANSCRIPT);
 }
+
+// ============================================================================
+// TranscriptParams
+// ============================================================================
+
+TEST_CASE("TranscriptParams default constructor", "[params][transcript]") {
+    R _;
+    TranscriptParams p;
+    CHECK(p.contentType()   == 5);     // TEXT
+    CHECK(p.srcLanguage()   == -1);    // LANGUAGE_ID_NONE — auto-detect
+    CHECK(p.enableLid()     == true);
+}
+
+TEST_CASE("TranscriptParams setters round-trip", "[params][transcript]") {
+    R _;
+    TranscriptParams p;
+    p.setSrcLanguage(9);   // LANGUAGE_ID_ENGLISH
+    p.setEnableLid(false);
+    CHECK(p.srcLanguage() == 9);
+    CHECK(p.enableLid()   == false);
+}
+
+TEST_CASE("TranscriptParams toNative() maps fields correctly", "[params][transcript]") {
+    R _;
+    TranscriptParams p;
+    p.setSrcLanguage(9);
+    p.setEnableLid(false);
+    auto n = p.toNative();
+    CHECK(n.content_type  == 5);
+    CHECK(n.src_language  == 9);
+    CHECK(n.enable_lid    == false);
+}
+
+TEST_CASE("MediaParams setTranscriptParams / hasTranscriptParams", "[params][media][transcript]") {
+    R _;
+    MediaParams mp;
+    CHECK_FALSE(mp.hasTranscriptParams());
+
+    TranscriptParams tp;
+    mp.setTranscriptParams(tp);
+    REQUIRE(mp.hasTranscriptParams());
+    CHECK(mp.transcriptParams().contentType() == 5);
+}
+
+TEST_CASE("MediaParams toNative() produces non-null tr_param when set", "[params][media][transcript]") {
+    R _;
+    MediaParams mp;
+    mp.setTranscriptParams(TranscriptParams());
+    auto n = mp.toNative();
+    REQUIRE(n.tr_param != nullptr);
+    CHECK(n.tr_param->content_type == 5);
+    CHECK(n.tr_param->enable_lid   == true);
+    delete n.tr_param;
+}
+
+TEST_CASE("Client::setTranscriptParams calls config with updated params", "[client][transcript]") {
+    R _;
+    Client c;
+    // Enable transcript first so the reconfigure path runs
+    c.setOnTranscriptData([](const std::vector<uint8_t>&, uint64_t, const Metadata&) {});
+    int calls_before = g_mock_state.config_calls;
+
+    TranscriptParams tp;
+    tp.setSrcLanguage(14); // LANGUAGE_ID_GERMAN
+    c.setTranscriptParams(tp);
+
+    // Should have called config() again with the updated params
+    CHECK(g_mock_state.config_calls > calls_before);
+}
