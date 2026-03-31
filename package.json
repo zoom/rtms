@@ -17,6 +17,7 @@
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "cmake-js": "^8.0.0",
+    "ts-jest": "^29.4.6",
     "typedoc": "^0.28.14",
     "typedoc-plugin-missing-exports": "^4.1.2",
     "typescript": "^5.9.3"
