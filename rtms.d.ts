@@ -827,7 +827,16 @@ export class Client {
    * @returns true if the operation succeeds
    */
     setDeskshareParams(params: DeskshareParams): boolean;
-  
+
+  /**
+   * Configures a proxy for SDK connections.
+   *
+   * @param proxy_type Proxy protocol type (e.g. `'http'`, `'https'`)
+   * @param proxy_url Full proxy URL including host and port
+   * @returns true if the operation succeeds
+   */
+  setProxy(proxy_type: string, proxy_url: string): boolean;
+
   /**
    * Sets a callback for join confirmation events
    * 

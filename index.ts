@@ -1079,6 +1079,10 @@ class Client extends nativeRtms.Client {
     );
   }
 
+  setProxy(proxy_type: string, proxy_url: string): boolean {
+    return super.setProxy(proxy_type, proxy_url);
+  }
+
   /**
    * Register a callback for participant join/leave events
    *

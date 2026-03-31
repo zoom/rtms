@@ -35,6 +35,7 @@ private:
     Napi::Value setAudioParams(const Napi::CallbackInfo& info);
     Napi::Value setVideoParams(const Napi::CallbackInfo& info);
     Napi::Value setTranscriptParams(const Napi::CallbackInfo& info);
+    Napi::Value setProxy(const Napi::CallbackInfo& info);
 
     Napi::Value setOnJoinConfirm(const Napi::CallbackInfo& info);
     Napi::Value setOnSessionUpdate(const Napi::CallbackInfo& info);
@@ -293,6 +294,28 @@ Napi::Value NodeClient::setTranscriptParams(const Napi::CallbackInfo& info) {
     try {
         client_->setTranscriptParams(transcript_params);
     } catch (const std::invalid_argument& e) {
+        Napi::Error::New(env, e.what()).ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    return Napi::Boolean::New(env, true);
+}
+
+Napi::Value NodeClient::setProxy(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::HandleScope scope(env);
+
+    if (info.Length() < 2 || !info[0].IsString() || !info[1].IsString()) {
+        Napi::TypeError::New(env, "Two string arguments expected: proxy_type, proxy_url").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    std::string proxy_type = info[0].As<Napi::String>().Utf8Value();
+    std::string proxy_url  = info[1].As<Napi::String>().Utf8Value();
+
+    try {
+        client_->setProxy(proxy_type, proxy_url);
+    } catch (const rtms::Exception& e) {
         Napi::Error::New(env, e.what()).ThrowAsJavaScriptException();
         return env.Null();
     }
@@ -812,6 +835,7 @@ Napi::Object NodeClient::init(Napi::Env env, Napi::Object exports) {
         InstanceMethod("setAudioParams", &NodeClient::setAudioParams),
         InstanceMethod("setVideoParams", &NodeClient::setVideoParams),
         InstanceMethod("setTranscriptParams", &NodeClient::setTranscriptParams),
+        InstanceMethod("setProxy", &NodeClient::setProxy),
         InstanceMethod("onJoinConfirm", &NodeClient::setOnJoinConfirm),
         InstanceMethod("onSessionUpdate", &NodeClient::setOnSessionUpdate),
         InstanceMethod("onUserUpdate", &NodeClient::setOnUserUpdate),
