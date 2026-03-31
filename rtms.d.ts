@@ -296,6 +296,70 @@ export interface DeskshareParams {
   fps?: number;
 }
 
+/**
+ * Configuration parameters for transcript streams
+ *
+ * @category Media Configuration
+ */
+export interface TranscriptParams {
+  /** Source language ID. Use TranscriptLanguage constants. Default: NONE (auto-detect after 30s) */
+  srcLanguage?: number;
+  /** Enable Language Identification. Default: true */
+  enableLid?: boolean;
+}
+
+/**
+ * Language ID constants for use with TranscriptParams.srcLanguage
+ *
+ * @example
+ * ```typescript
+ * const params = new rtms.TranscriptParams();
+ * params.setSrcLanguage(rtms.TranscriptLanguage.ENGLISH);
+ * ```
+ *
+ * @category Constants
+ */
+export const TranscriptLanguage: {
+  readonly NONE: number;
+  readonly ARABIC: number;
+  readonly BENGALI: number;
+  readonly CANTONESE: number;
+  readonly CATALAN: number;
+  readonly CHINESE_SIMPLIFIED: number;
+  readonly CHINESE_TRADITIONAL: number;
+  readonly CZECH: number;
+  readonly DANISH: number;
+  readonly DUTCH: number;
+  readonly ENGLISH: number;
+  readonly ESTONIAN: number;
+  readonly FINNISH: number;
+  readonly FRENCH_CANADA: number;
+  readonly FRENCH_FRANCE: number;
+  readonly GERMAN: number;
+  readonly HEBREW: number;
+  readonly HINDI: number;
+  readonly HUNGARIAN: number;
+  readonly INDONESIAN: number;
+  readonly ITALIAN: number;
+  readonly JAPANESE: number;
+  readonly KOREAN: number;
+  readonly MALAY: number;
+  readonly PERSIAN: number;
+  readonly POLISH: number;
+  readonly PORTUGUESE: number;
+  readonly ROMANIAN: number;
+  readonly RUSSIAN: number;
+  readonly SPANISH: number;
+  readonly SWEDISH: number;
+  readonly TAGALOG: number;
+  readonly TAMIL: number;
+  readonly TELUGU: number;
+  readonly THAI: number;
+  readonly TURKISH: number;
+  readonly UKRAINIAN: number;
+  readonly VIETNAMESE: number;
+};
+
 
 //-----------------------------------------------------------------------------------
 // Parameter interfaces

@@ -94,6 +94,10 @@ public:
         client_->setDeskshareParams(params);
     }
 
+    void setTranscriptParams(const TranscriptParams& params) {
+        client_->setTranscriptParams(params);
+    }
+
     // ========================================================================
     // Callback Registration Methods
     // ========================================================================
@@ -355,6 +359,54 @@ PYBIND11_MODULE(_rtms, m) {
         .def_property("resolution", &DeskshareParams::resolution, &DeskshareParams::setResolution)
         .def_property("fps", &DeskshareParams::fps, &DeskshareParams::setFps);
 
+    py::class_<TranscriptParams>(m, "TranscriptParams")
+        .def(py::init<>())
+        .def_property("content_type", &TranscriptParams::contentType, &TranscriptParams::setContentType)
+        .def_property("src_language", &TranscriptParams::srcLanguage, &TranscriptParams::setSrcLanguage)
+        .def_property("enable_lid", &TranscriptParams::enableLid, &TranscriptParams::setEnableLid);
+
+    // TranscriptLanguage constants dict (matches pattern of AudioCodec, VideoCodec, etc.)
+    py::dict transcriptLanguage;
+    transcriptLanguage["NONE"]                = -1;
+    transcriptLanguage["ARABIC"]              = 0;
+    transcriptLanguage["BENGALI"]             = 1;
+    transcriptLanguage["CANTONESE"]           = 2;
+    transcriptLanguage["CATALAN"]             = 3;
+    transcriptLanguage["CHINESE_SIMPLIFIED"]  = 4;
+    transcriptLanguage["CHINESE_TRADITIONAL"] = 5;
+    transcriptLanguage["CZECH"]               = 6;
+    transcriptLanguage["DANISH"]              = 7;
+    transcriptLanguage["DUTCH"]               = 8;
+    transcriptLanguage["ENGLISH"]             = 9;
+    transcriptLanguage["ESTONIAN"]            = 10;
+    transcriptLanguage["FINNISH"]             = 11;
+    transcriptLanguage["FRENCH_CANADA"]       = 12;
+    transcriptLanguage["FRENCH_FRANCE"]       = 13;
+    transcriptLanguage["GERMAN"]              = 14;
+    transcriptLanguage["HEBREW"]              = 15;
+    transcriptLanguage["HINDI"]               = 16;
+    transcriptLanguage["HUNGARIAN"]           = 17;
+    transcriptLanguage["INDONESIAN"]          = 18;
+    transcriptLanguage["ITALIAN"]             = 19;
+    transcriptLanguage["JAPANESE"]            = 20;
+    transcriptLanguage["KOREAN"]              = 21;
+    transcriptLanguage["MALAY"]               = 22;
+    transcriptLanguage["PERSIAN"]             = 23;
+    transcriptLanguage["POLISH"]              = 24;
+    transcriptLanguage["PORTUGUESE"]          = 25;
+    transcriptLanguage["ROMANIAN"]            = 26;
+    transcriptLanguage["RUSSIAN"]             = 27;
+    transcriptLanguage["SPANISH"]             = 28;
+    transcriptLanguage["SWEDISH"]             = 29;
+    transcriptLanguage["TAGALOG"]             = 30;
+    transcriptLanguage["TAMIL"]               = 31;
+    transcriptLanguage["TELUGU"]              = 32;
+    transcriptLanguage["THAI"]                = 33;
+    transcriptLanguage["TURKISH"]             = 34;
+    transcriptLanguage["UKRAINIAN"]           = 35;
+    transcriptLanguage["VIETNAMESE"]          = 36;
+    m.attr("TranscriptLanguage") = transcriptLanguage;
+
     // ========================================================================
     // Client Class
     // ========================================================================
@@ -394,6 +446,8 @@ PYBIND11_MODULE(_rtms, m) {
              "Set video parameters")
         .def("setDeskshareParams", &PyClient::setDeskshareParams,
              "Set deskshare parameters")
+        .def("setTranscriptParams", &PyClient::setTranscriptParams,
+             "Set transcript parameters")
         .def("onJoinConfirm", &PyClient::onJoinConfirm,
              "Register join confirm callback")
         .def("onSessionUpdate", &PyClient::onSessionUpdate,

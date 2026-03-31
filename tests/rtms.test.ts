@@ -55,13 +55,16 @@ jest.mock("../index.ts", () => {
       setEnableLid: jest.fn(),
     })),
 
-    // Language ID constants
-    LANGUAGE_ID_NONE: -1,
-    LANGUAGE_ID_ENGLISH: 9,
-    LANGUAGE_ID_FRENCH_FRANCE: 13,
-    LANGUAGE_ID_GERMAN: 14,
-    LANGUAGE_ID_JAPANESE: 20,
-    LANGUAGE_ID_SPANISH: 28,
+    // Transcript language constants (mirrors AudioCodec pattern)
+    TranscriptLanguage: {
+      NONE: -1,
+      ARABIC: 0,
+      ENGLISH: 9,
+      FRENCH_FRANCE: 13,
+      GERMAN: 14,
+      JAPANESE: 20,
+      SPANISH: 28,
+    },
 
     // Utility functions
     initialize: jest.fn().mockReturnValue(true),
@@ -365,12 +368,12 @@ describe('RTMS Node.JS Addon Comprehensive Test Suite', () => {
         expect(result).toBe(true);
       });
 
-      test('LANGUAGE_ID_ENGLISH constant equals 9', () => {
-        expect(rtms.LANGUAGE_ID_ENGLISH).toBe(9);
+      test('TranscriptLanguage.ENGLISH equals 9', () => {
+        expect(rtms.TranscriptLanguage.ENGLISH).toBe(9);
       });
 
-      test('LANGUAGE_ID_NONE constant equals -1', () => {
-        expect(rtms.LANGUAGE_ID_NONE).toBe(-1);
+      test('TranscriptLanguage.NONE equals -1', () => {
+        expect(rtms.TranscriptLanguage.NONE).toBe(-1);
       });
     });
 

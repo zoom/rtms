@@ -83,6 +83,22 @@ protected:
     int data_opt_;
 };
 
+class TranscriptParams : public BaseMediaParams {
+public:
+    TranscriptParams();
+
+    void setSrcLanguage(int src_language);
+    void setEnableLid(bool enable_lid);
+    int srcLanguage() const;
+    bool enableLid() const;
+
+    transcript_parameters toNative() const;
+
+private:
+    int src_language_;
+    bool enable_lid_;
+};
+
 class DeskshareParams : public BaseMediaParams {
 public:
         DeskshareParams();
@@ -193,6 +209,12 @@ class MediaParams {
                 } else {
                     ds_params_.reset();
                 }
+
+                if (other.hasTranscriptParams()) {
+                    transcript_params_ = std::make_unique<TranscriptParams>(other.transcriptParams());
+                } else {
+                    transcript_params_.reset();
+                }
             }
             return *this;
         }
@@ -200,14 +222,17 @@ class MediaParams {
         void setDeskshareParams(const DeskshareParams& ds_params);
         void setAudioParams(const AudioParams& audio_params);
         void setVideoParams(const VideoParams& video_params);
+        void setTranscriptParams(const TranscriptParams& transcript_params);
 
         const DeskshareParams& deskshareParams() const;
         const AudioParams& audioParams() const;
         const VideoParams& videoParams() const;
+        const TranscriptParams& transcriptParams() const;
 
         bool hasDeskshareParams() const;
         bool hasAudioParams() const;
         bool hasVideoParams() const;
+        bool hasTranscriptParams() const;
 
         media_parameters toNative() const;
 
@@ -215,6 +240,7 @@ class MediaParams {
         std::unique_ptr<DeskshareParams> ds_params_;
         std::unique_ptr<AudioParams> audio_params_;
         std::unique_ptr<VideoParams> video_params_;
+        std::unique_ptr<TranscriptParams> transcript_params_;
     };
 
 class Client : public rtms_sdk_sink {
@@ -288,6 +314,7 @@ public:
     void setDeskshareParams(const DeskshareParams& ds_params);
     void setVideoParams(const VideoParams& video_params);
     void setAudioParams(const AudioParams& audio_params);
+    void setTranscriptParams(const TranscriptParams& transcript_params);
 
     void join(const string& meeting_uuid, const string& rtms_stream_id, const string& signature, const string& server_url, int timeout = -1);
 

@@ -368,13 +368,17 @@ class TestTranscriptParams:
         assert p.src_language == 9
         assert p.enable_lid is False
 
-    def test_language_id_english_constant(self):
-        """LANGUAGE_ID_ENGLISH should be 9."""
-        assert rtms.LANGUAGE_ID_ENGLISH == 9
+    def test_transcript_language_dict_exists(self):
+        """TranscriptLanguage constant dict should exist."""
+        assert hasattr(rtms, 'TranscriptLanguage')
 
-    def test_language_id_none_constant(self):
-        """LANGUAGE_ID_NONE should be -1."""
-        assert rtms.LANGUAGE_ID_NONE == -1
+    def test_transcript_language_english(self):
+        """TranscriptLanguage['ENGLISH'] should be 9."""
+        assert rtms.TranscriptLanguage['ENGLISH'] == 9
+
+    def test_transcript_language_none(self):
+        """TranscriptLanguage['NONE'] should be -1 (auto-detect)."""
+        assert rtms.TranscriptLanguage['NONE'] == -1
 
     def test_client_has_set_transcript_params(self):
         """Client should expose set_transcript_params() method."""
@@ -386,14 +390,13 @@ class TestTranscriptParams:
         """Calling set_transcript_params with a valid TranscriptParams should not raise."""
         client = rtms.Client()
         p = rtms.TranscriptParams()
-        p.src_language = 9
+        p.src_language = rtms.TranscriptLanguage['ENGLISH']
         client.set_transcript_params(p)
 
     def test_transcript_params_exported_in_all(self):
-        """TranscriptParams and language constants should appear in rtms.__all__."""
+        """TranscriptParams and TranscriptLanguage dict should appear in rtms.__all__."""
         assert 'TranscriptParams' in rtms.__all__
-        assert 'LANGUAGE_ID_ENGLISH' in rtms.__all__
-        assert 'LANGUAGE_ID_NONE' in rtms.__all__
+        assert 'TranscriptLanguage' in rtms.__all__
 
 
 class TestZccEngagementId:
