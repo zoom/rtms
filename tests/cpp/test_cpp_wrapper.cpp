@@ -12,6 +12,7 @@
  *   - Callback dispatch (via mock_trigger_* helpers)
  *   - Event subscription deferral / on-confirm flush
  *   - Media type auto-enable on callback registration
+ *   - setProxy forwarding and error handling
  */
 
 #include <catch2/catch_test_macros.hpp>
@@ -842,4 +843,36 @@ TEST_CASE("Client::setTranscriptParams calls config with updated params", "[clie
 
     // Should have called config() again with the updated params
     CHECK(g_mock_state.config_calls > calls_before);
+}
+
+// ============================================================================
+// Client::setProxy
+// ============================================================================
+
+TEST_CASE("Client::setProxy forwards proxy_type and proxy_url to SDK", "[client][proxy]") {
+    R _;
+    Client c;
+    c.setProxy("http", "http://proxy.example.com:8080");
+    CHECK(g_mock_state.proxy_calls    == 1);
+    CHECK(g_mock_state.last_proxy_type == "http");
+    CHECK(g_mock_state.last_proxy_url  == "http://proxy.example.com:8080");
+}
+
+TEST_CASE("Client::setProxy works for https proxy", "[client][proxy]") {
+    R _;
+    Client c;
+    c.setProxy("https", "https://proxy.example.com:8080");
+    CHECK(g_mock_state.proxy_calls    == 1);
+    CHECK(g_mock_state.last_proxy_type == "https");
+    CHECK(g_mock_state.last_proxy_url  == "https://proxy.example.com:8080");
+}
+
+TEST_CASE("Client::setProxy throws on SDK failure", "[client][proxy]") {
+    R _;
+    g_mock_state.proxy_result = RTMS_SDK_FAILURE;
+    Client c;
+    REQUIRE_THROWS_WITH(
+        c.setProxy("http", "http://proxy.example.com:8080"),
+        ContainsSubstring("setProxy failed")
+    );
 }
