@@ -322,14 +322,14 @@ if(RTMS_BUILD_TESTS)
 
   add_executable(rtms_tests
     "${RTMS_SOURCE_DIR}/rtms.cpp"
-    "${CMAKE_SOURCE_DIR}/tests/mock_sdk.cpp"
-    "${CMAKE_SOURCE_DIR}/tests/test_cpp_wrapper.cpp"
+    "${CMAKE_SOURCE_DIR}/tests/cpp/mock_sdk.cpp"
+    "${CMAKE_SOURCE_DIR}/tests/cpp/test_cpp_wrapper.cpp"
   )
 
   target_include_directories(rtms_tests PRIVATE
     ${RTMS_HEADER_DIR}
     ${RTMS_SOURCE_DIR}
-    "${CMAKE_SOURCE_DIR}/tests"
+    "${CMAKE_SOURCE_DIR}/tests/cpp"
   )
 
   target_compile_features(rtms_tests PRIVATE cxx_std_20)

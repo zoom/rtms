@@ -216,13 +216,13 @@ tasks:
     desc: "Run Node.js tests (local)"
     deps: [build:js]
     cmds:
-      - npx jest tests/rtms.test.ts
+      - npx jest tests/ts/rtms.test.ts tests/ts/rtms.wrapper.test.ts
 
   test:js:integration:
     desc: "Run npm pack → install → load integration test"
     deps: [build:js]
     cmds:
-      - npx jest tests/pack-install.test.js --testTimeout=120000
+      - npx jest tests/ts/pack-install.test.js --testTimeout=120000
 
   test:js:linux:
     desc: "Run Node.js tests in Linux Docker"
@@ -234,7 +234,7 @@ tasks:
     deps: [build:py]
     cmds:
       - .venv/bin/pip install --force-reinstall --find-links=dist/py rtms --quiet
-      - .venv/bin/pytest tests/test_rtms.py -v
+      - .venv/bin/pytest tests/py/test_rtms.py -v
 
   test:py:linux:
     desc: "Run Python tests in Linux Docker"

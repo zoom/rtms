@@ -13,7 +13,7 @@ import { execSync } from 'child_process';
 import { existsSync } from 'fs';
 import * as path from 'path';
 
-const BUILD = path.resolve(__dirname, '../build/Release/index.js');
+const BUILD = path.resolve(__dirname, '../../build/Release/index.js');
 
 // The built module uses a default export. Prefix every eval with this preamble.
 const PREAMBLE = `import * as _mod from '${BUILD}'; const rtms = _mod.default;`;

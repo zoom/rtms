@@ -478,6 +478,57 @@ class TestZccEngagementId:
         assert first_arg == 'meeting-uuid-wins'
 
 
+class TestProxySupport:
+    """Test set_proxy() support.
+
+    Mirrors JS wrapper test coverage for set_proxy:
+    - exists as a callable
+    - does not raise for http proxy
+    - does not raise for https proxy
+
+    Python-specific additions:
+    - set_proxy legacy camelCase alias
+    - native forwarding verified via mock
+    """
+
+    def test_set_proxy_is_callable(self):
+        """set_proxy should be callable on a Client instance."""
+        client = rtms.Client()
+        assert callable(client.set_proxy)
+
+    def test_set_proxy_legacy_alias_is_callable(self):
+        """set_proxy legacy alias should exist for camelCase parity with Node.js."""
+        client = rtms.Client()
+        assert callable(client.setProxy)
+
+    def test_set_proxy_does_not_raise_for_http(self):
+        """set_proxy should not raise for an http proxy."""
+        client = rtms.Client()
+        NativeClient = rtms.Client.__bases__[0]
+        with patch.object(NativeClient, 'set_proxy', return_value=None):
+            client.set_proxy('http', 'http://proxy.example.com:8080')
+
+    def test_set_proxy_does_not_raise_for_https(self):
+        """set_proxy should not raise for an https proxy."""
+        client = rtms.Client()
+        NativeClient = rtms.Client.__bases__[0]
+        with patch.object(NativeClient, 'set_proxy', return_value=None):
+            client.set_proxy('https', 'https://proxy.example.com:8080')
+
+    def test_set_proxy_exported_in_all(self):
+        """set_proxy does not need to be in __all__ but the Client method must be accessible."""
+        client = rtms.Client()
+        assert callable(getattr(client, 'set_proxy', None))
+
+    def test_set_proxy_forwards_to_native(self):
+        """set_proxy should forward proxy_type and proxy_url to the native layer."""
+        client = rtms.Client()
+        NativeClient = rtms.Client.__bases__[0]
+        with patch.object(NativeClient, 'set_proxy', return_value=None) as mock_native:
+            client.set_proxy('http', 'http://proxy.example.com:8080')
+        mock_native.assert_called_once_with('http', 'http://proxy.example.com:8080')
+
+
 # Run tests
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

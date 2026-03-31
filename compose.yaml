@@ -52,7 +52,7 @@ services:
         TARGET: js
     environment:
       - GITHUB_TOKEN
-    command: sh -c "task setup && task build:js && npx jest tests/"
+    command: sh -c "task setup && task build:js && npx jest tests/ts/"
 
   test-py:
     <<: *base
@@ -60,7 +60,7 @@ services:
       context: .
       args:
         TARGET: py
-    command: sh -c "task build:py && pip install --find-links=dist/py rtms --quiet && pytest tests/test_rtms.py -v"
+    command: sh -c "task build:py && pip install --find-links=dist/py rtms --quiet && pytest tests/py/test_rtms.py -v"
 
   # =============================================================================
   # Docs Service - Documentation generation

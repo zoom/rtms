@@ -1,7 +1,7 @@
-const rtms = require("../index.ts")
+const rtms = require("../../index.ts")
 
 // Mock the native addon methods for both Client and global functions
-jest.mock("../index.ts", () => {
+jest.mock("../../index.ts", () => {
   // Create mock functions for all methods
   const mockFunctions = {
     // Client class methods
@@ -218,7 +218,7 @@ describe('RTMS Node.JS Addon Comprehensive Test Suite', () => {
 
   // ---- Class-based approach tests ----
   describe('Class-based Client Approach', () => {
-    let client;
+    let client: InstanceType<typeof rtms.Client>;
 
     beforeEach(() => {
       client = new rtms.Client();
