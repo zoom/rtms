@@ -789,6 +789,14 @@ void Client::setTranscriptParams(const TranscriptParams& transcript_params)
     }
 }
 
+void Client::setProxy(const string& proxy_type, const string& proxy_url)
+{
+    int result = sdk_->set_proxy(proxy_type.c_str(), proxy_url.c_str());
+    if (result != 0) {
+        throw Exception(result, "setProxy failed: Operation failed");
+    }
+}
+
 void Client::join(const string& meeting_uuid, const string& rtms_stream_id,
                     const string& signature, const string& server_url, int timeout) {
     // Register this client as the sink — replaces the old static callback registry

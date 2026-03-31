@@ -562,6 +562,7 @@ public:
     void setVideoParams(const VideoParams& video_params);
     void setAudioParams(const AudioParams& audio_params);
     void setTranscriptParams(const TranscriptParams& transcript_params);
+    void setProxy(const string& proxy_type, const string& proxy_url);
 
     void join(const string& meeting_uuid, const string& rtms_stream_id, const string& signature, const string& server_url, int timeout = -1);
 
