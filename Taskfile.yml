@@ -230,11 +230,11 @@ tasks:
       - docker compose run --rm test-js
 
   test:py:
-    desc: "Run Python tests (local)"
+    desc: "Run Python tests (local darwin)"
     deps: [build:py]
     cmds:
-      - python -m pip install --find-links=dist/py rtms
-      - pytest tests/test_rtms.py -v
+      - .venv/bin/pip install --force-reinstall --find-links=dist/py rtms --quiet
+      - .venv/bin/pytest tests/test_rtms.py -v
 
   test:py:linux:
     desc: "Run Python tests in Linux Docker"

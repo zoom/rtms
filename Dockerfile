@@ -31,31 +31,40 @@ RUN apt update && apt install -y \
 # Install nvm (Node Version Manager) and Node.js
 ENV NVM_DIR="/root/.nvm"
 ENV NODE_VERSION="24"
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash \
-    && . "$NVM_DIR/nvm.sh" \
-    && nvm install $NODE_VERSION \
-    && nvm alias default $NODE_VERSION \
-    && nvm use default \
-    && npm config set update-notifier false \
-    && ln -sf "$NVM_DIR/versions/node/$(nvm version default)" /usr/local/node
-
-# Add Node.js to PATH
 ENV PATH="/usr/local/node/bin:$PATH"
+
+RUN if [ "$TARGET" = "js" ] || [ "$TARGET" = "all" ]; then \
+        echo "Installing NVM..." \
+        && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash \
+        && . "$NVM_DIR/nvm.sh" \
+        && nvm install $NODE_VERSION \
+        && nvm alias default $NODE_VERSION \
+        && nvm use default \
+        && npm config set update-notifier false \
+        && ln -sf "$NVM_DIR/versions/node/$(nvm version default)" /usr/local/node; \
+    fi
+
 
 # Install pyenv (Python Version Manager)
 ENV PYENV_ROOT="/root/.pyenv"
 ENV PYTHON_VERSION="3.13"
-RUN git clone https://github.com/pyenv/pyenv.git $PYENV_ROOT \
-    && cd $PYENV_ROOT && src/configure && make -C src \
-    && echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc \
-    && echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc \
-    && echo 'eval "$(pyenv init -)"' >> ~/.bashrc
+ENV PATH="$PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH"
+RUN if [ "$TARGET" = "py" ] || [ "$TARGET" = "all" ]; then \
+        echo "Installing pyenv version..." \ 
+        && git clone https://github.com/pyenv/pyenv.git $PYENV_ROOT \
+        && cd $PYENV_ROOT && src/configure && make -C src \
+        && echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc \
+        && echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc \
+        && echo 'eval "$(pyenv init -)"' >> ~/.bashrc; \
+    fi
 
 # Add pyenv to PATH and install Python
-ENV PATH="$PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH"
-RUN pyenv install $PYTHON_VERSION \
-    && pyenv global $PYTHON_VERSION \
-    && python --version
+RUN if [ "$TARGET" = "py" ] || [ "$TARGET" = "all" ]; then \
+        echo "Installing pyenv version..." \ 
+        && pyenv install $PYTHON_VERSION \
+        && pyenv global $PYTHON_VERSION \
+        && python --version; \
+    fi
 
 # Install Task (go-task)
 RUN sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
@@ -66,10 +75,11 @@ RUN if [ "$TARGET" = "js" ] || [ "$TARGET" = "all" ]; then \
         npm install -g prebuild; \
     fi
 
+COPY requirements-dev.txt .
 RUN if [ "$TARGET" = "py" ] || [ "$TARGET" = "all" ]; then \
         echo "Installing Python build tools..." && \
         pip install --no-cache-dir --upgrade pip && \
-        pip install --no-cache-dir build "pybind11[global]" python-dotenv pdoc3 auditwheel twine; \
+        pip install --no-cache-dir -r requirements-dev.txt; \
     fi
 
 RUN if [ "$TARGET" = "go" ] || [ "$TARGET" = "all" ]; then \
