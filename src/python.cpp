@@ -98,6 +98,10 @@ public:
         client_->setTranscriptParams(params);
     }
 
+    void setProxy(const std::string& proxy_type, const std::string& proxy_url) {
+        client_->setProxy(proxy_type, proxy_url);
+    }
+
     // ========================================================================
     // Callback Registration Methods
     // ========================================================================
@@ -449,6 +453,9 @@ PYBIND11_MODULE(_rtms, m) {
              "Set deskshare parameters")
         .def("setTranscriptParams", &PyClient::setTranscriptParams,
              "Set transcript parameters")
+        .def("setProxy", &PyClient::setProxy,
+             "Set proxy for SDK connections",
+             py::arg("proxy_type"), py::arg("proxy_url"))
         .def("onJoinConfirm", &PyClient::onJoinConfirm,
              "Register join confirm callback")
         .def("onSessionUpdate", &PyClient::onSessionUpdate,

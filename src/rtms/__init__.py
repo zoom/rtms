@@ -869,6 +869,18 @@ class Client(_ClientBase):
     # snake_case alias
     set_transcript_params = setTranscriptParams
 
+    def set_proxy(self, proxy_type: str, proxy_url: str) -> None:
+        """Configure a proxy for SDK connections.
+
+        Args:
+            proxy_type (str): Proxy protocol type (e.g. 'http', 'https').
+            proxy_url (str): Full proxy URL including host and port.
+        """
+        return super().setProxy(proxy_type, proxy_url)
+
+    # camelCase legacy alias
+    setProxy = set_proxy
+
     def subscribeEvent(self, events):
         """
         Subscribe to receive specific event types.

@@ -292,6 +292,14 @@ class Client:
         """Set deskshare parameters"""
         ...
 
+    def set_proxy(self, proxy_type: str, proxy_url: str) -> None:
+        """Configure a proxy for SDK connections"""
+        ...
+
+    def setProxy(self, proxy_type: str, proxy_url: str) -> None:
+        """Configure a proxy for SDK connections (legacy camelCase alias)"""
+        ...
+
     def onJoinConfirm(self, callback: Callable[[int], None]) -> None:
         """Register join confirm callback"""
         ...
