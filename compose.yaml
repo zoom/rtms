@@ -60,7 +60,7 @@ services:
       context: .
       args:
         TARGET: py
-    command: sh -c "task setup && task build:py && python -m pip install --find-links=dist/py rtms && pytest tests/test_rtms.py -v"
+    command: sh -c "task build:py && pip install --find-links=dist/py rtms --quiet && pytest tests/test_rtms.py -v"
 
   # =============================================================================
   # Docs Service - Documentation generation

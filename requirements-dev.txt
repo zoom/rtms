@@ -18,6 +18,9 @@ twine==6.2.0
 # Multi-version wheel building
 cibuildwheel==3.3.1
 
+# Linux wheel repair (Linux only)
+auditwheel==6.3.0
+
 # Documentation
 pdoc3==0.11.6
 Pygments>=2.20.0  # CVE-2026-4539 fixed in 2.20.0
