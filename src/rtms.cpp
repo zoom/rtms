@@ -797,6 +797,24 @@ void Client::setProxy(const string& proxy_type, const string& proxy_url)
     }
 }
 
+void Client::subscribeVideo(int user_id, bool subscribe)
+{
+    int result = sdk_->send_subscript_video(user_id, subscribe);
+    throwIfError(result, "subscribeVideo");
+}
+
+void Client::setOnParticipantVideo(ParticipantVideoFn callback)
+{
+    lock_guard<mutex> lock(mutex_);
+    participant_video_callback_ = std::move(callback);
+}
+
+void Client::setOnVideoSubscribed(VideoSubscribedFn callback)
+{
+    lock_guard<mutex> lock(mutex_);
+    video_subscribed_callback_ = std::move(callback);
+}
+
 void Client::join(const string& meeting_uuid, const string& rtms_stream_id,
                     const string& signature, const string& server_url, int timeout) {
     // Register this client as the sink — replaces the old static callback registry
@@ -1006,6 +1024,20 @@ void Client::on_event_ex(const std::string& compact_str) {
         if (event_ex_callback_) {
             event_ex_callback_(compact_str);
         }
+    }
+}
+
+void Client::on_participant_video(std::vector<int> users, bool is_on) {
+    lock_guard<mutex> lock(mutex_);
+    if (participant_video_callback_) {
+        participant_video_callback_(users, is_on);
+    }
+}
+
+void Client::on_video_subscript_resp(int user_id, int status, std::string error) {
+    lock_guard<mutex> lock(mutex_);
+    if (video_subscribed_callback_) {
+        video_subscribed_callback_(user_id, status, error);
     }
 }
 

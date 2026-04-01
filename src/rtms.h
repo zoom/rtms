@@ -498,6 +498,8 @@ public:
     using TranscriptDataFn = function<void(const vector<uint8_t>&, uint64_t, const Metadata&)>;
     using LeaveFn = function<void(int)>;
     using EventExFn = function<void(const string&)>;
+    using ParticipantVideoFn = function<void(const vector<int>&, bool)>;
+    using VideoSubscribedFn = function<void(int, int, const string&)>;
 
     // Media type bitmask constants (matches SDK media_type enum in rtms_common.h)
     // ALL = SDK_ALL = 0x1<<5 = 32
@@ -563,6 +565,10 @@ public:
     void setAudioParams(const AudioParams& audio_params);
     void setTranscriptParams(const TranscriptParams& transcript_params);
     void setProxy(const string& proxy_type, const string& proxy_url);
+    void subscribeVideo(int user_id, bool subscribe);
+
+    void setOnParticipantVideo(ParticipantVideoFn callback);
+    void setOnVideoSubscribed(VideoSubscribedFn callback);
 
     void join(const string& meeting_uuid, const string& rtms_stream_id, const string& signature, const string& server_url, int timeout = -1);
 
@@ -582,6 +588,8 @@ public:
     void on_transcript_data(unsigned char* data_buf, int size, uint64_t timestamp, struct rtms_metadata* md) override;
     void on_leave(int reason) override;
     void on_event_ex(const std::string& compact_str) override;
+    void on_participant_video(std::vector<int> users, bool is_on) override;
+    void on_video_subscript_resp(int user_id, int status, std::string error) override;
 
 private:
     mutable mutex mutex_;
@@ -603,6 +611,8 @@ private:
     TranscriptDataFn transcript_data_callback_;
     LeaveFn leave_callback_;
     EventExFn event_ex_callback_;
+    ParticipantVideoFn participant_video_callback_;
+    VideoSubscribedFn video_subscribed_callback_;
 
     std::vector<int> subscribed_events_;
 

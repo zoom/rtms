@@ -1083,6 +1083,18 @@ class Client extends nativeRtms.Client {
     return super.setProxy(proxy_type, proxy_url);
   }
 
+  subscribeVideo(userId: number, subscribe: boolean): boolean {
+    return super.subscribeVideo(userId, subscribe);
+  }
+
+  onParticipantVideo(callback: (users: number[], isOn: boolean) => void): boolean {
+    return super.onParticipantVideo(callback);
+  }
+
+  onVideoSubscribed(callback: (userId: number, status: number, error: string) => void): boolean {
+    return super.onVideoSubscribed(callback);
+  }
+
   /**
    * Register a callback for participant join/leave events
    *

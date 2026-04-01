@@ -237,6 +237,42 @@ public:
     }
 
     // ========================================================================
+    // Individual Video Subscription
+    // ========================================================================
+
+    void subscribeVideo(int user_id, bool subscribe) {
+        client_->subscribeVideo(user_id, subscribe);
+    }
+
+    void onParticipantVideo(py::function callback) {
+        participant_video_callback_ = callback;
+        client_->setOnParticipantVideo([this](const std::vector<int>& users, bool is_on) {
+            if (!participant_video_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try {
+                    participant_video_callback_(users, is_on);
+                } catch (const py::error_already_set& e) {
+                    py::print("Error in participant video callback:", e.what());
+                }
+            }
+        });
+    }
+
+    void onVideoSubscribed(py::function callback) {
+        video_subscribed_callback_ = callback;
+        client_->setOnVideoSubscribed([this](int user_id, int status, const std::string& error) {
+            if (!video_subscribed_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try {
+                    video_subscribed_callback_(user_id, status, error);
+                } catch (const py::error_already_set& e) {
+                    py::print("Error in video subscribed callback:", e.what());
+                }
+            }
+        });
+    }
+
+    // ========================================================================
     // Event Subscription Methods
     // ========================================================================
 
@@ -261,6 +297,8 @@ private:
     py::object transcript_data_callback_ = py::none();
     py::object leave_callback_ = py::none();
     py::object event_ex_callback_ = py::none();
+    py::object participant_video_callback_ = py::none();
+    py::object video_subscribed_callback_ = py::none();
 
     void clearCallbacks() {
         join_confirm_callback_ = py::none();
@@ -272,6 +310,8 @@ private:
         transcript_data_callback_ = py::none();
         leave_callback_ = py::none();
         event_ex_callback_ = py::none();
+        participant_video_callback_ = py::none();
+        video_subscribed_callback_ = py::none();
     }
 
     void stopCallbacks() {
@@ -286,6 +326,8 @@ private:
             client_->setOnTranscriptData([](const std::vector<uint8_t>&, uint64_t, const Metadata&) {});
             client_->setOnLeave([](int) {});
             client_->setOnEventEx([](const std::string&) {});
+            client_->setOnParticipantVideo([](const std::vector<int>&, bool) {});
+            client_->setOnVideoSubscribed([](int, int, const std::string&) {});
         }
     }
 };
@@ -513,6 +555,20 @@ PYBIND11_MODULE(_rtms, m) {
              "Register extended event callback")
         .def("onEventEx", &PyClient::onEventEx,
              "Register extended event callback")
+        .def("subscribe_video", &PyClient::subscribeVideo,
+             "Subscribe or unsubscribe from an individual participant's video stream",
+             py::arg("user_id"), py::arg("subscribe"))
+        .def("subscribeVideo", &PyClient::subscribeVideo,
+             "Subscribe or unsubscribe from an individual participant's video stream",
+             py::arg("user_id"), py::arg("subscribe"))
+        .def("on_participant_video", &PyClient::onParticipantVideo,
+             "Register callback for participant video state changes")
+        .def("onParticipantVideo", &PyClient::onParticipantVideo,
+             "Register callback for participant video state changes")
+        .def("on_video_subscribed", &PyClient::onVideoSubscribed,
+             "Register callback for video subscription responses")
+        .def("onVideoSubscribed", &PyClient::onVideoSubscribed,
+             "Register callback for video subscription responses")
         .def("subscribe_event", &PyClient::subscribeEvent,
              "Subscribe to receive specific event types",
              py::arg("events"))

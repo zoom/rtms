@@ -50,6 +50,10 @@ private:
     Napi::Value subscribeEvent(const Napi::CallbackInfo& info);
     Napi::Value unsubscribeEvent(const Napi::CallbackInfo& info);
 
+    Napi::Value subscribeVideo(const Napi::CallbackInfo& info);
+    Napi::Value setOnParticipantVideo(const Napi::CallbackInfo& info);
+    Napi::Value setOnVideoSubscribed(const Napi::CallbackInfo& info);
+
     unique_ptr<rtms::Client> client_;
     Napi::ThreadSafeFunction tsfn_join_confirm_;
     Napi::ThreadSafeFunction tsfn_session_update_;
@@ -60,6 +64,8 @@ private:
     Napi::ThreadSafeFunction tsfn_transcript_data_;
     Napi::ThreadSafeFunction tsfn_leave_;
     Napi::ThreadSafeFunction tsfn_event_ex_;
+    Napi::ThreadSafeFunction tsfn_participant_video_;
+    Napi::ThreadSafeFunction tsfn_video_subscribed_;
 };
 
 Napi::Value NodeClient::poll(const Napi::CallbackInfo& info) {
@@ -676,6 +682,93 @@ Napi::Value NodeClient::unsubscribeEvent(const Napi::CallbackInfo& info) {
     }
 }
 
+Napi::Value NodeClient::subscribeVideo(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::HandleScope scope(env);
+
+    if (info.Length() < 2 || !info[0].IsNumber() || !info[1].IsBoolean()) {
+        Napi::TypeError::New(env, "Two arguments expected: userId (number), subscribe (boolean)").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    int user_id = info[0].As<Napi::Number>().Int32Value();
+    bool subscribe = info[1].As<Napi::Boolean>().Value();
+
+    try {
+        client_->subscribeVideo(user_id, subscribe);
+        return Napi::Boolean::New(env, true);
+    } catch (const rtms::Exception& e) {
+        Napi::Error::New(env, e.what()).ThrowAsJavaScriptException();
+        return env.Null();
+    }
+}
+
+Napi::Value NodeClient::setOnParticipantVideo(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::HandleScope scope(env);
+
+    if (info.Length() < 1 || !info[0].IsFunction()) {
+        Napi::TypeError::New(env, "Function argument expected").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    Napi::Function callback = info[0].As<Napi::Function>();
+
+    if (tsfn_participant_video_) {
+        tsfn_participant_video_.Release();
+    }
+
+    tsfn_participant_video_ = Napi::ThreadSafeFunction::New(
+        env, callback, "ParticipantVideoCallback", 0, 1
+    );
+
+    client_->setOnParticipantVideo([this](const std::vector<int>& users, bool is_on) {
+        auto callback = [users, is_on](Napi::Env env, Napi::Function jsCallback) {
+            Napi::Array arr = Napi::Array::New(env, users.size());
+            for (size_t i = 0; i < users.size(); i++) {
+                arr.Set(static_cast<uint32_t>(i), Napi::Number::New(env, users[i]));
+            }
+            jsCallback.Call({arr, Napi::Boolean::New(env, is_on)});
+        };
+        tsfn_participant_video_.BlockingCall(callback);
+    });
+
+    return Napi::Boolean::New(env, true);
+}
+
+Napi::Value NodeClient::setOnVideoSubscribed(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::HandleScope scope(env);
+
+    if (info.Length() < 1 || !info[0].IsFunction()) {
+        Napi::TypeError::New(env, "Function argument expected").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    Napi::Function callback = info[0].As<Napi::Function>();
+
+    if (tsfn_video_subscribed_) {
+        tsfn_video_subscribed_.Release();
+    }
+
+    tsfn_video_subscribed_ = Napi::ThreadSafeFunction::New(
+        env, callback, "VideoSubscribedCallback", 0, 1
+    );
+
+    client_->setOnVideoSubscribed([this](int user_id, int status, const std::string& error) {
+        auto callback = [user_id, status, error](Napi::Env env, Napi::Function jsCallback) {
+            jsCallback.Call({
+                Napi::Number::New(env, user_id),
+                Napi::Number::New(env, status),
+                Napi::String::New(env, error)
+            });
+        };
+        tsfn_video_subscribed_.BlockingCall(callback);
+    });
+
+    return Napi::Boolean::New(env, true);
+}
+
 Napi::Value NodeClient::enableVideo(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
@@ -847,6 +940,9 @@ Napi::Object NodeClient::init(Napi::Env env, Napi::Object exports) {
         InstanceMethod("onEventEx", &NodeClient::setOnEventEx),
         InstanceMethod("subscribeEvent", &NodeClient::subscribeEvent),
         InstanceMethod("unsubscribeEvent", &NodeClient::unsubscribeEvent),
+        InstanceMethod("subscribeVideo", &NodeClient::subscribeVideo),
+        InstanceMethod("onParticipantVideo", &NodeClient::setOnParticipantVideo),
+        InstanceMethod("onVideoSubscribed", &NodeClient::setOnVideoSubscribed),
     });
 
     Napi::FunctionReference* constructor = new Napi::FunctionReference();

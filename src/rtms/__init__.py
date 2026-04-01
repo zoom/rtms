@@ -579,6 +579,10 @@ class Client(_ClientBase):
         self._running = False
         self._webhook_server = None
 
+        # Individual video subscription callbacks
+        self._participant_video_callback = None
+        self._video_subscribed_callback = None
+
         # Shared event dispatcher state (matches Node.js setupEventHandler pattern)
         self._event_handler_registered = False
         self._participant_event_callback = None
@@ -889,6 +893,37 @@ class Client(_ClientBase):
 
     # camelCase legacy alias
     setProxy = set_proxy
+
+    def subscribe_video(self, user_id: int, subscribe: bool) -> None:
+        """Subscribe or unsubscribe from an individual participant's video stream.
+
+        Args:
+            user_id (int): The participant's user ID.
+            subscribe (bool): True to subscribe, False to unsubscribe.
+        """
+        return super().subscribe_video(user_id, subscribe)
+
+    subscribeVideo = subscribe_video
+
+    def on_participant_video(self, callback) -> None:
+        """Register a callback for participant video state changes.
+
+        The callback receives (users: list[int], is_on: bool).
+        """
+        self._participant_video_callback = callback
+        super().on_participant_video(callback)
+
+    onParticipantVideo = on_participant_video
+
+    def on_video_subscribed(self, callback) -> None:
+        """Register a callback for video subscription responses.
+
+        The callback receives (user_id: int, status: int, error: str).
+        """
+        self._video_subscribed_callback = callback
+        super().on_video_subscribed(callback)
+
+    onVideoSubscribed = on_video_subscribed
 
     def subscribe_event(self, events):
         """

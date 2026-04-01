@@ -838,6 +838,31 @@ export class Client {
   setProxy(proxy_type: string, proxy_url: string): boolean;
 
   /**
+   * Subscribe or unsubscribe from an individual participant's video stream.
+   *
+   * @param userId The participant's user ID
+   * @param subscribe true to subscribe, false to unsubscribe
+   * @returns true if the operation succeeds
+   */
+  subscribeVideo(userId: number, subscribe: boolean): boolean;
+
+  /**
+   * Sets a callback fired when participants' video state changes.
+   *
+   * @param callback Invoked with an array of user IDs and a boolean indicating video on/off
+   * @returns true if registration succeeds
+   */
+  onParticipantVideo(callback: (users: number[], isOn: boolean) => void): boolean;
+
+  /**
+   * Sets a callback fired in response to a `subscribeVideo` call.
+   *
+   * @param callback Invoked with userId, status code, and an error string (empty on success)
+   * @returns true if registration succeeds
+   */
+  onVideoSubscribed(callback: (userId: number, status: number, error: string) => void): boolean;
+
+  /**
    * Sets a callback for join confirmation events
    * 
    * This callback is triggered when the join operation is confirmed by the server.
