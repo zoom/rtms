@@ -42,6 +42,7 @@ public:
     }
 
     void poll() {
+        py::gil_scoped_release release;
         client_->poll();
     }
 

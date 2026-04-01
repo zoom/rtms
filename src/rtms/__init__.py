@@ -6,6 +6,8 @@ import threading
 import time
 import sys
 import traceback
+import asyncio
+import inspect
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Callable, Dict, Any, Optional, Union, List, Tuple
 from enum import IntEnum, Enum
@@ -81,6 +83,7 @@ _pending_lock = threading.Lock()
 _main_thread_id: Optional[int] = None
 _running = False
 _stop_event = threading.Event()
+_run_executor = None  # Global executor set via run(executor=...) or run_async(executor=...)
 
 def _log(level, component, message, details=None):
     """Log a message at the specified level"""
@@ -551,8 +554,15 @@ class Client(_ClientBase):
 
     _sdk_initialized = False
 
-    def __init__(self):
-        """Initialize a new RTMS client"""
+    def __init__(self, executor=None):
+        """Initialize a new RTMS client.
+
+        Args:
+            executor: Optional concurrent.futures.Executor for dispatching data callbacks
+                (audio, video, transcript, deskshare) to a thread pool. When set, callbacks
+                are submitted via executor.submit() instead of running inline. Pass
+                concurrent.futures.ThreadPoolExecutor(n) for CPU-bound or I/O-heavy callbacks.
+        """
         # Ensure SDK is initialized before creating client instance
         if not Client._sdk_initialized:
             try:
@@ -578,6 +588,8 @@ class Client(_ClientBase):
         self._polling_interval = 10  # milliseconds
         self._running = False
         self._webhook_server = None
+        self._executor = executor  # concurrent.futures.Executor or None
+        self._loop = None           # asyncio event loop captured at callback-registration time
 
         # Individual video subscription callbacks
         self._participant_video_callback = None
@@ -801,6 +813,84 @@ class Client(_ClientBase):
         """Stop polling"""
         self._running = False
         log_debug("client", "Polling stopped")
+
+    # ========================================================================
+    # Callback Dispatch
+    # ========================================================================
+
+    def _wrap_callback(self, callback):
+        """Wrap a callback for executor or asyncio dispatch.
+
+        - sync + no executor  → returned unchanged (v1.0 inline behavior)
+        - sync + executor     → submitted to executor.submit() on each call
+        - async coroutine     → scheduled on the captured asyncio event loop
+        """
+        if callback is None:
+            return None
+        if inspect.iscoroutinefunction(callback):
+            # Capture the running loop now (at registration time) if one exists.
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+            self._loop = loop
+            def async_wrapper(*args):
+                _loop = self._loop
+                if _loop and _loop.is_running():
+                    asyncio.run_coroutine_threadsafe(callback(*args), _loop)
+                else:
+                    try:
+                        asyncio.run(callback(*args))
+                    except RuntimeError:
+                        pass
+            return async_wrapper
+        executor = self._executor or _run_executor
+        if executor is not None:
+            def executor_wrapper(*args):
+                executor.submit(callback, *args)
+            return executor_wrapper
+        return callback
+
+    # ========================================================================
+    # Data Callbacks (Python-level so _wrap_callback applies and aliases work)
+    # ========================================================================
+
+    def on_audio_data(self, callback) -> None:
+        """Register audio data callback. Supports executor and async coroutines."""
+        super().on_audio_data(self._wrap_callback(callback))
+
+    onAudioData = on_audio_data
+
+    def on_video_data(self, callback) -> None:
+        """Register video data callback. Supports executor and async coroutines."""
+        super().on_video_data(self._wrap_callback(callback))
+
+    onVideoData = on_video_data
+
+    def on_deskshare_data(self, callback) -> None:
+        """Register deskshare data callback. Supports executor and async coroutines."""
+        super().on_deskshare_data(self._wrap_callback(callback))
+
+    onDeskshareData = on_deskshare_data
+
+    def on_transcript_data(self, callback) -> None:
+        """Register transcript data callback. Supports executor and async coroutines."""
+        super().on_transcript_data(self._wrap_callback(callback))
+
+    onTranscriptData = on_transcript_data
+
+    # ========================================================================
+    # Context Manager
+    # ========================================================================
+
+    def __enter__(self):
+        """Support `with rtms.Client() as client:` usage."""
+        return self
+
+    def __exit__(self, *_):
+        """Call leave() on context exit. Exceptions are not suppressed."""
+        self.leave()
+        return False
 
     def stop(self):
         """
@@ -1363,7 +1453,7 @@ def _cleanup_all_clients():
         _clients.clear()
 
 
-def run(poll_interval: float = 0.01, stop_on_empty: bool = False):
+def run(poll_interval: float = 0.01, stop_on_empty: bool = False, executor=None):
     """
     Start the RTMS event loop.
 
@@ -1375,26 +1465,27 @@ def run(poll_interval: float = 0.01, stop_on_empty: bool = False):
     Args:
         poll_interval: Time in seconds between poll cycles (default: 0.01 = 10ms)
         stop_on_empty: If True, stop when no clients remain (default: False)
+        executor: Optional concurrent.futures.Executor applied as the global default for
+            all clients that do not have their own executor set. Useful when all clients
+            share the same thread pool for callback dispatch.
 
     Example:
         >>> import rtms
         >>>
-        >>> clients = {}
-        >>>
         >>> @rtms.onWebhookEvent
         >>> def handle(payload):
         >>>     client = rtms.Client()
-        >>>     clients[payload['payload']['rtms_stream_id']] = client
-        >>>     client.onTranscriptData(lambda d,s,t,m: print(m.userName, d))
+        >>>     client.on_transcript_data(lambda d,s,t,m: print(m.userName, d))
         >>>     client.join(payload['payload'])
         >>>
         >>> rtms.run()  # Blocks until interrupted
     """
-    global _main_thread_id, _running
+    global _main_thread_id, _running, _run_executor
 
     _main_thread_id = threading.get_ident()
     _running = True
     _stop_event.clear()
+    _run_executor = executor
 
     log_info('rtms', f'Starting RTMS event loop (poll_interval={poll_interval}s)')
 
@@ -1426,7 +1517,76 @@ def run(poll_interval: float = 0.01, stop_on_empty: bool = False):
     finally:
         _running = False
         _main_thread_id = None
+        _run_executor = None
         _cleanup_all_clients()
+
+
+async def run_async(poll_interval: float = 0.01, stop_on_empty: bool = False, executor=None):
+    """
+    Start the RTMS event loop as an asyncio coroutine.
+
+    Drop-in async replacement for rtms.run(). Uses asyncio.sleep() instead of
+    time.sleep(), so it yields control back to the event loop between poll cycles
+    and composes naturally with aiohttp, FastAPI, asyncpg, and other async frameworks.
+
+    Args:
+        poll_interval: Time in seconds between poll cycles (default: 0.01 = 10ms)
+        stop_on_empty: If True, stop when no clients remain (default: False)
+        executor: Optional concurrent.futures.Executor applied as the global default
+            for all clients that do not have their own executor set.
+
+    Example:
+        >>> import asyncio, rtms
+        >>>
+        >>> async def main():
+        >>>     await asyncio.gather(
+        >>>         rtms.run_async(),
+        >>>         my_aiohttp_server.start(),
+        >>>     )
+        >>>
+        >>> asyncio.run(main())
+    """
+    global _main_thread_id, _running, _run_executor
+
+    _main_thread_id = threading.get_ident()
+    _running = True
+    _stop_event.clear()
+    _run_executor = executor
+
+    log_info('rtms', f'Starting async RTMS event loop (poll_interval={poll_interval}s)')
+
+    try:
+        while _running and not _stop_event.is_set():
+            # Process pending operations from other threads
+            _process_pending_operations()
+
+            # Poll all active clients
+            with _clients_lock:
+                clients_to_poll = list(_clients.values())
+
+            for client in clients_to_poll:
+                if client._running:
+                    try:
+                        client.poll()
+                    except Exception as e:
+                        log_error('rtms', f'Error polling client: {e}')
+
+            # Check stop_on_empty condition
+            if stop_on_empty and not clients_to_poll:
+                log_info('rtms', 'No active clients, stopping async event loop')
+                break
+
+            await asyncio.sleep(poll_interval)
+
+    except asyncio.CancelledError:
+        log_info('rtms', 'Async event loop cancelled')
+    finally:
+        _running = False
+        _main_thread_id = None
+        _run_executor = None
+        # Note: clients are NOT force-cleaned here. In async contexts the
+        # application owns client lifecycle — call client.leave() explicitly.
+        # _cleanup_all_clients() is intentionally omitted.
 
 
 def stop():
@@ -1533,6 +1693,7 @@ __all__ = [
 
     # Event loop functions
     "run",
+    "run_async",
     "stop",
 
     # Logging functions

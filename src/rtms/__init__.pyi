@@ -4,6 +4,8 @@ Real-Time Media Streaming SDK for Python
 """
 
 from typing import Callable, Dict, Any, Optional, List, Literal, TypedDict
+from concurrent.futures import Executor
+from typing import Awaitable, Coroutine
 
 # ============================================================================
 # Data Classes
@@ -203,7 +205,10 @@ EventExCallback = Callable[[str], None]
 class Client:
     """RTMS Client for connecting to Zoom real-time media streams"""
 
-    def __init__(self) -> None: ...
+    def __init__(self, executor: Optional[Executor] = None) -> None: ...
+
+    def __enter__(self) -> "Client": ...
+    def __exit__(self, *_: Any) -> bool: ...
 
     @staticmethod
     def initialize(ca_path: str, is_verify_cert: int = 1, agent: Optional[str] = None) -> None:
@@ -351,33 +356,29 @@ class Client:
         """Register user update callback (legacy camelCase alias)"""
         ...
 
+    def _wrap_callback(self, callback: Callable) -> Callable:
+        """Wrap a callback for executor or asyncio dispatch."""
+        ...
+
     def on_audio_data(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
-        """Register audio data callback"""
+        """Register audio data callback. Supports executor and async coroutines."""
         ...
-    def onAudioData(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
-        """Register audio data callback (legacy camelCase alias)"""
-        ...
+    onAudioData: Callable  # camelCase alias
 
     def on_video_data(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
-        """Register video data callback"""
+        """Register video data callback. Supports executor and async coroutines."""
         ...
-    def onVideoData(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
-        """Register video data callback (legacy camelCase alias)"""
-        ...
+    onVideoData: Callable  # camelCase alias
 
     def on_deskshare_data(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
-        """Register deskshare data callback"""
+        """Register deskshare data callback. Supports executor and async coroutines."""
         ...
-    def onDeskshareData(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
-        """Register deskshare data callback (legacy camelCase alias)"""
-        ...
+    onDeskshareData: Callable  # camelCase alias
 
     def on_transcript_data(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
-        """Register transcript data callback"""
+        """Register transcript data callback. Supports executor and async coroutines."""
         ...
-    def onTranscriptData(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
-        """Register transcript data callback (legacy camelCase alias)"""
-        ...
+    onTranscriptData: Callable  # camelCase alias
 
     def on_leave(self, callback: Callable[[int], None]) -> None:
         """Register leave callback"""
@@ -694,35 +695,56 @@ on_webhook_event = onWebhookEvent
 # Event Loop Functions
 # ============================================================================
 
-def run(poll_interval: float = 0.01, stop_on_empty: bool = False) -> None:
+def run(
+    poll_interval: float = 0.01,
+    stop_on_empty: bool = False,
+    executor: Optional[Executor] = None,
+) -> None:
     """
-    Start the RTMS event loop.
+    Start the RTMS event loop (blocking).
 
-    This function blocks and handles:
-    - Polling all active clients
-    - Processing pending operations from other threads (like webhook handlers)
-    - Graceful shutdown on KeyboardInterrupt
-
-    With this function, you can create clients and call join() directly from
-    webhook handlers without manual queue management.
+    Polls all active clients in a loop, processing webhook-triggered joins and
+    dispatching callbacks. Blocks until KeyboardInterrupt or rtms.stop() is called.
 
     Args:
         poll_interval: Time in seconds between poll cycles (default: 0.01 = 10ms)
         stop_on_empty: If True, stop when no clients remain (default: False)
+        executor: Optional global executor for callback dispatch on all clients that
+            do not have their own executor set.
 
     Example:
         >>> import rtms
-        >>>
-        >>> clients = {}
-        >>>
         >>> @rtms.onWebhookEvent
         >>> def handle(payload):
         >>>     client = rtms.Client()
-        >>>     clients[payload['payload']['rtms_stream_id']] = client
-        >>>     client.onTranscriptData(lambda d,s,t,m: print(m.userName, d))
+        >>>     client.on_transcript_data(lambda d,s,t,m: print(m.userName, d))
         >>>     client.join(payload['payload'])
-        >>>
-        >>> rtms.run()  # Blocks until interrupted
+        >>> rtms.run()
+    """
+    ...
+
+async def run_async(
+    poll_interval: float = 0.01,
+    stop_on_empty: bool = False,
+    executor: Optional[Executor] = None,
+) -> None:
+    """
+    Start the RTMS event loop as an asyncio coroutine.
+
+    Drop-in async replacement for rtms.run(). Uses asyncio.sleep() instead of
+    time.sleep(), yielding control back to the event loop between poll cycles so
+    it composes naturally with aiohttp, FastAPI, asyncpg, and other async frameworks.
+
+    Args:
+        poll_interval: Time in seconds between poll cycles (default: 0.01 = 10ms)
+        stop_on_empty: If True, stop when no clients remain (default: False)
+        executor: Optional global executor for callback dispatch.
+
+    Example:
+        >>> import asyncio, rtms
+        >>> async def main():
+        >>>     await asyncio.gather(rtms.run_async(), my_server.start())
+        >>> asyncio.run(main())
     """
     ...
 
@@ -730,7 +752,8 @@ def stop() -> None:
     """
     Signal the event loop to stop.
 
-    Call this from another thread to gracefully stop the rtms.run() loop.
+    Call this from another thread or coroutine to gracefully stop rtms.run()
+    or rtms.run_async().
     """
     ...
 
