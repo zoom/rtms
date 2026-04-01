@@ -44,6 +44,11 @@ jest.mock("../../index.ts", () => {
       // Event subscription methods
       subscribeEvent: jest.fn().mockReturnValue(true),
       unsubscribeEvent: jest.fn().mockReturnValue(true),
+
+      // Individual video subscription methods
+      subscribeVideo: jest.fn().mockReturnValue(true),
+      onParticipantVideo: jest.fn().mockReturnValue(true),
+      onVideoSubscribed: jest.fn().mockReturnValue(true),
     })),
 
     // TranscriptParams class
@@ -453,6 +458,64 @@ describe('RTMS Node.JS Addon Comprehensive Test Suite', () => {
         const result = client.onLeave(callback);
         expect(client.onLeave).toHaveBeenCalledWith(callback);
         expect(result).toBe(true);
+      });
+    });
+
+    describe('Individual Video Subscription', () => {
+      test('client.subscribeVideo subscribes to an individual participant video stream', () => {
+        const result = client.subscribeVideo(12345, true);
+        expect(client.subscribeVideo).toHaveBeenCalledWith(12345, true);
+        expect(result).toBe(true);
+      });
+
+      test('client.subscribeVideo unsubscribes from an individual participant video stream', () => {
+        const result = client.subscribeVideo(12345, false);
+        expect(client.subscribeVideo).toHaveBeenCalledWith(12345, false);
+        expect(result).toBe(true);
+      });
+
+      test('client.onParticipantVideo sets the participant video state callback', () => {
+        const callback = jest.fn();
+        const result = client.onParticipantVideo(callback);
+        expect(client.onParticipantVideo).toHaveBeenCalledWith(callback);
+        expect(result).toBe(true);
+      });
+
+      test('client.onVideoSubscribed sets the video subscription response callback', () => {
+        const callback = jest.fn();
+        const result = client.onVideoSubscribed(callback);
+        expect(client.onVideoSubscribed).toHaveBeenCalledWith(callback);
+        expect(result).toBe(true);
+      });
+
+      test('onParticipantVideo callback receives users array and isOn flag', () => {
+        let capturedUsers: number[] = [];
+        let capturedIsOn: boolean | null = null;
+        const callback = jest.fn().mockImplementation((users: number[], isOn: boolean) => {
+          capturedUsers = users;
+          capturedIsOn = isOn;
+        });
+        client.onParticipantVideo(callback);
+        // Simulate a callback invocation
+        callback([11111, 22222], true);
+        expect(capturedUsers).toEqual([11111, 22222]);
+        expect(capturedIsOn).toBe(true);
+      });
+
+      test('onVideoSubscribed callback receives userId, status, and error string', () => {
+        let capturedUserId: number | null = null;
+        let capturedStatus: number | null = null;
+        let capturedError: string | null = null;
+        const callback = jest.fn().mockImplementation((userId: number, status: number, error: string) => {
+          capturedUserId = userId;
+          capturedStatus = status;
+          capturedError = error;
+        });
+        client.onVideoSubscribed(callback);
+        callback(12345, 0, '');
+        expect(capturedUserId).toBe(12345);
+        expect(capturedStatus).toBe(0);
+        expect(capturedError).toBe('');
       });
     });
 

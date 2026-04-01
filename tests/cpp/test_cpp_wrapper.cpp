@@ -876,3 +876,131 @@ TEST_CASE("Client::setProxy throws on SDK failure", "[client][proxy]") {
         ContainsSubstring("setProxy failed")
     );
 }
+
+// ============================================================================
+// Client::subscribeVideo
+// ============================================================================
+
+TEST_CASE("Client::subscribeVideo forwards user_id and true to send_subscript_video", "[client][video]") {
+    R _;
+    Client c;
+    c.subscribeVideo(12345, true);
+    CHECK(g_mock_state.subscript_video_calls    == 1);
+    CHECK(g_mock_state.last_subscript_user_id   == 12345);
+    CHECK(g_mock_state.last_subscript_is_sub    == true);
+}
+
+TEST_CASE("Client::subscribeVideo forwards user_id and false to send_subscript_video", "[client][video]") {
+    R _;
+    Client c;
+    c.subscribeVideo(99999, false);
+    CHECK(g_mock_state.subscript_video_calls    == 1);
+    CHECK(g_mock_state.last_subscript_user_id   == 99999);
+    CHECK(g_mock_state.last_subscript_is_sub    == false);
+}
+
+TEST_CASE("Client::subscribeVideo throws on SDK failure", "[client][video]") {
+    R _;
+    g_mock_state.subscript_video_result = RTMS_SDK_FAILURE;
+    Client c;
+    REQUIRE_THROWS_WITH(
+        c.subscribeVideo(12345, true),
+        ContainsSubstring("subscribeVideo failed")
+    );
+}
+
+// ============================================================================
+// on_participant_video callback
+// ============================================================================
+
+TEST_CASE("on_participant_video fires registered callback with users and flag", "[client][video][callbacks]") {
+    R _;
+    Client c;
+    c.join("u", "s", "sig", "url");
+
+    std::vector<int> received_users;
+    bool received_is_on = false;
+    c.setOnParticipantVideo([&](const std::vector<int>& users, bool is_on) {
+        received_users = users;
+        received_is_on = is_on;
+    });
+
+    mock_trigger_participant_video({11111, 22222}, true);
+
+    REQUIRE(received_users.size() == 2);
+    CHECK(received_users[0] == 11111);
+    CHECK(received_users[1] == 22222);
+    CHECK(received_is_on    == true);
+}
+
+TEST_CASE("on_participant_video fires with is_on=false when video turns off", "[client][video][callbacks]") {
+    R _;
+    Client c;
+    c.join("u", "s", "sig", "url");
+
+    bool received_is_on = true;
+    c.setOnParticipantVideo([&](const std::vector<int>&, bool is_on) {
+        received_is_on = is_on;
+    });
+
+    mock_trigger_participant_video({11111}, false);
+    CHECK(received_is_on == false);
+}
+
+TEST_CASE("on_participant_video does not fire when no callback is registered", "[client][video][callbacks]") {
+    R _;
+    Client c;
+    c.join("u", "s", "sig", "url");
+    // No callback registered — should not crash
+    REQUIRE_NOTHROW(mock_trigger_participant_video({11111}, true));
+}
+
+// ============================================================================
+// on_video_subscript_resp callback
+// ============================================================================
+
+TEST_CASE("on_video_subscript_resp fires registered callback with user_id, status, error", "[client][video][callbacks]") {
+    R _;
+    Client c;
+    c.join("u", "s", "sig", "url");
+
+    int received_user_id = -1;
+    int received_status  = -1;
+    std::string received_error;
+    c.setOnVideoSubscribed([&](int user_id, int status, const std::string& error) {
+        received_user_id = user_id;
+        received_status  = status;
+        received_error   = error;
+    });
+
+    mock_trigger_video_subscript_resp(12345, 0, "");
+
+    CHECK(received_user_id == 12345);
+    CHECK(received_status  == 0);
+    CHECK(received_error.empty());
+}
+
+TEST_CASE("on_video_subscript_resp relays error string on failure", "[client][video][callbacks]") {
+    R _;
+    Client c;
+    c.join("u", "s", "sig", "url");
+
+    int received_status = 0;
+    std::string received_error;
+    c.setOnVideoSubscribed([&](int, int status, const std::string& error) {
+        received_status = status;
+        received_error  = error;
+    });
+
+    mock_trigger_video_subscript_resp(12345, RTMS_SDK_FAILURE, "subscription failed");
+
+    CHECK(received_status == RTMS_SDK_FAILURE);
+    CHECK(received_error  == "subscription failed");
+}
+
+TEST_CASE("on_video_subscript_resp does not fire when no callback is registered", "[client][video][callbacks]") {
+    R _;
+    Client c;
+    c.join("u", "s", "sig", "url");
+    REQUIRE_NOTHROW(mock_trigger_video_subscript_resp(12345, 0, ""));
+}

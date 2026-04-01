@@ -172,3 +172,13 @@ void mock_trigger_event_ex(const std::string& compact_str) {
     if (g_mock_state.last_sink)
         g_mock_state.last_sink->on_event_ex(compact_str);
 }
+
+void mock_trigger_participant_video(std::vector<int> users, bool is_on) {
+    if (g_mock_state.last_sink)
+        g_mock_state.last_sink->on_participant_video(std::move(users), is_on);
+}
+
+void mock_trigger_video_subscript_resp(int user_id, int status, std::string error) {
+    if (g_mock_state.last_sink)
+        g_mock_state.last_sink->on_video_subscript_resp(user_id, status, std::move(error));
+}

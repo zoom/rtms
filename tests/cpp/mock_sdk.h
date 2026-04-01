@@ -95,3 +95,5 @@ void mock_trigger_ds_data(unsigned char* buf, int size, uint64_t ts, rtms_metada
 void mock_trigger_transcript_data(unsigned char* buf, int size, uint64_t ts, rtms_metadata* md);
 void mock_trigger_leave(int reason);
 void mock_trigger_event_ex(const std::string& compact_str);
+void mock_trigger_participant_video(std::vector<int> users, bool is_on);
+void mock_trigger_video_subscript_resp(int user_id, int status, std::string error);

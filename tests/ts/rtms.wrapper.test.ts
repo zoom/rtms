@@ -120,6 +120,29 @@ describe('index.ts wrapper — real built module', () => {
   });
 
   // --------------------------------------------------------------------------
+  describe('Client — individual video subscription', () => {
+    test('subscribeVideo is a function', () => {
+      expect(run("typeof c.subscribeVideo === 'function'")).toBe(true);
+    });
+
+    test('onParticipantVideo is a function', () => {
+      expect(run("typeof c.onParticipantVideo === 'function'")).toBe(true);
+    });
+
+    test('onVideoSubscribed is a function', () => {
+      expect(run("typeof c.onVideoSubscribed === 'function'")).toBe(true);
+    });
+
+    test('onParticipantVideo accepts a callback without throwing', () => {
+      expect(run("(c.onParticipantVideo(() => {}), true)")).toBe(true);
+    });
+
+    test('onVideoSubscribed accepts a callback without throwing', () => {
+      expect(run("(c.onVideoSubscribed(() => {}), true)")).toBe(true);
+    });
+  });
+
+  // --------------------------------------------------------------------------
   describe('Module — utility functions', () => {
     test('generateSignature is a function', () => {
       expect(runModule("typeof rtms.generateSignature === 'function'")).toBe(true);

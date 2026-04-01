@@ -529,6 +529,148 @@ class TestProxySupport:
         mock_native.assert_called_once_with('http', 'http://proxy.example.com:8080')
 
 
+class TestIndividualVideoSubscription:
+    """Test subscribe_video() and on_participant_video / on_video_subscribed callbacks.
+
+    These tests fail before implementation because:
+    - Client has no subscribe_video() / subscribeVideo() method
+    - Client has no on_participant_video() / on_video_subscribed() callback registration
+
+    Per spec (branch 5):
+    - subscribe_video(user_id, True)  → subscribe to individual participant stream
+    - subscribe_video(user_id, False) → unsubscribe
+    - on_participant_video(callback)  → fires when participant video state changes
+                                        callback signature: (users: List[int], is_on: bool)
+    - on_video_subscribed(callback)   → fires in response to subscribe_video()
+                                        callback signature: (user_id: int, status: int, error: str)
+    """
+
+    def _native(self):
+        return rtms.Client.__bases__[0]
+
+    # ------------------------------------------------------------------
+    # subscribe_video method
+
+    def test_subscribe_video_is_callable(self):
+        """subscribe_video should be callable on a Client instance."""
+        client = rtms.Client()
+        assert callable(getattr(client, 'subscribe_video', None))
+
+    def test_subscribe_video_camelcase_alias_is_callable(self):
+        """subscribeVideo camelCase alias must exist for parity with Node.js."""
+        client = rtms.Client()
+        assert callable(getattr(client, 'subscribeVideo', None))
+
+    def test_subscribe_video_does_not_raise_for_subscribe(self):
+        """subscribe_video(user_id, True) should not raise."""
+        client = rtms.Client()
+        with patch.object(self._native(), 'subscribe_video', return_value=None):
+            client.subscribe_video(12345, True)
+
+    def test_subscribe_video_does_not_raise_for_unsubscribe(self):
+        """subscribe_video(user_id, False) should not raise."""
+        client = rtms.Client()
+        with patch.object(self._native(), 'subscribe_video', return_value=None):
+            client.subscribe_video(12345, False)
+
+    def test_subscribe_video_forwards_to_native(self):
+        """subscribe_video should forward user_id and subscribe flag to native layer."""
+        client = rtms.Client()
+        with patch.object(self._native(), 'subscribe_video', return_value=None) as mock_native:
+            client.subscribe_video(99999, True)
+        mock_native.assert_called_once_with(99999, True)
+
+    def test_subscribe_video_unsubscribe_forwards_to_native(self):
+        """subscribe_video(user_id, False) should forward False to native layer."""
+        client = rtms.Client()
+        with patch.object(self._native(), 'subscribe_video', return_value=None) as mock_native:
+            client.subscribe_video(99999, False)
+        mock_native.assert_called_once_with(99999, False)
+
+    # ------------------------------------------------------------------
+    # on_participant_video callback
+
+    def test_on_participant_video_is_callable(self):
+        """on_participant_video should be callable on a Client instance."""
+        client = rtms.Client()
+        assert callable(getattr(client, 'on_participant_video', None))
+
+    def test_on_participant_video_camelcase_alias_is_callable(self):
+        """onParticipantVideo camelCase alias must exist for Node.js parity."""
+        client = rtms.Client()
+        assert callable(getattr(client, 'onParticipantVideo', None))
+
+    def test_on_participant_video_does_not_raise(self):
+        """Registering an on_participant_video callback should not raise."""
+        client = rtms.Client()
+        client.on_participant_video(lambda *_: None)
+
+    def test_on_participant_video_callback_receives_users_and_flag(self):
+        """on_participant_video callback must receive a list of user IDs and a bool."""
+        client = rtms.Client()
+        received = {}
+
+        def cb(users, is_on):
+            received['users'] = users
+            received['is_on'] = is_on
+
+        client.on_participant_video(cb)
+        # Simulate the callback being fired by the native layer
+        client._participant_video_callback([11111, 22222], True)
+        assert received['users'] == [11111, 22222]
+        assert received['is_on'] is True
+
+    # ------------------------------------------------------------------
+    # on_video_subscribed callback
+
+    def test_on_video_subscribed_is_callable(self):
+        """on_video_subscribed should be callable on a Client instance."""
+        client = rtms.Client()
+        assert callable(getattr(client, 'on_video_subscribed', None))
+
+    def test_on_video_subscribed_camelcase_alias_is_callable(self):
+        """onVideoSubscribed camelCase alias must exist for Node.js parity."""
+        client = rtms.Client()
+        assert callable(getattr(client, 'onVideoSubscribed', None))
+
+    def test_on_video_subscribed_does_not_raise(self):
+        """Registering an on_video_subscribed callback should not raise."""
+        client = rtms.Client()
+        client.on_video_subscribed(lambda *_: None)
+
+    def test_on_video_subscribed_callback_receives_userid_status_error(self):
+        """on_video_subscribed callback must receive user_id (int), status (int), error (str)."""
+        client = rtms.Client()
+        received = {}
+
+        def cb(user_id, status, error):
+            received['user_id'] = user_id
+            received['status'] = status
+            received['error'] = error
+
+        client.on_video_subscribed(cb)
+        # Simulate the callback being fired by the native layer
+        client._video_subscribed_callback(12345, 0, '')
+        assert received['user_id'] == 12345
+        assert received['status'] == 0
+        assert received['error'] == ''
+
+    def test_on_video_subscribed_callback_reports_error_string(self):
+        """on_video_subscribed callback should relay a non-empty error string."""
+        client = rtms.Client()
+        received = {}
+
+        def cb(user_id, status, error):
+            received['user_id'] = user_id
+            received['status'] = status
+            received['error'] = error
+
+        client.on_video_subscribed(cb)
+        client._video_subscribed_callback(12345, -1, 'subscription failed')
+        assert received['status'] == -1
+        assert received['error'] == 'subscription failed'
+
+
 # Run tests
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
