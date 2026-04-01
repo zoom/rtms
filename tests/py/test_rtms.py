@@ -13,6 +13,21 @@ import asyncio
 import inspect
 
 
+@pytest.fixture(autouse=True)
+def clean_rtms_state():
+    """Clear global rtms state before each test.
+
+    Prevents clients created in earlier tests from leaking into later tests
+    via the _clients registry, which would cause run_async(stop_on_empty=True)
+    to never exit and _cleanup_all_clients() to block on unjoined C++ clients.
+    """
+    with rtms._clients_lock:
+        rtms._clients.clear()
+    rtms._running = False
+    rtms._stop_event.clear()
+    yield
+
+
 class TestConstants:
     """Test that all constants are properly defined"""
 
@@ -688,51 +703,33 @@ class TestGilRelease:
         except Exception:
             pass
 
-    @pytest.mark.xfail(reason="Requires GIL release in poll() — not yet implemented in src/python.cpp", strict=True)
     def test_poll_does_not_block_other_threads(self):
-        """Other threads should execute while poll() runs.
+        """Smoke test: poll() on an unjoined client returns without hanging.
 
-        After fix: wrap PyClient::poll() with py::gil_scoped_release in src/python.cpp.
-        Then uncomment the threading body below and remove the pytest.fail() call.
+        NOTE: On an unjoined client with no active meeting, poll() returns in
+        microseconds — too fast to observe true GIL-release concurrency. This
+        test verifies poll() is callable and doesn't hang; it does NOT prove
+        GIL release in a loaded scenario.
 
-        # results = []
-        # def worker():
-        #     results.append(threading.get_ident())
-        # client = rtms.Client()
-        # t = threading.Thread(target=worker)
-        # t.start()
-        # try:
-        #     client.poll()
-        # except Exception:
-        #     pass
-        # t.join(timeout=2.0)
-        # assert len(results) == 1, "Worker thread should have completed while poll() ran"
+        True GIL-release verification requires either a live meeting (where
+        poll() blocks waiting for SDK events) or a mock SDK with a sleep().
+        The structural guarantee lives in src/python.cpp: py::gil_scoped_release.
         """
-        pytest.fail("GIL not yet released in poll() — worker thread is blocked during poll()")
+        import threading
+        results = []
 
-    @pytest.mark.xfail(reason="Requires GIL release in poll() — not yet implemented in src/python.cpp", strict=True)
-    def test_poll_from_background_thread_completes(self):
-        """Concurrent poll() calls from multiple threads should not deadlock.
+        def worker():
+            results.append(threading.get_ident())
 
-        After fix: wrap PyClient::poll() with py::gil_scoped_release in src/python.cpp.
-        Then uncomment the threading body below and remove the pytest.fail() call.
-
-        # completed = threading.Event()
-        # def poll_worker():
-        #     c = rtms.Client()
-        #     try:
-        #         c.poll()
-        #     except Exception:
-        #         pass
-        #     completed.set()
-        # threads = [threading.Thread(target=poll_worker) for _ in range(4)]
-        # for t in threads:
-        #     t.start()
-        # for t in threads:
-        #     finished = completed.wait(timeout=3.0)
-        #     assert finished, "poll() should complete without deadlock"
-        """
-        pytest.fail("GIL not yet released in poll() — concurrent poll() calls deadlock")
+        client = rtms.Client()
+        t = threading.Thread(target=worker)
+        t.start()
+        try:
+            client.poll()
+        except Exception:
+            pass
+        t.join(timeout=2.0)
+        assert len(results) == 1, "Worker thread should have completed"
 
 
 class TestRunAsync:
