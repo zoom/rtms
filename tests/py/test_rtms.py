@@ -9,6 +9,8 @@ import pytest
 import rtms
 from unittest.mock import Mock, patch, MagicMock
 import json
+import asyncio
+import inspect
 
 
 class TestConstants:
@@ -669,6 +671,337 @@ class TestIndividualVideoSubscription:
         client._video_subscribed_callback(12345, -1, 'subscription failed')
         assert received['status'] == -1
         assert received['error'] == 'subscription failed'
+
+
+class TestGilRelease:
+    """Tests that poll() releases the GIL, allowing other Python threads to run concurrently."""
+
+    def test_poll_exists_on_client(self):
+        client = rtms.Client()
+        assert hasattr(client, 'poll')
+
+    def test_poll_callable(self):
+        client = rtms.Client()
+        # Should not raise (SDK errors are OK; what matters is it doesn't hang)
+        try:
+            client.poll()
+        except Exception:
+            pass
+
+    @pytest.mark.xfail(reason="Requires GIL release in poll() — not yet implemented in src/python.cpp", strict=True)
+    def test_poll_does_not_block_other_threads(self):
+        """Other threads should execute while poll() runs.
+
+        After fix: wrap PyClient::poll() with py::gil_scoped_release in src/python.cpp.
+        Then uncomment the threading body below and remove the pytest.fail() call.
+
+        # results = []
+        # def worker():
+        #     results.append(threading.get_ident())
+        # client = rtms.Client()
+        # t = threading.Thread(target=worker)
+        # t.start()
+        # try:
+        #     client.poll()
+        # except Exception:
+        #     pass
+        # t.join(timeout=2.0)
+        # assert len(results) == 1, "Worker thread should have completed while poll() ran"
+        """
+        pytest.fail("GIL not yet released in poll() — worker thread is blocked during poll()")
+
+    @pytest.mark.xfail(reason="Requires GIL release in poll() — not yet implemented in src/python.cpp", strict=True)
+    def test_poll_from_background_thread_completes(self):
+        """Concurrent poll() calls from multiple threads should not deadlock.
+
+        After fix: wrap PyClient::poll() with py::gil_scoped_release in src/python.cpp.
+        Then uncomment the threading body below and remove the pytest.fail() call.
+
+        # completed = threading.Event()
+        # def poll_worker():
+        #     c = rtms.Client()
+        #     try:
+        #         c.poll()
+        #     except Exception:
+        #         pass
+        #     completed.set()
+        # threads = [threading.Thread(target=poll_worker) for _ in range(4)]
+        # for t in threads:
+        #     t.start()
+        # for t in threads:
+        #     finished = completed.wait(timeout=3.0)
+        #     assert finished, "poll() should complete without deadlock"
+        """
+        pytest.fail("GIL not yet released in poll() — concurrent poll() calls deadlock")
+
+
+class TestRunAsync:
+    """Tests the new run_async() asyncio-native event loop."""
+
+    def test_run_async_exists(self):
+        assert hasattr(rtms, 'run_async')
+
+    def test_run_async_is_coroutine_function(self):
+        assert inspect.iscoroutinefunction(rtms.run_async)
+
+    def test_run_async_accepts_poll_interval(self):
+        sig = inspect.signature(rtms.run_async)
+        assert 'poll_interval' in sig.parameters
+
+    def test_run_async_accepts_stop_on_empty(self):
+        sig = inspect.signature(rtms.run_async)
+        assert 'stop_on_empty' in sig.parameters
+
+    def test_run_async_stops_when_stop_called(self):
+        async def run_and_stop():
+            loop = asyncio.get_event_loop()
+            loop.call_later(0.05, rtms.stop)
+            await rtms.run_async(poll_interval=0.01)
+
+        asyncio.run(run_and_stop())  # Should complete, not hang
+
+    def test_run_async_stop_on_empty_exits(self):
+        async def run_empty():
+            await rtms.run_async(stop_on_empty=True, poll_interval=0.01)
+
+        asyncio.run(run_empty())  # No clients registered → exits immediately
+
+    def test_run_async_composes_with_gather(self):
+        """run_async() should work inside asyncio.gather without blocking."""
+        results = []
+
+        async def side_task():
+            results.append('side_task_ran')
+
+        async def test():
+            await asyncio.gather(
+                rtms.run_async(stop_on_empty=True, poll_interval=0.01),
+                side_task(),
+            )
+
+        asyncio.run(test())
+        assert 'side_task_ran' in results
+
+
+class TestExecutorSupport:
+    """Tests executor-based callback dispatch."""
+
+    def test_client_accepts_executor_kwarg(self):
+        from concurrent.futures import ThreadPoolExecutor
+        executor = ThreadPoolExecutor(max_workers=2)
+        client = rtms.Client(executor=executor)
+        assert client is not None
+        executor.shutdown(wait=False)
+
+    def test_client_stores_executor(self):
+        from concurrent.futures import ThreadPoolExecutor
+        executor = ThreadPoolExecutor(max_workers=2)
+        client = rtms.Client(executor=executor)
+        assert client._executor is executor
+        executor.shutdown(wait=False)
+
+    def test_client_no_executor_default(self):
+        client = rtms.Client()
+        assert client._executor is None
+
+    def test_run_accepts_executor_kwarg(self):
+        sig = inspect.signature(rtms.run)
+        assert 'executor' in sig.parameters
+
+    def test_run_executor_default_is_none(self):
+        sig = inspect.signature(rtms.run)
+        assert sig.parameters['executor'].default is None
+
+    def test_wrap_callback_exists(self):
+        client = rtms.Client()
+        assert hasattr(client, '_wrap_callback')
+
+    def test_sync_callback_no_executor_passthrough(self):
+        """Sync callback with no executor should be returned unchanged."""
+        client = rtms.Client()
+
+        def sync_cb(*_):
+            pass
+
+        wrapped = client._wrap_callback(sync_cb)
+        assert wrapped is sync_cb, "No executor → callback passed through unchanged"
+
+    def test_executor_wraps_sync_callback(self):
+        """When executor is set, sync callbacks are wrapped for thread pool dispatch."""
+        from concurrent.futures import ThreadPoolExecutor
+        executor = ThreadPoolExecutor(max_workers=1)
+        client = rtms.Client(executor=executor)
+
+        def audio_cb(*_):
+            pass
+
+        wrapped = client._wrap_callback(audio_cb)
+        assert wrapped is not audio_cb, "Executor wrapping should produce a different callable"
+        executor.shutdown(wait=False)
+
+    def test_async_callback_detected_and_wrapped(self):
+        """Async coroutine callbacks should be auto-wrapped for event loop dispatch."""
+        client = rtms.Client()
+
+        async def async_cb(*_):
+            pass
+
+        wrapped = client._wrap_callback(async_cb)
+        assert wrapped is not async_cb, "Async callback should be wrapped"
+
+    def test_executor_applied_to_video_data_callback(self):
+        from concurrent.futures import ThreadPoolExecutor
+        executor = ThreadPoolExecutor(max_workers=1)
+        client = rtms.Client(executor=executor)
+
+        def video_cb(*_):
+            pass
+
+        wrapped = client._wrap_callback(video_cb)
+        assert wrapped is not video_cb
+        executor.shutdown(wait=False)
+
+
+class TestContextManager:
+    """Tests `with rtms.Client() as client:` protocol."""
+
+    def test_client_has_enter(self):
+        assert hasattr(rtms.Client, '__enter__')
+
+    def test_client_has_exit(self):
+        assert hasattr(rtms.Client, '__exit__')
+
+    def test_enter_returns_client(self):
+        client = rtms.Client()
+        result = client.__enter__()
+        assert result is client
+
+    def test_exit_calls_leave(self):
+        client = rtms.Client()
+        with patch.object(client, 'leave') as mock_leave:
+            client.__exit__(None, None, None)
+        mock_leave.assert_called_once()
+
+    def test_with_statement_basic(self):
+        """with rtms.Client() as client: should work without error."""
+        with patch.object(rtms.Client, 'leave'):
+            with rtms.Client() as client:
+                assert client is not None
+
+    def test_exit_called_on_exception(self):
+        """leave() should be called even when an exception is raised inside with block."""
+        leave_called = []
+
+        class TrackingClient(rtms.Client):
+            def leave(self):
+                leave_called.append(True)
+                return True
+
+        client = TrackingClient()
+        try:
+            with client:
+                raise ValueError("test exception")
+        except ValueError:
+            pass
+
+        assert len(leave_called) == 1, "leave() should be called on exception"
+
+    def test_exit_does_not_suppress_exceptions(self):
+        """__exit__ should return False/None so exceptions propagate."""
+        client = rtms.Client()
+        with patch.object(client, 'leave'):
+            result = client.__exit__(ValueError, ValueError("test"), None)
+        assert not result  # False or None — do not suppress
+
+    def test_context_manager_integration(self):
+        """Full with-statement: enter returns client, leave called on exit."""
+        leave_called = []
+
+        with patch.object(rtms.Client, 'leave', side_effect=lambda: leave_called.append(True) or True):
+            with rtms.Client() as client:
+                assert client is not None
+
+        assert len(leave_called) == 1
+
+
+class TestSnakeCaseCallbacks:
+    """snake_case callback methods are canonical; camelCase are backward-compat aliases."""
+
+    def test_on_audio_data_canonical(self):
+        client = rtms.Client()
+        client.on_audio_data(lambda *_: None)
+
+    def test_on_video_data_canonical(self):
+        client = rtms.Client()
+        client.on_video_data(lambda *_: None)
+
+    def test_on_transcript_data_canonical(self):
+        client = rtms.Client()
+        client.on_transcript_data(lambda *_: None)
+
+    def test_on_deskshare_data_canonical(self):
+        client = rtms.Client()
+        client.on_deskshare_data(lambda *_: None)
+
+    def test_on_join_confirm_canonical(self):
+        client = rtms.Client()
+        client.on_join_confirm(lambda _: None)
+
+    def test_on_session_update_canonical(self):
+        client = rtms.Client()
+        client.on_session_update(lambda *_: None)
+
+    def test_on_user_update_canonical(self):
+        client = rtms.Client()
+        client.on_user_update(lambda *_: None)
+
+    def test_on_leave_canonical(self):
+        client = rtms.Client()
+        client.on_leave(lambda _: None)
+
+    def test_on_event_ex_canonical(self):
+        client = rtms.Client()
+        client.on_event_ex(lambda _: None)
+
+    def test_on_participant_event_canonical(self):
+        client = rtms.Client()
+        with patch.object(client, 'subscribeEvent'):
+            client.on_participant_event(lambda *_: None)
+
+    def test_on_active_speaker_event_canonical(self):
+        client = rtms.Client()
+        with patch.object(client, 'subscribeEvent'):
+            client.on_active_speaker_event(lambda *_: None)
+
+    def test_on_sharing_event_canonical(self):
+        client = rtms.Client()
+        with patch.object(client, 'subscribeEvent'):
+            client.on_sharing_event(lambda *_: None)
+
+    def test_on_media_connection_interrupted_canonical(self):
+        client = rtms.Client()
+        with patch.object(client, 'subscribeEvent'):
+            client.on_media_connection_interrupted(lambda *_: None)
+
+    def test_onAudioData_alias_works(self):
+        client = rtms.Client()
+        client.onAudioData(lambda *_: None)
+
+    def test_onVideoData_alias_works(self):
+        client = rtms.Client()
+        client.onVideoData(lambda *_: None)
+
+    def test_onLeave_alias_works(self):
+        client = rtms.Client()
+        client.onLeave(lambda _: None)
+
+    def test_camelCase_is_alias_for_snake_case(self):
+        """camelCase names should be Python-level aliases pointing to the same function as snake_case.
+
+        After fix: on_audio_data is defined in __init__.py and onAudioData = on_audio_data.
+        At the class level, they should be identical objects.
+        """
+        assert rtms.Client.onAudioData is rtms.Client.on_audio_data
 
 
 # Run tests
