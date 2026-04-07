@@ -107,7 +107,7 @@ tasks:
           for wheel in dist/py/*linux_x86_64*.whl; do
             if [ -f "$wheel" ]; then
               echo "Repairing: $wheel"
-              auditwheel repair "$wheel" --exclude librtmsdk.so.0 -w dist/py
+              auditwheel repair "$wheel" --plat manylinux_2_34_x86_64 --exclude librtmsdk.so.0 -w dist/py
               rm "$wheel"
               echo "Wheel repaired successfully"
             fi

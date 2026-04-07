@@ -41,14 +41,42 @@ from ._rtms import (
     RTMS_SDK_INVALID_STATUS, RTMS_SDK_INVALID_ARGS,
     SESS_STATUS_ACTIVE, SESS_STATUS_PAUSED,
 
-    # Parameter dictionaries - import directly with their original names
-    AudioContentType, AudioCodec, AudioSampleRate, AudioChannel, AudioDataOption,
-    VideoContentType, VideoCodec, VideoResolution, VideoDataOption,
-    MediaDataType, SessionState, StreamState, EventType, MessageType, StopReason,
-
-    # Transcript language dict (mirrors AudioCodec/VideoCodec pattern)
-    TranscriptLanguage,
+    # Parameter dictionaries - imported as private names, converted to IntEnum below
+    AudioContentType as _AudioContentType,
+    AudioCodec as _AudioCodec,
+    AudioSampleRate as _AudioSampleRate,
+    AudioChannel as _AudioChannel,
+    AudioDataOption as _AudioDataOption,
+    VideoContentType as _VideoContentType,
+    VideoCodec as _VideoCodec,
+    VideoResolution as _VideoResolution,
+    VideoDataOption as _VideoDataOption,
+    MediaDataType as _MediaDataType,
+    SessionState as _SessionState,
+    StreamState as _StreamState,
+    EventType as _EventType,
+    MessageType as _MessageType,
+    StopReason as _StopReason,
+    TranscriptLanguage as _TranscriptLanguage,
 )
+
+# Convert raw C++ dicts to IntEnum for Pythonic dot-notation access
+AudioContentType  = IntEnum("AudioContentType",  _AudioContentType)
+AudioCodec        = IntEnum("AudioCodec",         _AudioCodec)
+AudioSampleRate   = IntEnum("AudioSampleRate",    _AudioSampleRate)
+AudioChannel      = IntEnum("AudioChannel",       _AudioChannel)
+AudioDataOption   = IntEnum("AudioDataOption",    _AudioDataOption)
+VideoContentType  = IntEnum("VideoContentType",   _VideoContentType)
+VideoCodec        = IntEnum("VideoCodec",         _VideoCodec)
+VideoResolution   = IntEnum("VideoResolution",    _VideoResolution)
+VideoDataOption   = IntEnum("VideoDataOption",    _VideoDataOption)
+MediaDataType     = IntEnum("MediaDataType",      _MediaDataType)
+SessionState      = IntEnum("SessionState",       _SessionState)
+StreamState       = IntEnum("StreamState",        _StreamState)
+EventType         = IntEnum("EventType",          _EventType)
+MessageType       = IntEnum("MessageType",        _MessageType)
+StopReason        = IntEnum("StopReason",         _StopReason)
+TranscriptLanguage = IntEnum("TranscriptLanguage", _TranscriptLanguage)
 
 
 # Set up logging
