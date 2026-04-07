@@ -412,46 +412,46 @@ PYBIND11_MODULE(_rtms, m) {
         .def_property("enable_lid", &TranscriptParams::enableLid, &TranscriptParams::setEnableLid);
 
     // TranscriptLanguage constants dict (matches pattern of AudioCodec, VideoCodec, etc.)
-    // Values sourced from the TranscriptLanguageId enum in rtms.h
+    // Values sourced from the RTMS_TRANSCRIPT_LANGUAGE enum in rtms.h
     py::dict transcriptLanguage;
-    transcriptLanguage["NONE"]                = (int)LANGUAGE_ID_NONE;
-    transcriptLanguage["ARABIC"]              = (int)LANGUAGE_ID_ARABIC;
-    transcriptLanguage["BENGALI"]             = (int)LANGUAGE_ID_BENGALI;
-    transcriptLanguage["CANTONESE"]           = (int)LANGUAGE_ID_CANTONESE;
-    transcriptLanguage["CATALAN"]             = (int)LANGUAGE_ID_CATALAN;
-    transcriptLanguage["CHINESE_SIMPLIFIED"]  = (int)LANGUAGE_ID_CHINESE_SIMPLIFIED;
-    transcriptLanguage["CHINESE_TRADITIONAL"] = (int)LANGUAGE_ID_CHINESE_TRADITIONAL;
-    transcriptLanguage["CZECH"]               = (int)LANGUAGE_ID_CZECH;
-    transcriptLanguage["DANISH"]              = (int)LANGUAGE_ID_DANISH;
-    transcriptLanguage["DUTCH"]               = (int)LANGUAGE_ID_DUTCH;
-    transcriptLanguage["ENGLISH"]             = (int)LANGUAGE_ID_ENGLISH;
-    transcriptLanguage["ESTONIAN"]            = (int)LANGUAGE_ID_ESTONIAN;
-    transcriptLanguage["FINNISH"]             = (int)LANGUAGE_ID_FINNISH;
-    transcriptLanguage["FRENCH_CANADA"]       = (int)LANGUAGE_ID_FRENCH_CANADA;
-    transcriptLanguage["FRENCH_FRANCE"]       = (int)LANGUAGE_ID_FRENCH_FRANCE;
-    transcriptLanguage["GERMAN"]              = (int)LANGUAGE_ID_GERMAN;
-    transcriptLanguage["HEBREW"]              = (int)LANGUAGE_ID_HEBREW;
-    transcriptLanguage["HINDI"]               = (int)LANGUAGE_ID_HINDI;
-    transcriptLanguage["HUNGARIAN"]           = (int)LANGUAGE_ID_HUNGARIAN;
-    transcriptLanguage["INDONESIAN"]          = (int)LANGUAGE_ID_INDONESIAN;
-    transcriptLanguage["ITALIAN"]             = (int)LANGUAGE_ID_ITALIAN;
-    transcriptLanguage["JAPANESE"]            = (int)LANGUAGE_ID_JAPANESE;
-    transcriptLanguage["KOREAN"]              = (int)LANGUAGE_ID_KOREAN;
-    transcriptLanguage["MALAY"]               = (int)LANGUAGE_ID_MALAY;
-    transcriptLanguage["PERSIAN"]             = (int)LANGUAGE_ID_PERSIAN;
-    transcriptLanguage["POLISH"]              = (int)LANGUAGE_ID_POLISH;
-    transcriptLanguage["PORTUGUESE"]          = (int)LANGUAGE_ID_PORTUGUESE;
-    transcriptLanguage["ROMANIAN"]            = (int)LANGUAGE_ID_ROMANIAN;
-    transcriptLanguage["RUSSIAN"]             = (int)LANGUAGE_ID_RUSSIAN;
-    transcriptLanguage["SPANISH"]             = (int)LANGUAGE_ID_SPANISH;
-    transcriptLanguage["SWEDISH"]             = (int)LANGUAGE_ID_SWEDISH;
-    transcriptLanguage["TAGALOG"]             = (int)LANGUAGE_ID_TAGALOG;
-    transcriptLanguage["TAMIL"]               = (int)LANGUAGE_ID_TAMIL;
-    transcriptLanguage["TELUGU"]              = (int)LANGUAGE_ID_TELUGU;
-    transcriptLanguage["THAI"]                = (int)LANGUAGE_ID_THAI;
-    transcriptLanguage["TURKISH"]             = (int)LANGUAGE_ID_TURKISH;
-    transcriptLanguage["UKRAINIAN"]           = (int)LANGUAGE_ID_UKRAINIAN;
-    transcriptLanguage["VIETNAMESE"]          = (int)LANGUAGE_ID_VIETNAMESE;
+    transcriptLanguage["NONE"]                = (int)RTMS_TRANSCRIPT_LANGUAGE::NONE;
+    transcriptLanguage["ARABIC"]              = (int)RTMS_TRANSCRIPT_LANGUAGE::ARABIC;
+    transcriptLanguage["BENGALI"]             = (int)RTMS_TRANSCRIPT_LANGUAGE::BENGALI;
+    transcriptLanguage["CANTONESE"]           = (int)RTMS_TRANSCRIPT_LANGUAGE::CANTONESE;
+    transcriptLanguage["CATALAN"]             = (int)RTMS_TRANSCRIPT_LANGUAGE::CATALAN;
+    transcriptLanguage["CHINESE_SIMPLIFIED"]  = (int)RTMS_TRANSCRIPT_LANGUAGE::CHINESE_SIMPLIFIED;
+    transcriptLanguage["CHINESE_TRADITIONAL"] = (int)RTMS_TRANSCRIPT_LANGUAGE::CHINESE_TRADITIONAL;
+    transcriptLanguage["CZECH"]               = (int)RTMS_TRANSCRIPT_LANGUAGE::CZECH;
+    transcriptLanguage["DANISH"]              = (int)RTMS_TRANSCRIPT_LANGUAGE::DANISH;
+    transcriptLanguage["DUTCH"]               = (int)RTMS_TRANSCRIPT_LANGUAGE::DUTCH;
+    transcriptLanguage["ENGLISH"]             = (int)RTMS_TRANSCRIPT_LANGUAGE::ENGLISH;
+    transcriptLanguage["ESTONIAN"]            = (int)RTMS_TRANSCRIPT_LANGUAGE::ESTONIAN;
+    transcriptLanguage["FINNISH"]             = (int)RTMS_TRANSCRIPT_LANGUAGE::FINNISH;
+    transcriptLanguage["FRENCH_CANADA"]       = (int)RTMS_TRANSCRIPT_LANGUAGE::FRENCH_CANADA;
+    transcriptLanguage["FRENCH_FRANCE"]       = (int)RTMS_TRANSCRIPT_LANGUAGE::FRENCH_FRANCE;
+    transcriptLanguage["GERMAN"]              = (int)RTMS_TRANSCRIPT_LANGUAGE::GERMAN;
+    transcriptLanguage["HEBREW"]              = (int)RTMS_TRANSCRIPT_LANGUAGE::HEBREW;
+    transcriptLanguage["HINDI"]               = (int)RTMS_TRANSCRIPT_LANGUAGE::HINDI;
+    transcriptLanguage["HUNGARIAN"]           = (int)RTMS_TRANSCRIPT_LANGUAGE::HUNGARIAN;
+    transcriptLanguage["INDONESIAN"]          = (int)RTMS_TRANSCRIPT_LANGUAGE::INDONESIAN;
+    transcriptLanguage["ITALIAN"]             = (int)RTMS_TRANSCRIPT_LANGUAGE::ITALIAN;
+    transcriptLanguage["JAPANESE"]            = (int)RTMS_TRANSCRIPT_LANGUAGE::JAPANESE;
+    transcriptLanguage["KOREAN"]              = (int)RTMS_TRANSCRIPT_LANGUAGE::KOREAN;
+    transcriptLanguage["MALAY"]               = (int)RTMS_TRANSCRIPT_LANGUAGE::MALAY;
+    transcriptLanguage["PERSIAN"]             = (int)RTMS_TRANSCRIPT_LANGUAGE::PERSIAN;
+    transcriptLanguage["POLISH"]              = (int)RTMS_TRANSCRIPT_LANGUAGE::POLISH;
+    transcriptLanguage["PORTUGUESE"]          = (int)RTMS_TRANSCRIPT_LANGUAGE::PORTUGUESE;
+    transcriptLanguage["ROMANIAN"]            = (int)RTMS_TRANSCRIPT_LANGUAGE::ROMANIAN;
+    transcriptLanguage["RUSSIAN"]             = (int)RTMS_TRANSCRIPT_LANGUAGE::RUSSIAN;
+    transcriptLanguage["SPANISH"]             = (int)RTMS_TRANSCRIPT_LANGUAGE::SPANISH;
+    transcriptLanguage["SWEDISH"]             = (int)RTMS_TRANSCRIPT_LANGUAGE::SWEDISH;
+    transcriptLanguage["TAGALOG"]             = (int)RTMS_TRANSCRIPT_LANGUAGE::TAGALOG;
+    transcriptLanguage["TAMIL"]               = (int)RTMS_TRANSCRIPT_LANGUAGE::TAMIL;
+    transcriptLanguage["TELUGU"]              = (int)RTMS_TRANSCRIPT_LANGUAGE::TELUGU;
+    transcriptLanguage["THAI"]                = (int)RTMS_TRANSCRIPT_LANGUAGE::THAI;
+    transcriptLanguage["TURKISH"]             = (int)RTMS_TRANSCRIPT_LANGUAGE::TURKISH;
+    transcriptLanguage["UKRAINIAN"]           = (int)RTMS_TRANSCRIPT_LANGUAGE::UKRAINIAN;
+    transcriptLanguage["VIETNAMESE"]          = (int)RTMS_TRANSCRIPT_LANGUAGE::VIETNAMESE;
     m.attr("TranscriptLanguage") = transcriptLanguage;
 
     // ========================================================================
@@ -616,20 +616,20 @@ PYBIND11_MODULE(_rtms, m) {
     // These match RTMS_EVENT_TYPE from Zoom's C SDK
     // ========================================================================
 
-    m.attr("EVENT_UNDEFINED") = py::int_(static_cast<int>(Client::EVENT_UNDEFINED));
-    m.attr("EVENT_FIRST_PACKET_TIMESTAMP") = py::int_(static_cast<int>(Client::EVENT_FIRST_PACKET_TIMESTAMP));
-    m.attr("EVENT_ACTIVE_SPEAKER_CHANGE") = py::int_(static_cast<int>(Client::EVENT_ACTIVE_SPEAKER_CHANGE));
-    m.attr("EVENT_PARTICIPANT_JOIN") = py::int_(static_cast<int>(Client::EVENT_PARTICIPANT_JOIN));
-    m.attr("EVENT_PARTICIPANT_LEAVE") = py::int_(static_cast<int>(Client::EVENT_PARTICIPANT_LEAVE));
-    m.attr("EVENT_SHARING_START") = py::int_(static_cast<int>(Client::EVENT_SHARING_START));
-    m.attr("EVENT_SHARING_STOP") = py::int_(static_cast<int>(Client::EVENT_SHARING_STOP));
-    m.attr("EVENT_MEDIA_CONNECTION_INTERRUPTED") = py::int_(static_cast<int>(Client::EVENT_MEDIA_CONNECTION_INTERRUPTED));
-    m.attr("EVENT_CONSUMER_ANSWERED") = py::int_(static_cast<int>(Client::EVENT_CONSUMER_ANSWERED));
-    m.attr("EVENT_CONSUMER_END") = py::int_(static_cast<int>(Client::EVENT_CONSUMER_END));
-    m.attr("EVENT_USER_ANSWERED") = py::int_(static_cast<int>(Client::EVENT_USER_ANSWERED));
-    m.attr("EVENT_USER_END") = py::int_(static_cast<int>(Client::EVENT_USER_END));
-    m.attr("EVENT_USER_HOLD") = py::int_(static_cast<int>(Client::EVENT_USER_HOLD));
-    m.attr("EVENT_USER_UNHOLD") = py::int_(static_cast<int>(Client::EVENT_USER_UNHOLD));
+    m.attr("EVENT_UNDEFINED") = py::int_(static_cast<int>(RTMS_EVENT_TYPE::UNDEFINED));
+    m.attr("EVENT_FIRST_PACKET_TIMESTAMP") = py::int_(static_cast<int>(RTMS_EVENT_TYPE::FIRST_PACKET_TIMESTAMP));
+    m.attr("EVENT_ACTIVE_SPEAKER_CHANGE") = py::int_(static_cast<int>(RTMS_EVENT_TYPE::ACTIVE_SPEAKER_CHANGE));
+    m.attr("EVENT_PARTICIPANT_JOIN") = py::int_(static_cast<int>(RTMS_EVENT_TYPE::PARTICIPANT_JOIN));
+    m.attr("EVENT_PARTICIPANT_LEAVE") = py::int_(static_cast<int>(RTMS_EVENT_TYPE::PARTICIPANT_LEAVE));
+    m.attr("EVENT_SHARING_START") = py::int_(static_cast<int>(RTMS_EVENT_TYPE::SHARING_START));
+    m.attr("EVENT_SHARING_STOP") = py::int_(static_cast<int>(RTMS_EVENT_TYPE::SHARING_STOP));
+    m.attr("EVENT_MEDIA_CONNECTION_INTERRUPTED") = py::int_(static_cast<int>(RTMS_EVENT_TYPE::MEDIA_CONNECTION_INTERRUPTED));
+    m.attr("EVENT_CONSUMER_ANSWERED") = py::int_(static_cast<int>(RTMS_ZCC_VOICE_EVENT_TYPE::CONSUMER_ANSWERED));
+    m.attr("EVENT_CONSUMER_END") = py::int_(static_cast<int>(RTMS_ZCC_VOICE_EVENT_TYPE::CONSUMER_END));
+    m.attr("EVENT_USER_ANSWERED") = py::int_(static_cast<int>(RTMS_ZCC_VOICE_EVENT_TYPE::USER_ANSWERED));
+    m.attr("EVENT_USER_END") = py::int_(static_cast<int>(RTMS_ZCC_VOICE_EVENT_TYPE::USER_END));
+    m.attr("EVENT_USER_HOLD") = py::int_(static_cast<int>(RTMS_ZCC_VOICE_EVENT_TYPE::USER_HOLD));
+    m.attr("EVENT_USER_UNHOLD") = py::int_(static_cast<int>(RTMS_ZCC_VOICE_EVENT_TYPE::USER_UNHOLD));
 
     // ========================================================================
     // Constants - Error Codes
@@ -655,37 +655,37 @@ PYBIND11_MODULE(_rtms, m) {
     // ========================================================================
 
     py::dict audioContentType;
-    audioContentType["UNDEFINED"]   = (int)CONTENT_TYPE_UNDEFINED;
-    audioContentType["RTP"]         = (int)CONTENT_TYPE_RTP;
-    audioContentType["RAW_AUDIO"]   = (int)CONTENT_TYPE_RAW_AUDIO;
-    audioContentType["FILE_STREAM"] = (int)CONTENT_TYPE_FILE_STREAM;
-    audioContentType["TEXT"]        = (int)CONTENT_TYPE_TEXT;
+    audioContentType["UNDEFINED"]   = (int)MEDIA_CONTENT_TYPE::UNDEFINED;
+    audioContentType["RTP"]         = (int)MEDIA_CONTENT_TYPE::RTP;
+    audioContentType["RAW_AUDIO"]   = (int)MEDIA_CONTENT_TYPE::RAW_AUDIO;
+    audioContentType["FILE_STREAM"] = (int)MEDIA_CONTENT_TYPE::FILE_STREAM;
+    audioContentType["TEXT"]        = (int)MEDIA_CONTENT_TYPE::TEXT;
     m.attr("AudioContentType") = audioContentType;
 
     py::dict audioCodec;
-    audioCodec["UNDEFINED"] = (int)CODEC_UNDEFINED;
-    audioCodec["L16"]       = (int)CODEC_L16;
-    audioCodec["G711"]      = (int)CODEC_G711;
-    audioCodec["G722"]      = (int)CODEC_G722;
-    audioCodec["OPUS"]      = (int)CODEC_OPUS;
+    audioCodec["UNDEFINED"] = (int)MEDIA_PAYLOAD_TYPE::UNDEFINED;
+    audioCodec["L16"]       = (int)MEDIA_PAYLOAD_TYPE::L16;
+    audioCodec["G711"]      = (int)MEDIA_PAYLOAD_TYPE::G711;
+    audioCodec["G722"]      = (int)MEDIA_PAYLOAD_TYPE::G722;
+    audioCodec["OPUS"]      = (int)MEDIA_PAYLOAD_TYPE::OPUS;
     m.attr("AudioCodec") = audioCodec;
 
     py::dict audioSampleRate;
-    audioSampleRate["SR_8K"]  = (int)SAMPLE_RATE_8K;
-    audioSampleRate["SR_16K"] = (int)SAMPLE_RATE_16K;
-    audioSampleRate["SR_32K"] = (int)SAMPLE_RATE_32K;
-    audioSampleRate["SR_48K"] = (int)SAMPLE_RATE_48K;
+    audioSampleRate["SR_8K"]  = (int)AUDIO_SAMPLE_RATE::SR_8K;
+    audioSampleRate["SR_16K"] = (int)AUDIO_SAMPLE_RATE::SR_16K;
+    audioSampleRate["SR_32K"] = (int)AUDIO_SAMPLE_RATE::SR_32K;
+    audioSampleRate["SR_48K"] = (int)AUDIO_SAMPLE_RATE::SR_48K;
     m.attr("AudioSampleRate") = audioSampleRate;
 
     py::dict audioChannel;
-    audioChannel["MONO"]   = (int)CHANNEL_MONO;
-    audioChannel["STEREO"] = (int)CHANNEL_STEREO;
+    audioChannel["MONO"]   = (int)AUDIO_CHANNEL::MONO;
+    audioChannel["STEREO"] = (int)AUDIO_CHANNEL::STEREO;
     m.attr("AudioChannel") = audioChannel;
 
     py::dict audioDataOption;
-    audioDataOption["UNDEFINED"]           = (int)DATA_OPT_UNDEFINED;
-    audioDataOption["AUDIO_MIXED_STREAM"]  = (int)DATA_OPT_AUDIO_MIXED_STREAM;
-    audioDataOption["AUDIO_MULTI_STREAMS"] = (int)DATA_OPT_AUDIO_MULTI_STREAMS;
+    audioDataOption["UNDEFINED"]           = (int)MEDIA_DATA_OPTION::UNDEFINED;
+    audioDataOption["AUDIO_MIXED_STREAM"]  = (int)MEDIA_DATA_OPTION::AUDIO_MIXED_STREAM;
+    audioDataOption["AUDIO_MULTI_STREAMS"] = (int)MEDIA_DATA_OPTION::AUDIO_MULTI_STREAMS;
     m.attr("AudioDataOption") = audioDataOption;
 
     // ========================================================================
@@ -693,32 +693,32 @@ PYBIND11_MODULE(_rtms, m) {
     // ========================================================================
 
     py::dict videoContentType;
-    videoContentType["UNDEFINED"]   = (int)CONTENT_TYPE_UNDEFINED;
-    videoContentType["RTP"]         = (int)CONTENT_TYPE_RTP;
-    videoContentType["RAW_VIDEO"]   = (int)CONTENT_TYPE_RAW_VIDEO;
-    videoContentType["FILE_STREAM"] = (int)CONTENT_TYPE_FILE_STREAM;
-    videoContentType["TEXT"]        = (int)CONTENT_TYPE_TEXT;
+    videoContentType["UNDEFINED"]   = (int)MEDIA_CONTENT_TYPE::UNDEFINED;
+    videoContentType["RTP"]         = (int)MEDIA_CONTENT_TYPE::RTP;
+    videoContentType["RAW_VIDEO"]   = (int)MEDIA_CONTENT_TYPE::RAW_VIDEO;
+    videoContentType["FILE_STREAM"] = (int)MEDIA_CONTENT_TYPE::FILE_STREAM;
+    videoContentType["TEXT"]        = (int)MEDIA_CONTENT_TYPE::TEXT;
     m.attr("VideoContentType") = videoContentType;
 
     py::dict videoCodec;
-    videoCodec["UNDEFINED"] = (int)CODEC_UNDEFINED;
-    videoCodec["JPG"]       = (int)CODEC_JPG;
-    videoCodec["PNG"]       = (int)CODEC_PNG;
-    videoCodec["H264"]      = (int)CODEC_H264;
+    videoCodec["UNDEFINED"] = (int)MEDIA_PAYLOAD_TYPE::UNDEFINED;
+    videoCodec["JPG"]       = (int)MEDIA_PAYLOAD_TYPE::JPG;
+    videoCodec["PNG"]       = (int)MEDIA_PAYLOAD_TYPE::PNG;
+    videoCodec["H264"]      = (int)MEDIA_PAYLOAD_TYPE::H264;
     m.attr("VideoCodec") = videoCodec;
 
     py::dict videoResolution;
-    videoResolution["SD"]  = (int)RESOLUTION_SD;
-    videoResolution["HD"]  = (int)RESOLUTION_HD;
-    videoResolution["FHD"] = (int)RESOLUTION_FHD;
-    videoResolution["QHD"] = (int)RESOLUTION_QHD;
+    videoResolution["SD"]  = (int)MEDIA_RESOLUTION::SD;
+    videoResolution["HD"]  = (int)MEDIA_RESOLUTION::HD;
+    videoResolution["FHD"] = (int)MEDIA_RESOLUTION::FHD;
+    videoResolution["QHD"] = (int)MEDIA_RESOLUTION::QHD;
     m.attr("VideoResolution") = videoResolution;
 
     py::dict videoDataOption;
-    videoDataOption["UNDEFINED"]                  = (int)DATA_OPT_UNDEFINED;
-    videoDataOption["VIDEO_SINGLE_ACTIVE_STREAM"] = (int)DATA_OPT_VIDEO_SINGLE_ACTIVE_STREAM;
-    videoDataOption["VIDEO_MIXED_SPEAKER_VIEW"]   = (int)DATA_OPT_VIDEO_SINGLE_INDIVIDUAL_STREAM;
-    videoDataOption["VIDEO_MIXED_GALLERY_VIEW"]   = (int)DATA_OPT_VIDEO_MIXED_GALLERY_VIEW;
+    videoDataOption["UNDEFINED"]                  = (int)MEDIA_DATA_OPTION::UNDEFINED;
+    videoDataOption["VIDEO_SINGLE_ACTIVE_STREAM"] = (int)MEDIA_DATA_OPTION::VIDEO_SINGLE_ACTIVE_STREAM;
+    videoDataOption["VIDEO_MIXED_SPEAKER_VIEW"]   = (int)MEDIA_DATA_OPTION::VIDEO_SINGLE_INDIVIDUAL_STREAM;
+    videoDataOption["VIDEO_MIXED_GALLERY_VIEW"]   = (int)MEDIA_DATA_OPTION::VIDEO_MIXED_GALLERY_VIEW;
     m.attr("VideoDataOption") = videoDataOption;
 
     // ========================================================================
@@ -726,13 +726,13 @@ PYBIND11_MODULE(_rtms, m) {
     // ========================================================================
 
     py::dict mediaDataType;
-    mediaDataType["UNDEFINED"]  = (int)MEDIA_DATA_UNDEFINED;
-    mediaDataType["AUDIO"]      = (int)MEDIA_DATA_AUDIO;
-    mediaDataType["VIDEO"]      = (int)MEDIA_DATA_VIDEO;
-    mediaDataType["DESKSHARE"]  = (int)MEDIA_DATA_DESKSHARE;
-    mediaDataType["TRANSCRIPT"] = (int)MEDIA_DATA_TRANSCRIPT;
-    mediaDataType["CHAT"]       = (int)MEDIA_DATA_CHAT;
-    mediaDataType["ALL"]        = (int)MEDIA_DATA_ALL;
+    mediaDataType["UNDEFINED"]  = (int)MEDIA_DATA_TYPE::UNDEFINED;
+    mediaDataType["AUDIO"]      = (int)MEDIA_DATA_TYPE::AUDIO;
+    mediaDataType["VIDEO"]      = (int)MEDIA_DATA_TYPE::VIDEO;
+    mediaDataType["DESKSHARE"]  = (int)MEDIA_DATA_TYPE::DESKSHARE;
+    mediaDataType["TRANSCRIPT"] = (int)MEDIA_DATA_TYPE::TRANSCRIPT;
+    mediaDataType["CHAT"]       = (int)MEDIA_DATA_TYPE::CHAT;
+    mediaDataType["ALL"]        = (int)MEDIA_DATA_TYPE::ALL;
     m.attr("MediaDataType") = mediaDataType;
 
     // ========================================================================
@@ -740,12 +740,12 @@ PYBIND11_MODULE(_rtms, m) {
     // ========================================================================
 
     py::dict sessionState;
-    sessionState["INACTIVE"]   = (int)SESSION_STATE_INACTIVE;
-    sessionState["INITIALIZE"] = (int)SESSION_STATE_INITIALIZE;
-    sessionState["STARTED"]    = (int)SESSION_STATE_STARTED;
-    sessionState["PAUSED"]     = (int)SESSION_STATE_PAUSED;
-    sessionState["RESUMED"]    = (int)SESSION_STATE_RESUMED;
-    sessionState["STOPPED"]    = (int)SESSION_STATE_STOPPED;
+    sessionState["INACTIVE"]   = (int)RTMS_SESSION_STATE::INACTIVE;
+    sessionState["INITIALIZE"] = (int)RTMS_SESSION_STATE::INITIALIZE;
+    sessionState["STARTED"]    = (int)RTMS_SESSION_STATE::STARTED;
+    sessionState["PAUSED"]     = (int)RTMS_SESSION_STATE::PAUSED;
+    sessionState["RESUMED"]    = (int)RTMS_SESSION_STATE::RESUMED;
+    sessionState["STOPPED"]    = (int)RTMS_SESSION_STATE::STOPPED;
     m.attr("SessionState") = sessionState;
 
     // ========================================================================
@@ -753,13 +753,13 @@ PYBIND11_MODULE(_rtms, m) {
     // ========================================================================
 
     py::dict streamState;
-    streamState["INACTIVE"]    = (int)STREAM_STATE_INACTIVE;
-    streamState["ACTIVE"]      = (int)STREAM_STATE_ACTIVE;
-    streamState["INTERRUPTED"] = (int)STREAM_STATE_INTERRUPTED;
-    streamState["TERMINATING"] = (int)STREAM_STATE_TERMINATING;
-    streamState["TERMINATED"]  = (int)STREAM_STATE_TERMINATED;
-    streamState["PAUSED"]      = (int)STREAM_STATE_PAUSED;
-    streamState["RESUMED"]     = (int)STREAM_STATE_RESUMED;
+    streamState["INACTIVE"]    = (int)RTMS_STREAM_STATE::INACTIVE;
+    streamState["ACTIVE"]      = (int)RTMS_STREAM_STATE::ACTIVE;
+    streamState["INTERRUPTED"] = (int)RTMS_STREAM_STATE::INTERRUPTED;
+    streamState["TERMINATING"] = (int)RTMS_STREAM_STATE::TERMINATING;
+    streamState["TERMINATED"]  = (int)RTMS_STREAM_STATE::TERMINATED;
+    streamState["PAUSED"]      = (int)RTMS_STREAM_STATE::PAUSED;
+    streamState["RESUMED"]     = (int)RTMS_STREAM_STATE::RESUMED;
     m.attr("StreamState") = streamState;
 
     // ========================================================================
@@ -767,23 +767,23 @@ PYBIND11_MODULE(_rtms, m) {
     // ========================================================================
 
     py::dict eventType;
-    eventType["UNDEFINED"]                    = (int)RTMS_EVENT_UNDEFINED;
-    eventType["FIRST_PACKET_TIMESTAMP"]       = (int)RTMS_EVENT_FIRST_PACKET_TIMESTAMP;
-    eventType["ACTIVE_SPEAKER_CHANGE"]        = (int)RTMS_EVENT_ACTIVE_SPEAKER_CHANGE;
-    eventType["PARTICIPANT_JOIN"]             = (int)RTMS_EVENT_PARTICIPANT_JOIN;
-    eventType["PARTICIPANT_LEAVE"]            = (int)RTMS_EVENT_PARTICIPANT_LEAVE;
-    eventType["SHARING_START"]               = (int)RTMS_EVENT_SHARING_START;
-    eventType["SHARING_STOP"]               = (int)RTMS_EVENT_SHARING_STOP;
-    eventType["MEDIA_CONNECTION_INTERRUPTED"] = (int)RTMS_EVENT_MEDIA_CONNECTION_INTERRUPTED;
-    eventType["PARTICIPANT_VIDEO_ON"]         = (int)RTMS_EVENT_PARTICIPANT_VIDEO_ON;
-    eventType["PARTICIPANT_VIDEO_OFF"]        = (int)RTMS_EVENT_PARTICIPANT_VIDEO_OFF;
+    eventType["UNDEFINED"]                    = (int)RTMS_EVENT_TYPE::UNDEFINED;
+    eventType["FIRST_PACKET_TIMESTAMP"]       = (int)RTMS_EVENT_TYPE::FIRST_PACKET_TIMESTAMP;
+    eventType["ACTIVE_SPEAKER_CHANGE"]        = (int)RTMS_EVENT_TYPE::ACTIVE_SPEAKER_CHANGE;
+    eventType["PARTICIPANT_JOIN"]             = (int)RTMS_EVENT_TYPE::PARTICIPANT_JOIN;
+    eventType["PARTICIPANT_LEAVE"]            = (int)RTMS_EVENT_TYPE::PARTICIPANT_LEAVE;
+    eventType["SHARING_START"]                = (int)RTMS_EVENT_TYPE::SHARING_START;
+    eventType["SHARING_STOP"]                 = (int)RTMS_EVENT_TYPE::SHARING_STOP;
+    eventType["MEDIA_CONNECTION_INTERRUPTED"] = (int)RTMS_EVENT_TYPE::MEDIA_CONNECTION_INTERRUPTED;
+    eventType["PARTICIPANT_VIDEO_ON"]         = (int)RTMS_EVENT_TYPE::PARTICIPANT_VIDEO_ON;
+    eventType["PARTICIPANT_VIDEO_OFF"]        = (int)RTMS_EVENT_TYPE::PARTICIPANT_VIDEO_OFF;
     // ZCC voice events
-    eventType["CONSUMER_ANSWERED"] = (int)ZCC_EVENT_CONSUMER_ANSWERED;
-    eventType["CONSUMER_END"]      = (int)ZCC_EVENT_CONSUMER_END;
-    eventType["USER_ANSWERED"]     = (int)ZCC_EVENT_USER_ANSWERED;
-    eventType["USER_END"]          = (int)ZCC_EVENT_USER_END;
-    eventType["USER_HOLD"]         = (int)ZCC_EVENT_USER_HOLD;
-    eventType["USER_UNHOLD"]       = (int)ZCC_EVENT_USER_UNHOLD;
+    eventType["CONSUMER_ANSWERED"] = (int)RTMS_ZCC_VOICE_EVENT_TYPE::CONSUMER_ANSWERED;
+    eventType["CONSUMER_END"]      = (int)RTMS_ZCC_VOICE_EVENT_TYPE::CONSUMER_END;
+    eventType["USER_ANSWERED"]     = (int)RTMS_ZCC_VOICE_EVENT_TYPE::USER_ANSWERED;
+    eventType["USER_END"]          = (int)RTMS_ZCC_VOICE_EVENT_TYPE::USER_END;
+    eventType["USER_HOLD"]         = (int)RTMS_ZCC_VOICE_EVENT_TYPE::USER_HOLD;
+    eventType["USER_UNHOLD"]       = (int)RTMS_ZCC_VOICE_EVENT_TYPE::USER_UNHOLD;
     m.attr("EventType") = eventType;
 
     // ========================================================================
@@ -791,36 +791,36 @@ PYBIND11_MODULE(_rtms, m) {
     // ========================================================================
 
     py::dict messageType;
-    messageType["UNDEFINED"]                 = (int)MSG_UNDEFINED;
-    messageType["SIGNALING_HAND_SHAKE_REQ"]  = (int)MSG_SIGNALING_HAND_SHAKE_REQ;
-    messageType["SIGNALING_HAND_SHAKE_RESP"] = (int)MSG_SIGNALING_HAND_SHAKE_RESP;
-    messageType["DATA_HAND_SHAKE_REQ"]       = (int)MSG_DATA_HAND_SHAKE_REQ;
-    messageType["DATA_HAND_SHAKE_RESP"]      = (int)MSG_DATA_HAND_SHAKE_RESP;
-    messageType["EVENT_SUBSCRIPTION"]        = (int)MSG_EVENT_SUBSCRIPTION;
-    messageType["EVENT_UPDATE"]              = (int)MSG_EVENT_UPDATE;
-    messageType["CLIENT_READY_ACK"]          = (int)MSG_CLIENT_READY_ACK;
-    messageType["STREAM_STATE_UPDATE"]       = (int)MSG_STREAM_STATE_UPDATE;
-    messageType["SESSION_STATE_UPDATE"]      = (int)MSG_SESSION_STATE_UPDATE;
-    messageType["SESSION_STATE_REQ"]         = (int)MSG_SESSION_STATE_REQ;
-    messageType["SESSION_STATE_RESP"]        = (int)MSG_SESSION_STATE_RESP;
-    messageType["KEEP_ALIVE_REQ"]            = (int)MSG_KEEP_ALIVE_REQ;
-    messageType["KEEP_ALIVE_RESP"]           = (int)MSG_KEEP_ALIVE_RESP;
-    messageType["MEDIA_DATA_AUDIO"]          = (int)MSG_MEDIA_DATA_AUDIO;
-    messageType["MEDIA_DATA_VIDEO"]          = (int)MSG_MEDIA_DATA_VIDEO;
-    messageType["MEDIA_DATA_SHARE"]          = (int)MSG_MEDIA_DATA_SHARE;
-    messageType["MEDIA_DATA_TRANSCRIPT"]     = (int)MSG_MEDIA_DATA_TRANSCRIPT;
-    messageType["MEDIA_DATA_CHAT"]           = (int)MSG_MEDIA_DATA_CHAT;
-    messageType["STREAM_STATE_REQ"]          = (int)MSG_STREAM_STATE_REQ;
-    messageType["STREAM_STATE_RESP"]         = (int)MSG_STREAM_STATE_RESP;
-    messageType["STREAM_CLOSE_REQ"]          = (int)MSG_STREAM_CLOSE_REQ;
-    messageType["STREAM_CLOSE_RESP"]         = (int)MSG_STREAM_CLOSE_RESP;
-    messageType["META_DATA_AUDIO"]           = (int)MSG_META_DATA_AUDIO;
-    messageType["META_DATA_VIDEO"]           = (int)MSG_META_DATA_VIDEO;
-    messageType["META_DATA_SHARE"]           = (int)MSG_META_DATA_SHARE;
-    messageType["META_DATA_TRANSCRIPT"]      = (int)MSG_META_DATA_TRANSCRIPT;
-    messageType["META_DATA_CHAT"]            = (int)MSG_META_DATA_CHAT;
-    messageType["VIDEO_SUBSCRIPTION_REQ"]    = (int)MSG_VIDEO_SUBSCRIPTION_REQ;
-    messageType["VIDEO_SUBSCRIPTION_RESP"]   = (int)MSG_VIDEO_SUBSCRIPTION_RESP;
+    messageType["UNDEFINED"]                 = (int)RTMS_MESSAGE_TYPE::UNDEFINED;
+    messageType["SIGNALING_HAND_SHAKE_REQ"]  = (int)RTMS_MESSAGE_TYPE::SIGNALING_HAND_SHAKE_REQ;
+    messageType["SIGNALING_HAND_SHAKE_RESP"] = (int)RTMS_MESSAGE_TYPE::SIGNALING_HAND_SHAKE_RESP;
+    messageType["DATA_HAND_SHAKE_REQ"]       = (int)RTMS_MESSAGE_TYPE::DATA_HAND_SHAKE_REQ;
+    messageType["DATA_HAND_SHAKE_RESP"]      = (int)RTMS_MESSAGE_TYPE::DATA_HAND_SHAKE_RESP;
+    messageType["EVENT_SUBSCRIPTION"]        = (int)RTMS_MESSAGE_TYPE::EVENT_SUBSCRIPTION;
+    messageType["EVENT_UPDATE"]              = (int)RTMS_MESSAGE_TYPE::EVENT_UPDATE;
+    messageType["CLIENT_READY_ACK"]          = (int)RTMS_MESSAGE_TYPE::CLIENT_READY_ACK;
+    messageType["STREAM_STATE_UPDATE"]       = (int)RTMS_MESSAGE_TYPE::STREAM_STATE_UPDATE;
+    messageType["SESSION_STATE_UPDATE"]      = (int)RTMS_MESSAGE_TYPE::SESSION_STATE_UPDATE;
+    messageType["SESSION_STATE_REQ"]         = (int)RTMS_MESSAGE_TYPE::SESSION_STATE_REQ;
+    messageType["SESSION_STATE_RESP"]        = (int)RTMS_MESSAGE_TYPE::SESSION_STATE_RESP;
+    messageType["KEEP_ALIVE_REQ"]            = (int)RTMS_MESSAGE_TYPE::KEEP_ALIVE_REQ;
+    messageType["KEEP_ALIVE_RESP"]           = (int)RTMS_MESSAGE_TYPE::KEEP_ALIVE_RESP;
+    messageType["MEDIA_DATA_AUDIO"]          = (int)RTMS_MESSAGE_TYPE::MEDIA_DATA_AUDIO;
+    messageType["MEDIA_DATA_VIDEO"]          = (int)RTMS_MESSAGE_TYPE::MEDIA_DATA_VIDEO;
+    messageType["MEDIA_DATA_SHARE"]          = (int)RTMS_MESSAGE_TYPE::MEDIA_DATA_SHARE;
+    messageType["MEDIA_DATA_TRANSCRIPT"]     = (int)RTMS_MESSAGE_TYPE::MEDIA_DATA_TRANSCRIPT;
+    messageType["MEDIA_DATA_CHAT"]           = (int)RTMS_MESSAGE_TYPE::MEDIA_DATA_CHAT;
+    messageType["STREAM_STATE_REQ"]          = (int)RTMS_MESSAGE_TYPE::STREAM_STATE_REQ;
+    messageType["STREAM_STATE_RESP"]         = (int)RTMS_MESSAGE_TYPE::STREAM_STATE_RESP;
+    messageType["STREAM_CLOSE_REQ"]          = (int)RTMS_MESSAGE_TYPE::STREAM_CLOSE_REQ;
+    messageType["STREAM_CLOSE_RESP"]         = (int)RTMS_MESSAGE_TYPE::STREAM_CLOSE_RESP;
+    messageType["META_DATA_AUDIO"]           = (int)RTMS_MESSAGE_TYPE::META_DATA_AUDIO;
+    messageType["META_DATA_VIDEO"]           = (int)RTMS_MESSAGE_TYPE::META_DATA_VIDEO;
+    messageType["META_DATA_SHARE"]           = (int)RTMS_MESSAGE_TYPE::META_DATA_SHARE;
+    messageType["META_DATA_TRANSCRIPT"]      = (int)RTMS_MESSAGE_TYPE::META_DATA_TRANSCRIPT;
+    messageType["META_DATA_CHAT"]            = (int)RTMS_MESSAGE_TYPE::META_DATA_CHAT;
+    messageType["VIDEO_SUBSCRIPTION_REQ"]    = (int)RTMS_MESSAGE_TYPE::VIDEO_SUBSCRIPTION_REQ;
+    messageType["VIDEO_SUBSCRIPTION_RESP"]   = (int)RTMS_MESSAGE_TYPE::VIDEO_SUBSCRIPTION_RESP;
     m.attr("MessageType") = messageType;
 
     // ========================================================================
@@ -828,32 +828,32 @@ PYBIND11_MODULE(_rtms, m) {
     // ========================================================================
 
     py::dict stopReason;
-    stopReason["UNDEFINED"]                               = (int)STOP_UNDEFINED;
-    stopReason["STOP_BC_HOST_TRIGGERED"]                  = (int)STOP_BC_HOST_TRIGGERED;
-    stopReason["STOP_BC_USER_TRIGGERED"]                  = (int)STOP_BC_USER_TRIGGERED;
-    stopReason["STOP_BC_USER_LEFT"]                       = (int)STOP_BC_USER_LEFT;
-    stopReason["STOP_BC_USER_EJECTED"]                    = (int)STOP_BC_USER_EJECTED;
-    stopReason["STOP_BC_HOST_DISABLED_APP"]               = (int)STOP_BC_HOST_DISABLED_APP;
-    stopReason["STOP_BC_MEETING_ENDED"]                   = (int)STOP_BC_MEETING_ENDED;
-    stopReason["STOP_BC_STREAM_CANCELED"]                 = (int)STOP_BC_STREAM_CANCELED;
-    stopReason["STOP_BC_STREAM_REVOKED"]                  = (int)STOP_BC_STREAM_REVOKED;
-    stopReason["STOP_BC_ALL_APPS_DISABLED"]               = (int)STOP_BC_ALL_APPS_DISABLED;
-    stopReason["STOP_BC_INTERNAL_EXCEPTION"]              = (int)STOP_BC_INTERNAL_EXCEPTION;
-    stopReason["STOP_BC_CONNECTION_TIMEOUT"]              = (int)STOP_BC_CONNECTION_TIMEOUT;
-    stopReason["STOP_BC_INSTANCE_CONNECTION_INTERRUPTED"] = (int)STOP_BC_INSTANCE_CONNECTION_INTERRUPTED;
-    stopReason["STOP_BC_SIGNAL_CONNECTION_INTERRUPTED"]   = (int)STOP_BC_SIGNAL_CONNECTION_INTERRUPTED;
-    stopReason["STOP_BC_DATA_CONNECTION_INTERRUPTED"]     = (int)STOP_BC_DATA_CONNECTION_INTERRUPTED;
-    stopReason["STOP_BC_SIGNAL_CONNECTION_CLOSED_ABNORMALLY"] = (int)STOP_BC_SIGNAL_CONNECTION_CLOSED_ABNORMALLY;
-    stopReason["STOP_BC_DATA_CONNECTION_CLOSED_ABNORMALLY"]   = (int)STOP_BC_DATA_CONNECTION_CLOSED_ABNORMALLY;
-    stopReason["STOP_BC_EXIT_SIGNAL"]                     = (int)STOP_BC_EXIT_SIGNAL;
-    stopReason["STOP_BC_AUTHENTICATION_FAILURE"]          = (int)STOP_BC_AUTHENTICATION_FAILURE;
-    stopReason["STOP_BC_AWAIT_RECONNECTION_TIMEOUT"]      = (int)STOP_BC_AWAIT_RECONNECTION_TIMEOUT;
-    stopReason["STOP_BC_RECEIVER_REQUEST_CLOSE"]          = (int)STOP_BC_RECEIVER_REQUEST_CLOSE;
-    stopReason["STOP_BC_CUSTOMER_DISCONNECTED"]           = (int)STOP_BC_CUSTOMER_DISCONNECTED;
-    stopReason["STOP_BC_AGENT_DISCONNECTED"]              = (int)STOP_BC_AGENT_DISCONNECTED;
-    stopReason["STOP_BC_ADMIN_DISABLED_APP"]              = (int)STOP_BC_ADMIN_DISABLED_APP;
-    stopReason["STOP_BC_KEEP_ALIVE_TIMEOUT"]              = (int)STOP_BC_KEEP_ALIVE_TIMEOUT;
-    stopReason["STOP_BC_MANUAL_API_TRIGGERED"]            = (int)STOP_BC_MANUAL_API_TRIGGERED;
-    stopReason["STOP_BC_STREAMING_NOT_SUPPORTED"]         = (int)STOP_BC_STREAMING_NOT_SUPPORTED;
+    stopReason["UNDEFINED"]                               = (int)RTMS_STOP_REASON::UNDEFINED;
+    stopReason["HOST_TRIGGERED"]                          = (int)RTMS_STOP_REASON::HOST_TRIGGERED;
+    stopReason["USER_TRIGGERED"]                          = (int)RTMS_STOP_REASON::USER_TRIGGERED;
+    stopReason["USER_LEFT"]                               = (int)RTMS_STOP_REASON::USER_LEFT;
+    stopReason["USER_EJECTED"]                            = (int)RTMS_STOP_REASON::USER_EJECTED;
+    stopReason["HOST_DISABLED_APP"]                       = (int)RTMS_STOP_REASON::HOST_DISABLED_APP;
+    stopReason["MEETING_ENDED"]                           = (int)RTMS_STOP_REASON::MEETING_ENDED;
+    stopReason["STREAM_CANCELED"]                         = (int)RTMS_STOP_REASON::STREAM_CANCELED;
+    stopReason["STREAM_REVOKED"]                          = (int)RTMS_STOP_REASON::STREAM_REVOKED;
+    stopReason["ALL_APPS_DISABLED"]                       = (int)RTMS_STOP_REASON::ALL_APPS_DISABLED;
+    stopReason["INTERNAL_EXCEPTION"]                      = (int)RTMS_STOP_REASON::INTERNAL_EXCEPTION;
+    stopReason["CONNECTION_TIMEOUT"]                      = (int)RTMS_STOP_REASON::CONNECTION_TIMEOUT;
+    stopReason["INSTANCE_CONNECTION_INTERRUPTED"]         = (int)RTMS_STOP_REASON::INSTANCE_CONNECTION_INTERRUPTED;
+    stopReason["SIGNAL_CONNECTION_INTERRUPTED"]           = (int)RTMS_STOP_REASON::SIGNAL_CONNECTION_INTERRUPTED;
+    stopReason["DATA_CONNECTION_INTERRUPTED"]             = (int)RTMS_STOP_REASON::DATA_CONNECTION_INTERRUPTED;
+    stopReason["SIGNAL_CONNECTION_CLOSED_ABNORMALLY"]     = (int)RTMS_STOP_REASON::SIGNAL_CONNECTION_CLOSED_ABNORMALLY;
+    stopReason["DATA_CONNECTION_CLOSED_ABNORMALLY"]       = (int)RTMS_STOP_REASON::DATA_CONNECTION_CLOSED_ABNORMALLY;
+    stopReason["EXIT_SIGNAL"]                             = (int)RTMS_STOP_REASON::EXIT_SIGNAL;
+    stopReason["AUTHENTICATION_FAILURE"]                  = (int)RTMS_STOP_REASON::AUTHENTICATION_FAILURE;
+    stopReason["AWAIT_RECONNECTION_TIMEOUT"]              = (int)RTMS_STOP_REASON::AWAIT_RECONNECTION_TIMEOUT;
+    stopReason["RECEIVER_REQUEST_CLOSE"]                  = (int)RTMS_STOP_REASON::RECEIVER_REQUEST_CLOSE;
+    stopReason["CUSTOMER_DISCONNECTED"]                   = (int)RTMS_STOP_REASON::CUSTOMER_DISCONNECTED;
+    stopReason["AGENT_DISCONNECTED"]                      = (int)RTMS_STOP_REASON::AGENT_DISCONNECTED;
+    stopReason["ADMIN_DISABLED_APP"]                      = (int)RTMS_STOP_REASON::ADMIN_DISABLED_APP;
+    stopReason["KEEP_ALIVE_TIMEOUT"]                      = (int)RTMS_STOP_REASON::KEEP_ALIVE_TIMEOUT;
+    stopReason["MANUAL_API_TRIGGERED"]                    = (int)RTMS_STOP_REASON::MANUAL_API_TRIGGERED;
+    stopReason["STREAMING_NOT_SUPPORTED"]                 = (int)RTMS_STOP_REASON::STREAMING_NOT_SUPPORTED;
     m.attr("StopReason") = stopReason;
 }

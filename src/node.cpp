@@ -969,20 +969,20 @@ Napi::Object NodeClient::init(Napi::Env env, Napi::Object exports) {
 
     // Event types for subscribeEvent/unsubscribeEvent (used with onEventEx callback)
     // These match RTMS_EVENT_TYPE from Zoom's C SDK
-    exports.Set(Napi::String::New(env, "EVENT_UNDEFINED"), Napi::Number::New(env, rtms::Client::EVENT_UNDEFINED));
-    exports.Set(Napi::String::New(env, "EVENT_FIRST_PACKET_TIMESTAMP"), Napi::Number::New(env, rtms::Client::EVENT_FIRST_PACKET_TIMESTAMP));
-    exports.Set(Napi::String::New(env, "EVENT_ACTIVE_SPEAKER_CHANGE"), Napi::Number::New(env, rtms::Client::EVENT_ACTIVE_SPEAKER_CHANGE));
-    exports.Set(Napi::String::New(env, "EVENT_PARTICIPANT_JOIN"), Napi::Number::New(env, rtms::Client::EVENT_PARTICIPANT_JOIN));
-    exports.Set(Napi::String::New(env, "EVENT_PARTICIPANT_LEAVE"), Napi::Number::New(env, rtms::Client::EVENT_PARTICIPANT_LEAVE));
-    exports.Set(Napi::String::New(env, "EVENT_SHARING_START"), Napi::Number::New(env, rtms::Client::EVENT_SHARING_START));
-    exports.Set(Napi::String::New(env, "EVENT_SHARING_STOP"), Napi::Number::New(env, rtms::Client::EVENT_SHARING_STOP));
-    exports.Set(Napi::String::New(env, "EVENT_MEDIA_CONNECTION_INTERRUPTED"), Napi::Number::New(env, rtms::Client::EVENT_MEDIA_CONNECTION_INTERRUPTED));
-    exports.Set(Napi::String::New(env, "EVENT_CONSUMER_ANSWERED"), Napi::Number::New(env, rtms::Client::EVENT_CONSUMER_ANSWERED));
-    exports.Set(Napi::String::New(env, "EVENT_CONSUMER_END"), Napi::Number::New(env, rtms::Client::EVENT_CONSUMER_END));
-    exports.Set(Napi::String::New(env, "EVENT_USER_ANSWERED"), Napi::Number::New(env, rtms::Client::EVENT_USER_ANSWERED));
-    exports.Set(Napi::String::New(env, "EVENT_USER_END"), Napi::Number::New(env, rtms::Client::EVENT_USER_END));
-    exports.Set(Napi::String::New(env, "EVENT_USER_HOLD"), Napi::Number::New(env, rtms::Client::EVENT_USER_HOLD));
-    exports.Set(Napi::String::New(env, "EVENT_USER_UNHOLD"), Napi::Number::New(env, rtms::Client::EVENT_USER_UNHOLD));
+    exports.Set(Napi::String::New(env, "EVENT_UNDEFINED"),                    Napi::Number::New(env, (int)rtms::RTMS_EVENT_TYPE::UNDEFINED));
+    exports.Set(Napi::String::New(env, "EVENT_FIRST_PACKET_TIMESTAMP"),       Napi::Number::New(env, (int)rtms::RTMS_EVENT_TYPE::FIRST_PACKET_TIMESTAMP));
+    exports.Set(Napi::String::New(env, "EVENT_ACTIVE_SPEAKER_CHANGE"),        Napi::Number::New(env, (int)rtms::RTMS_EVENT_TYPE::ACTIVE_SPEAKER_CHANGE));
+    exports.Set(Napi::String::New(env, "EVENT_PARTICIPANT_JOIN"),             Napi::Number::New(env, (int)rtms::RTMS_EVENT_TYPE::PARTICIPANT_JOIN));
+    exports.Set(Napi::String::New(env, "EVENT_PARTICIPANT_LEAVE"),            Napi::Number::New(env, (int)rtms::RTMS_EVENT_TYPE::PARTICIPANT_LEAVE));
+    exports.Set(Napi::String::New(env, "EVENT_SHARING_START"),                Napi::Number::New(env, (int)rtms::RTMS_EVENT_TYPE::SHARING_START));
+    exports.Set(Napi::String::New(env, "EVENT_SHARING_STOP"),                 Napi::Number::New(env, (int)rtms::RTMS_EVENT_TYPE::SHARING_STOP));
+    exports.Set(Napi::String::New(env, "EVENT_MEDIA_CONNECTION_INTERRUPTED"), Napi::Number::New(env, (int)rtms::RTMS_EVENT_TYPE::MEDIA_CONNECTION_INTERRUPTED));
+    exports.Set(Napi::String::New(env, "EVENT_CONSUMER_ANSWERED"),            Napi::Number::New(env, (int)rtms::RTMS_ZCC_VOICE_EVENT_TYPE::CONSUMER_ANSWERED));
+    exports.Set(Napi::String::New(env, "EVENT_CONSUMER_END"),                 Napi::Number::New(env, (int)rtms::RTMS_ZCC_VOICE_EVENT_TYPE::CONSUMER_END));
+    exports.Set(Napi::String::New(env, "EVENT_USER_ANSWERED"),                Napi::Number::New(env, (int)rtms::RTMS_ZCC_VOICE_EVENT_TYPE::USER_ANSWERED));
+    exports.Set(Napi::String::New(env, "EVENT_USER_END"),                     Napi::Number::New(env, (int)rtms::RTMS_ZCC_VOICE_EVENT_TYPE::USER_END));
+    exports.Set(Napi::String::New(env, "EVENT_USER_HOLD"),                    Napi::Number::New(env, (int)rtms::RTMS_ZCC_VOICE_EVENT_TYPE::USER_HOLD));
+    exports.Set(Napi::String::New(env, "EVENT_USER_UNHOLD"),                  Napi::Number::New(env, (int)rtms::RTMS_ZCC_VOICE_EVENT_TYPE::USER_UNHOLD));
 
     exports.Set(Napi::String::New(env, "RTMS_SDK_FAILURE"), Napi::Number::New(env, RTMS_SDK_FAILURE));
     exports.Set(Napi::String::New(env, "RTMS_SDK_OK"), Napi::Number::New(env, RTMS_SDK_OK));
@@ -999,240 +999,240 @@ Napi::Object NodeClient::init(Napi::Env env, Napi::Object exports) {
 
     // Audio Content Type (MEDIA_CONTENT_TYPE)
     Napi::Object audioContentType = Napi::Object::New(env);
-    audioContentType.Set("UNDEFINED",   Napi::Number::New(env, rtms::CONTENT_TYPE_UNDEFINED));
-    audioContentType.Set("RTP",         Napi::Number::New(env, rtms::CONTENT_TYPE_RTP));
-    audioContentType.Set("RAW_AUDIO",   Napi::Number::New(env, rtms::CONTENT_TYPE_RAW_AUDIO));
-    audioContentType.Set("FILE_STREAM", Napi::Number::New(env, rtms::CONTENT_TYPE_FILE_STREAM));
-    audioContentType.Set("TEXT",        Napi::Number::New(env, rtms::CONTENT_TYPE_TEXT));
+    audioContentType.Set("UNDEFINED",   Napi::Number::New(env, (int)rtms::MEDIA_CONTENT_TYPE::UNDEFINED));
+    audioContentType.Set("RTP",         Napi::Number::New(env, (int)rtms::MEDIA_CONTENT_TYPE::RTP));
+    audioContentType.Set("RAW_AUDIO",   Napi::Number::New(env, (int)rtms::MEDIA_CONTENT_TYPE::RAW_AUDIO));
+    audioContentType.Set("FILE_STREAM", Napi::Number::New(env, (int)rtms::MEDIA_CONTENT_TYPE::FILE_STREAM));
+    audioContentType.Set("TEXT",        Napi::Number::New(env, (int)rtms::MEDIA_CONTENT_TYPE::TEXT));
     exports.Set("AudioContentType", audioContentType);
 
     // Audio Codec (MEDIA_PAYLOAD_TYPE)
     Napi::Object audioCodec = Napi::Object::New(env);
-    audioCodec.Set("UNDEFINED", Napi::Number::New(env, rtms::CODEC_UNDEFINED));
-    audioCodec.Set("L16",       Napi::Number::New(env, rtms::CODEC_L16));
-    audioCodec.Set("G711",      Napi::Number::New(env, rtms::CODEC_G711));
-    audioCodec.Set("G722",      Napi::Number::New(env, rtms::CODEC_G722));
-    audioCodec.Set("OPUS",      Napi::Number::New(env, rtms::CODEC_OPUS));
+    audioCodec.Set("UNDEFINED", Napi::Number::New(env, (int)rtms::MEDIA_PAYLOAD_TYPE::UNDEFINED));
+    audioCodec.Set("L16",       Napi::Number::New(env, (int)rtms::MEDIA_PAYLOAD_TYPE::L16));
+    audioCodec.Set("G711",      Napi::Number::New(env, (int)rtms::MEDIA_PAYLOAD_TYPE::G711));
+    audioCodec.Set("G722",      Napi::Number::New(env, (int)rtms::MEDIA_PAYLOAD_TYPE::G722));
+    audioCodec.Set("OPUS",      Napi::Number::New(env, (int)rtms::MEDIA_PAYLOAD_TYPE::OPUS));
     exports.Set("AudioCodec", audioCodec);
 
     // Audio Sample Rate (AUDIO_SAMPLE_RATE)
     Napi::Object audioSampleRate = Napi::Object::New(env);
-    audioSampleRate.Set("SR_8K",  Napi::Number::New(env, rtms::SAMPLE_RATE_8K));
-    audioSampleRate.Set("SR_16K", Napi::Number::New(env, rtms::SAMPLE_RATE_16K));
-    audioSampleRate.Set("SR_32K", Napi::Number::New(env, rtms::SAMPLE_RATE_32K));
-    audioSampleRate.Set("SR_48K", Napi::Number::New(env, rtms::SAMPLE_RATE_48K));
+    audioSampleRate.Set("SR_8K",  Napi::Number::New(env, (int)rtms::AUDIO_SAMPLE_RATE::SR_8K));
+    audioSampleRate.Set("SR_16K", Napi::Number::New(env, (int)rtms::AUDIO_SAMPLE_RATE::SR_16K));
+    audioSampleRate.Set("SR_32K", Napi::Number::New(env, (int)rtms::AUDIO_SAMPLE_RATE::SR_32K));
+    audioSampleRate.Set("SR_48K", Napi::Number::New(env, (int)rtms::AUDIO_SAMPLE_RATE::SR_48K));
     exports.Set("AudioSampleRate", audioSampleRate);
 
     // Audio Channel (AUDIO_CHANNEL)
     Napi::Object audioChannel = Napi::Object::New(env);
-    audioChannel.Set("MONO",   Napi::Number::New(env, rtms::CHANNEL_MONO));
-    audioChannel.Set("STEREO", Napi::Number::New(env, rtms::CHANNEL_STEREO));
+    audioChannel.Set("MONO",   Napi::Number::New(env, (int)rtms::AUDIO_CHANNEL::MONO));
+    audioChannel.Set("STEREO", Napi::Number::New(env, (int)rtms::AUDIO_CHANNEL::STEREO));
     exports.Set("AudioChannel", audioChannel);
 
     // Audio Data Option (MEDIA_DATA_OPTION)
     Napi::Object audioDataOption = Napi::Object::New(env);
-    audioDataOption.Set("UNDEFINED",          Napi::Number::New(env, rtms::DATA_OPT_UNDEFINED));
-    audioDataOption.Set("AUDIO_MIXED_STREAM",  Napi::Number::New(env, rtms::DATA_OPT_AUDIO_MIXED_STREAM));
-    audioDataOption.Set("AUDIO_MULTI_STREAMS", Napi::Number::New(env, rtms::DATA_OPT_AUDIO_MULTI_STREAMS));
+    audioDataOption.Set("UNDEFINED",          Napi::Number::New(env, (int)rtms::MEDIA_DATA_OPTION::UNDEFINED));
+    audioDataOption.Set("AUDIO_MIXED_STREAM",  Napi::Number::New(env, (int)rtms::MEDIA_DATA_OPTION::AUDIO_MIXED_STREAM));
+    audioDataOption.Set("AUDIO_MULTI_STREAMS", Napi::Number::New(env, (int)rtms::MEDIA_DATA_OPTION::AUDIO_MULTI_STREAMS));
     exports.Set("AudioDataOption", audioDataOption);
 
     // ===== Video Parameters =====
 
     // Video Content Type (MEDIA_CONTENT_TYPE)
     Napi::Object videoContentType = Napi::Object::New(env);
-    videoContentType.Set("UNDEFINED",   Napi::Number::New(env, rtms::CONTENT_TYPE_UNDEFINED));
-    videoContentType.Set("RTP",         Napi::Number::New(env, rtms::CONTENT_TYPE_RTP));
-    videoContentType.Set("RAW_VIDEO",   Napi::Number::New(env, rtms::CONTENT_TYPE_RAW_VIDEO));
-    videoContentType.Set("FILE_STREAM", Napi::Number::New(env, rtms::CONTENT_TYPE_FILE_STREAM));
-    videoContentType.Set("TEXT",        Napi::Number::New(env, rtms::CONTENT_TYPE_TEXT));
+    videoContentType.Set("UNDEFINED",   Napi::Number::New(env, (int)rtms::MEDIA_CONTENT_TYPE::UNDEFINED));
+    videoContentType.Set("RTP",         Napi::Number::New(env, (int)rtms::MEDIA_CONTENT_TYPE::RTP));
+    videoContentType.Set("RAW_VIDEO",   Napi::Number::New(env, (int)rtms::MEDIA_CONTENT_TYPE::RAW_VIDEO));
+    videoContentType.Set("FILE_STREAM", Napi::Number::New(env, (int)rtms::MEDIA_CONTENT_TYPE::FILE_STREAM));
+    videoContentType.Set("TEXT",        Napi::Number::New(env, (int)rtms::MEDIA_CONTENT_TYPE::TEXT));
     exports.Set("VideoContentType", videoContentType);
 
     // Video Codec (MEDIA_PAYLOAD_TYPE)
     Napi::Object videoCodec = Napi::Object::New(env);
-    videoCodec.Set("UNDEFINED", Napi::Number::New(env, rtms::CODEC_UNDEFINED));
-    videoCodec.Set("JPG",       Napi::Number::New(env, rtms::CODEC_JPG));
-    videoCodec.Set("PNG",       Napi::Number::New(env, rtms::CODEC_PNG));
-    videoCodec.Set("H264",      Napi::Number::New(env, rtms::CODEC_H264));
+    videoCodec.Set("UNDEFINED", Napi::Number::New(env, (int)rtms::MEDIA_PAYLOAD_TYPE::UNDEFINED));
+    videoCodec.Set("JPG",       Napi::Number::New(env, (int)rtms::MEDIA_PAYLOAD_TYPE::JPG));
+    videoCodec.Set("PNG",       Napi::Number::New(env, (int)rtms::MEDIA_PAYLOAD_TYPE::PNG));
+    videoCodec.Set("H264",      Napi::Number::New(env, (int)rtms::MEDIA_PAYLOAD_TYPE::H264));
     exports.Set("VideoCodec", videoCodec);
 
     // Video Resolution (MEDIA_RESOLUTION)
     Napi::Object videoResolution = Napi::Object::New(env);
-    videoResolution.Set("SD",  Napi::Number::New(env, rtms::RESOLUTION_SD));
-    videoResolution.Set("HD",  Napi::Number::New(env, rtms::RESOLUTION_HD));
-    videoResolution.Set("FHD", Napi::Number::New(env, rtms::RESOLUTION_FHD));
-    videoResolution.Set("QHD", Napi::Number::New(env, rtms::RESOLUTION_QHD));
+    videoResolution.Set("SD",  Napi::Number::New(env, (int)rtms::MEDIA_RESOLUTION::SD));
+    videoResolution.Set("HD",  Napi::Number::New(env, (int)rtms::MEDIA_RESOLUTION::HD));
+    videoResolution.Set("FHD", Napi::Number::New(env, (int)rtms::MEDIA_RESOLUTION::FHD));
+    videoResolution.Set("QHD", Napi::Number::New(env, (int)rtms::MEDIA_RESOLUTION::QHD));
     exports.Set("VideoResolution", videoResolution);
 
     // Video Data Option (MEDIA_DATA_OPTION)
     Napi::Object videoDataOption = Napi::Object::New(env);
-    videoDataOption.Set("UNDEFINED",                    Napi::Number::New(env, rtms::DATA_OPT_UNDEFINED));
-    videoDataOption.Set("VIDEO_SINGLE_ACTIVE_STREAM",   Napi::Number::New(env, rtms::DATA_OPT_VIDEO_SINGLE_ACTIVE_STREAM));
-    videoDataOption.Set("VIDEO_MIXED_SPEAKER_VIEW",     Napi::Number::New(env, rtms::DATA_OPT_VIDEO_SINGLE_INDIVIDUAL_STREAM));
-    videoDataOption.Set("VIDEO_SINGLE_INDIVIDUAL_STREAM", Napi::Number::New(env, rtms::DATA_OPT_VIDEO_SINGLE_INDIVIDUAL_STREAM));
-    videoDataOption.Set("VIDEO_MIXED_GALLERY_VIEW",     Napi::Number::New(env, rtms::DATA_OPT_VIDEO_MIXED_GALLERY_VIEW));
+    videoDataOption.Set("UNDEFINED",                      Napi::Number::New(env, (int)rtms::MEDIA_DATA_OPTION::UNDEFINED));
+    videoDataOption.Set("VIDEO_SINGLE_ACTIVE_STREAM",     Napi::Number::New(env, (int)rtms::MEDIA_DATA_OPTION::VIDEO_SINGLE_ACTIVE_STREAM));
+    videoDataOption.Set("VIDEO_MIXED_SPEAKER_VIEW",       Napi::Number::New(env, (int)rtms::MEDIA_DATA_OPTION::VIDEO_SINGLE_INDIVIDUAL_STREAM));
+    videoDataOption.Set("VIDEO_SINGLE_INDIVIDUAL_STREAM", Napi::Number::New(env, (int)rtms::MEDIA_DATA_OPTION::VIDEO_SINGLE_INDIVIDUAL_STREAM));
+    videoDataOption.Set("VIDEO_MIXED_GALLERY_VIEW",       Napi::Number::New(env, (int)rtms::MEDIA_DATA_OPTION::VIDEO_MIXED_GALLERY_VIEW));
     exports.Set("VideoDataOption", videoDataOption);
 
     // ===== Media Types =====
 
     // Media Data Type (MEDIA_DATA_TYPE)
     Napi::Object mediaDataType = Napi::Object::New(env);
-    mediaDataType.Set("UNDEFINED",  Napi::Number::New(env, rtms::MEDIA_DATA_UNDEFINED));
-    mediaDataType.Set("AUDIO",      Napi::Number::New(env, rtms::MEDIA_DATA_AUDIO));
-    mediaDataType.Set("VIDEO",      Napi::Number::New(env, rtms::MEDIA_DATA_VIDEO));
-    mediaDataType.Set("DESKSHARE",  Napi::Number::New(env, rtms::MEDIA_DATA_DESKSHARE));
-    mediaDataType.Set("TRANSCRIPT", Napi::Number::New(env, rtms::MEDIA_DATA_TRANSCRIPT));
-    mediaDataType.Set("CHAT",       Napi::Number::New(env, rtms::MEDIA_DATA_CHAT));
-    mediaDataType.Set("ALL",        Napi::Number::New(env, rtms::MEDIA_DATA_ALL));
+    mediaDataType.Set("UNDEFINED",  Napi::Number::New(env, (int)rtms::MEDIA_DATA_TYPE::UNDEFINED));
+    mediaDataType.Set("AUDIO",      Napi::Number::New(env, (int)rtms::MEDIA_DATA_TYPE::AUDIO));
+    mediaDataType.Set("VIDEO",      Napi::Number::New(env, (int)rtms::MEDIA_DATA_TYPE::VIDEO));
+    mediaDataType.Set("DESKSHARE",  Napi::Number::New(env, (int)rtms::MEDIA_DATA_TYPE::DESKSHARE));
+    mediaDataType.Set("TRANSCRIPT", Napi::Number::New(env, (int)rtms::MEDIA_DATA_TYPE::TRANSCRIPT));
+    mediaDataType.Set("CHAT",       Napi::Number::New(env, (int)rtms::MEDIA_DATA_TYPE::CHAT));
+    mediaDataType.Set("ALL",        Napi::Number::New(env, (int)rtms::MEDIA_DATA_TYPE::ALL));
     exports.Set("MediaDataType", mediaDataType);
 
     // ===== Session States =====
 
     // Session State (RTMS_SESSION_STATE)
     Napi::Object sessionState = Napi::Object::New(env);
-    sessionState.Set("INACTIVE",   Napi::Number::New(env, rtms::SESSION_STATE_INACTIVE));
-    sessionState.Set("INITIALIZE", Napi::Number::New(env, rtms::SESSION_STATE_INITIALIZE));
-    sessionState.Set("STARTED",    Napi::Number::New(env, rtms::SESSION_STATE_STARTED));
-    sessionState.Set("PAUSED",     Napi::Number::New(env, rtms::SESSION_STATE_PAUSED));
-    sessionState.Set("RESUMED",    Napi::Number::New(env, rtms::SESSION_STATE_RESUMED));
-    sessionState.Set("STOPPED",    Napi::Number::New(env, rtms::SESSION_STATE_STOPPED));
+    sessionState.Set("INACTIVE",   Napi::Number::New(env, (int)rtms::RTMS_SESSION_STATE::INACTIVE));
+    sessionState.Set("INITIALIZE", Napi::Number::New(env, (int)rtms::RTMS_SESSION_STATE::INITIALIZE));
+    sessionState.Set("STARTED",    Napi::Number::New(env, (int)rtms::RTMS_SESSION_STATE::STARTED));
+    sessionState.Set("PAUSED",     Napi::Number::New(env, (int)rtms::RTMS_SESSION_STATE::PAUSED));
+    sessionState.Set("RESUMED",    Napi::Number::New(env, (int)rtms::RTMS_SESSION_STATE::RESUMED));
+    sessionState.Set("STOPPED",    Napi::Number::New(env, (int)rtms::RTMS_SESSION_STATE::STOPPED));
     exports.Set("SessionState", sessionState);
 
     // Stream State (RTMS_STREAM_STATE)
     Napi::Object streamState = Napi::Object::New(env);
-    streamState.Set("INACTIVE",    Napi::Number::New(env, rtms::STREAM_STATE_INACTIVE));
-    streamState.Set("ACTIVE",      Napi::Number::New(env, rtms::STREAM_STATE_ACTIVE));
-    streamState.Set("INTERRUPTED", Napi::Number::New(env, rtms::STREAM_STATE_INTERRUPTED));
-    streamState.Set("TERMINATING", Napi::Number::New(env, rtms::STREAM_STATE_TERMINATING));
-    streamState.Set("TERMINATED",  Napi::Number::New(env, rtms::STREAM_STATE_TERMINATED));
-    streamState.Set("PAUSED",      Napi::Number::New(env, rtms::STREAM_STATE_PAUSED));
-    streamState.Set("RESUMED",     Napi::Number::New(env, rtms::STREAM_STATE_RESUMED));
+    streamState.Set("INACTIVE",    Napi::Number::New(env, (int)rtms::RTMS_STREAM_STATE::INACTIVE));
+    streamState.Set("ACTIVE",      Napi::Number::New(env, (int)rtms::RTMS_STREAM_STATE::ACTIVE));
+    streamState.Set("INTERRUPTED", Napi::Number::New(env, (int)rtms::RTMS_STREAM_STATE::INTERRUPTED));
+    streamState.Set("TERMINATING", Napi::Number::New(env, (int)rtms::RTMS_STREAM_STATE::TERMINATING));
+    streamState.Set("TERMINATED",  Napi::Number::New(env, (int)rtms::RTMS_STREAM_STATE::TERMINATED));
+    streamState.Set("PAUSED",      Napi::Number::New(env, (int)rtms::RTMS_STREAM_STATE::PAUSED));
+    streamState.Set("RESUMED",     Napi::Number::New(env, (int)rtms::RTMS_STREAM_STATE::RESUMED));
     exports.Set("StreamState", streamState);
 
     // Event Type (RTMS_EVENT_TYPE + ZCC voice events for backward compat)
     Napi::Object eventType = Napi::Object::New(env);
-    eventType.Set("UNDEFINED",                    Napi::Number::New(env, rtms::Client::EVENT_UNDEFINED));
-    eventType.Set("FIRST_PACKET_TIMESTAMP",       Napi::Number::New(env, rtms::Client::EVENT_FIRST_PACKET_TIMESTAMP));
-    eventType.Set("ACTIVE_SPEAKER_CHANGE",        Napi::Number::New(env, rtms::Client::EVENT_ACTIVE_SPEAKER_CHANGE));
-    eventType.Set("PARTICIPANT_JOIN",             Napi::Number::New(env, rtms::Client::EVENT_PARTICIPANT_JOIN));
-    eventType.Set("PARTICIPANT_LEAVE",            Napi::Number::New(env, rtms::Client::EVENT_PARTICIPANT_LEAVE));
-    eventType.Set("SHARING_START",                Napi::Number::New(env, rtms::Client::EVENT_SHARING_START));
-    eventType.Set("SHARING_STOP",                 Napi::Number::New(env, rtms::Client::EVENT_SHARING_STOP));
-    eventType.Set("MEDIA_CONNECTION_INTERRUPTED", Napi::Number::New(env, rtms::Client::EVENT_MEDIA_CONNECTION_INTERRUPTED));
-    eventType.Set("PARTICIPANT_VIDEO_ON",         Napi::Number::New(env, rtms::Client::EVENT_PARTICIPANT_VIDEO_ON));
-    eventType.Set("PARTICIPANT_VIDEO_OFF",        Napi::Number::New(env, rtms::Client::EVENT_PARTICIPANT_VIDEO_OFF));
-    eventType.Set("CONSUMER_ANSWERED",            Napi::Number::New(env, rtms::Client::EVENT_CONSUMER_ANSWERED));
-    eventType.Set("CONSUMER_END",                 Napi::Number::New(env, rtms::Client::EVENT_CONSUMER_END));
-    eventType.Set("USER_ANSWERED",                Napi::Number::New(env, rtms::Client::EVENT_USER_ANSWERED));
-    eventType.Set("USER_END",                     Napi::Number::New(env, rtms::Client::EVENT_USER_END));
-    eventType.Set("USER_HOLD",                    Napi::Number::New(env, rtms::Client::EVENT_USER_HOLD));
-    eventType.Set("USER_UNHOLD",                  Napi::Number::New(env, rtms::Client::EVENT_USER_UNHOLD));
+    eventType.Set("UNDEFINED",                    Napi::Number::New(env, (int)rtms::RTMS_EVENT_TYPE::UNDEFINED));
+    eventType.Set("FIRST_PACKET_TIMESTAMP",       Napi::Number::New(env, (int)rtms::RTMS_EVENT_TYPE::FIRST_PACKET_TIMESTAMP));
+    eventType.Set("ACTIVE_SPEAKER_CHANGE",        Napi::Number::New(env, (int)rtms::RTMS_EVENT_TYPE::ACTIVE_SPEAKER_CHANGE));
+    eventType.Set("PARTICIPANT_JOIN",             Napi::Number::New(env, (int)rtms::RTMS_EVENT_TYPE::PARTICIPANT_JOIN));
+    eventType.Set("PARTICIPANT_LEAVE",            Napi::Number::New(env, (int)rtms::RTMS_EVENT_TYPE::PARTICIPANT_LEAVE));
+    eventType.Set("SHARING_START",                Napi::Number::New(env, (int)rtms::RTMS_EVENT_TYPE::SHARING_START));
+    eventType.Set("SHARING_STOP",                 Napi::Number::New(env, (int)rtms::RTMS_EVENT_TYPE::SHARING_STOP));
+    eventType.Set("MEDIA_CONNECTION_INTERRUPTED", Napi::Number::New(env, (int)rtms::RTMS_EVENT_TYPE::MEDIA_CONNECTION_INTERRUPTED));
+    eventType.Set("PARTICIPANT_VIDEO_ON",         Napi::Number::New(env, (int)rtms::RTMS_EVENT_TYPE::PARTICIPANT_VIDEO_ON));
+    eventType.Set("PARTICIPANT_VIDEO_OFF",        Napi::Number::New(env, (int)rtms::RTMS_EVENT_TYPE::PARTICIPANT_VIDEO_OFF));
+    eventType.Set("CONSUMER_ANSWERED",            Napi::Number::New(env, (int)rtms::RTMS_ZCC_VOICE_EVENT_TYPE::CONSUMER_ANSWERED));
+    eventType.Set("CONSUMER_END",                 Napi::Number::New(env, (int)rtms::RTMS_ZCC_VOICE_EVENT_TYPE::CONSUMER_END));
+    eventType.Set("USER_ANSWERED",                Napi::Number::New(env, (int)rtms::RTMS_ZCC_VOICE_EVENT_TYPE::USER_ANSWERED));
+    eventType.Set("USER_END",                     Napi::Number::New(env, (int)rtms::RTMS_ZCC_VOICE_EVENT_TYPE::USER_END));
+    eventType.Set("USER_HOLD",                    Napi::Number::New(env, (int)rtms::RTMS_ZCC_VOICE_EVENT_TYPE::USER_HOLD));
+    eventType.Set("USER_UNHOLD",                  Napi::Number::New(env, (int)rtms::RTMS_ZCC_VOICE_EVENT_TYPE::USER_UNHOLD));
     exports.Set("EventType", eventType);
 
     // Message Type (RTMS_MESSAGE_TYPE) — complete set of 30 values
     Napi::Object messageType = Napi::Object::New(env);
-    messageType.Set("UNDEFINED",                Napi::Number::New(env, rtms::MSG_UNDEFINED));
-    messageType.Set("SIGNALING_HAND_SHAKE_REQ", Napi::Number::New(env, rtms::MSG_SIGNALING_HAND_SHAKE_REQ));
-    messageType.Set("SIGNALING_HAND_SHAKE_RESP",Napi::Number::New(env, rtms::MSG_SIGNALING_HAND_SHAKE_RESP));
-    messageType.Set("DATA_HAND_SHAKE_REQ",      Napi::Number::New(env, rtms::MSG_DATA_HAND_SHAKE_REQ));
-    messageType.Set("DATA_HAND_SHAKE_RESP",     Napi::Number::New(env, rtms::MSG_DATA_HAND_SHAKE_RESP));
-    messageType.Set("EVENT_SUBSCRIPTION",       Napi::Number::New(env, rtms::MSG_EVENT_SUBSCRIPTION));
-    messageType.Set("EVENT_UPDATE",             Napi::Number::New(env, rtms::MSG_EVENT_UPDATE));
-    messageType.Set("CLIENT_READY_ACK",         Napi::Number::New(env, rtms::MSG_CLIENT_READY_ACK));
-    messageType.Set("STREAM_STATE_UPDATE",      Napi::Number::New(env, rtms::MSG_STREAM_STATE_UPDATE));
-    messageType.Set("SESSION_STATE_UPDATE",     Napi::Number::New(env, rtms::MSG_SESSION_STATE_UPDATE));
-    messageType.Set("SESSION_STATE_REQ",        Napi::Number::New(env, rtms::MSG_SESSION_STATE_REQ));
-    messageType.Set("SESSION_STATE_RESP",       Napi::Number::New(env, rtms::MSG_SESSION_STATE_RESP));
-    messageType.Set("KEEP_ALIVE_REQ",           Napi::Number::New(env, rtms::MSG_KEEP_ALIVE_REQ));
-    messageType.Set("KEEP_ALIVE_RESP",          Napi::Number::New(env, rtms::MSG_KEEP_ALIVE_RESP));
-    messageType.Set("MEDIA_DATA_AUDIO",         Napi::Number::New(env, rtms::MSG_MEDIA_DATA_AUDIO));
-    messageType.Set("MEDIA_DATA_VIDEO",         Napi::Number::New(env, rtms::MSG_MEDIA_DATA_VIDEO));
-    messageType.Set("MEDIA_DATA_SHARE",         Napi::Number::New(env, rtms::MSG_MEDIA_DATA_SHARE));
-    messageType.Set("MEDIA_DATA_TRANSCRIPT",    Napi::Number::New(env, rtms::MSG_MEDIA_DATA_TRANSCRIPT));
-    messageType.Set("MEDIA_DATA_CHAT",          Napi::Number::New(env, rtms::MSG_MEDIA_DATA_CHAT));
-    messageType.Set("STREAM_STATE_REQ",         Napi::Number::New(env, rtms::MSG_STREAM_STATE_REQ));
-    messageType.Set("STREAM_STATE_RESP",        Napi::Number::New(env, rtms::MSG_STREAM_STATE_RESP));
-    messageType.Set("STREAM_CLOSE_REQ",         Napi::Number::New(env, rtms::MSG_STREAM_CLOSE_REQ));
-    messageType.Set("STREAM_CLOSE_RESP",        Napi::Number::New(env, rtms::MSG_STREAM_CLOSE_RESP));
-    messageType.Set("META_DATA_AUDIO",          Napi::Number::New(env, rtms::MSG_META_DATA_AUDIO));
-    messageType.Set("META_DATA_VIDEO",          Napi::Number::New(env, rtms::MSG_META_DATA_VIDEO));
-    messageType.Set("META_DATA_SHARE",          Napi::Number::New(env, rtms::MSG_META_DATA_SHARE));
-    messageType.Set("META_DATA_TRANSCRIPT",     Napi::Number::New(env, rtms::MSG_META_DATA_TRANSCRIPT));
-    messageType.Set("META_DATA_CHAT",           Napi::Number::New(env, rtms::MSG_META_DATA_CHAT));
-    messageType.Set("VIDEO_SUBSCRIPTION_REQ",   Napi::Number::New(env, rtms::MSG_VIDEO_SUBSCRIPTION_REQ));
-    messageType.Set("VIDEO_SUBSCRIPTION_RESP",  Napi::Number::New(env, rtms::MSG_VIDEO_SUBSCRIPTION_RESP));
+    messageType.Set("UNDEFINED",                Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::UNDEFINED));
+    messageType.Set("SIGNALING_HAND_SHAKE_REQ", Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::SIGNALING_HAND_SHAKE_REQ));
+    messageType.Set("SIGNALING_HAND_SHAKE_RESP",Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::SIGNALING_HAND_SHAKE_RESP));
+    messageType.Set("DATA_HAND_SHAKE_REQ",      Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::DATA_HAND_SHAKE_REQ));
+    messageType.Set("DATA_HAND_SHAKE_RESP",     Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::DATA_HAND_SHAKE_RESP));
+    messageType.Set("EVENT_SUBSCRIPTION",       Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::EVENT_SUBSCRIPTION));
+    messageType.Set("EVENT_UPDATE",             Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::EVENT_UPDATE));
+    messageType.Set("CLIENT_READY_ACK",         Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::CLIENT_READY_ACK));
+    messageType.Set("STREAM_STATE_UPDATE",      Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::STREAM_STATE_UPDATE));
+    messageType.Set("SESSION_STATE_UPDATE",     Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::SESSION_STATE_UPDATE));
+    messageType.Set("SESSION_STATE_REQ",        Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::SESSION_STATE_REQ));
+    messageType.Set("SESSION_STATE_RESP",       Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::SESSION_STATE_RESP));
+    messageType.Set("KEEP_ALIVE_REQ",           Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::KEEP_ALIVE_REQ));
+    messageType.Set("KEEP_ALIVE_RESP",          Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::KEEP_ALIVE_RESP));
+    messageType.Set("MEDIA_DATA_AUDIO",         Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::MEDIA_DATA_AUDIO));
+    messageType.Set("MEDIA_DATA_VIDEO",         Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::MEDIA_DATA_VIDEO));
+    messageType.Set("MEDIA_DATA_SHARE",         Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::MEDIA_DATA_SHARE));
+    messageType.Set("MEDIA_DATA_TRANSCRIPT",    Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::MEDIA_DATA_TRANSCRIPT));
+    messageType.Set("MEDIA_DATA_CHAT",          Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::MEDIA_DATA_CHAT));
+    messageType.Set("STREAM_STATE_REQ",         Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::STREAM_STATE_REQ));
+    messageType.Set("STREAM_STATE_RESP",        Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::STREAM_STATE_RESP));
+    messageType.Set("STREAM_CLOSE_REQ",         Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::STREAM_CLOSE_REQ));
+    messageType.Set("STREAM_CLOSE_RESP",        Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::STREAM_CLOSE_RESP));
+    messageType.Set("META_DATA_AUDIO",          Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::META_DATA_AUDIO));
+    messageType.Set("META_DATA_VIDEO",          Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::META_DATA_VIDEO));
+    messageType.Set("META_DATA_SHARE",          Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::META_DATA_SHARE));
+    messageType.Set("META_DATA_TRANSCRIPT",     Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::META_DATA_TRANSCRIPT));
+    messageType.Set("META_DATA_CHAT",           Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::META_DATA_CHAT));
+    messageType.Set("VIDEO_SUBSCRIPTION_REQ",   Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::VIDEO_SUBSCRIPTION_REQ));
+    messageType.Set("VIDEO_SUBSCRIPTION_RESP",  Napi::Number::New(env, (int)rtms::RTMS_MESSAGE_TYPE::VIDEO_SUBSCRIPTION_RESP));
     exports.Set("MessageType", messageType);
 
     // Stop Reason (RTMS_STOP_REASON) — complete set of 27 values
     Napi::Object stopReason = Napi::Object::New(env);
-    stopReason.Set("UNDEFINED",                              Napi::Number::New(env, rtms::STOP_UNDEFINED));
-    stopReason.Set("STOP_BC_HOST_TRIGGERED",                 Napi::Number::New(env, rtms::STOP_BC_HOST_TRIGGERED));
-    stopReason.Set("STOP_BC_USER_TRIGGERED",                 Napi::Number::New(env, rtms::STOP_BC_USER_TRIGGERED));
-    stopReason.Set("STOP_BC_USER_LEFT",                      Napi::Number::New(env, rtms::STOP_BC_USER_LEFT));
-    stopReason.Set("STOP_BC_USER_EJECTED",                   Napi::Number::New(env, rtms::STOP_BC_USER_EJECTED));
-    stopReason.Set("STOP_BC_HOST_DISABLED_APP",              Napi::Number::New(env, rtms::STOP_BC_HOST_DISABLED_APP));
-    stopReason.Set("STOP_BC_MEETING_ENDED",                  Napi::Number::New(env, rtms::STOP_BC_MEETING_ENDED));
-    stopReason.Set("STOP_BC_STREAM_CANCELED",                Napi::Number::New(env, rtms::STOP_BC_STREAM_CANCELED));
-    stopReason.Set("STOP_BC_STREAM_REVOKED",                 Napi::Number::New(env, rtms::STOP_BC_STREAM_REVOKED));
-    stopReason.Set("STOP_BC_ALL_APPS_DISABLED",              Napi::Number::New(env, rtms::STOP_BC_ALL_APPS_DISABLED));
-    stopReason.Set("STOP_BC_INTERNAL_EXCEPTION",             Napi::Number::New(env, rtms::STOP_BC_INTERNAL_EXCEPTION));
-    stopReason.Set("STOP_BC_CONNECTION_TIMEOUT",             Napi::Number::New(env, rtms::STOP_BC_CONNECTION_TIMEOUT));
-    stopReason.Set("STOP_BC_INSTANCE_CONNECTION_INTERRUPTED",Napi::Number::New(env, rtms::STOP_BC_INSTANCE_CONNECTION_INTERRUPTED));
-    stopReason.Set("STOP_BC_SIGNAL_CONNECTION_INTERRUPTED",  Napi::Number::New(env, rtms::STOP_BC_SIGNAL_CONNECTION_INTERRUPTED));
-    stopReason.Set("STOP_BC_DATA_CONNECTION_INTERRUPTED",    Napi::Number::New(env, rtms::STOP_BC_DATA_CONNECTION_INTERRUPTED));
-    stopReason.Set("STOP_BC_SIGNAL_CONNECTION_CLOSED_ABNORMALLY", Napi::Number::New(env, rtms::STOP_BC_SIGNAL_CONNECTION_CLOSED_ABNORMALLY));
-    stopReason.Set("STOP_BC_DATA_CONNECTION_CLOSED_ABNORMALLY",   Napi::Number::New(env, rtms::STOP_BC_DATA_CONNECTION_CLOSED_ABNORMALLY));
-    stopReason.Set("STOP_BC_EXIT_SIGNAL",                    Napi::Number::New(env, rtms::STOP_BC_EXIT_SIGNAL));
-    stopReason.Set("STOP_BC_AUTHENTICATION_FAILURE",         Napi::Number::New(env, rtms::STOP_BC_AUTHENTICATION_FAILURE));
-    stopReason.Set("STOP_BC_AWAIT_RECONNECTION_TIMEOUT",     Napi::Number::New(env, rtms::STOP_BC_AWAIT_RECONNECTION_TIMEOUT));
-    stopReason.Set("STOP_BC_RECEIVER_REQUEST_CLOSE",         Napi::Number::New(env, rtms::STOP_BC_RECEIVER_REQUEST_CLOSE));
-    stopReason.Set("STOP_BC_CUSTOMER_DISCONNECTED",          Napi::Number::New(env, rtms::STOP_BC_CUSTOMER_DISCONNECTED));
-    stopReason.Set("STOP_BC_AGENT_DISCONNECTED",             Napi::Number::New(env, rtms::STOP_BC_AGENT_DISCONNECTED));
-    stopReason.Set("STOP_BC_ADMIN_DISABLED_APP",             Napi::Number::New(env, rtms::STOP_BC_ADMIN_DISABLED_APP));
-    stopReason.Set("STOP_BC_KEEP_ALIVE_TIMEOUT",             Napi::Number::New(env, rtms::STOP_BC_KEEP_ALIVE_TIMEOUT));
-    stopReason.Set("STOP_BC_MANUAL_API_TRIGGERED",           Napi::Number::New(env, rtms::STOP_BC_MANUAL_API_TRIGGERED));
-    stopReason.Set("STOP_BC_STREAMING_NOT_SUPPORTED",        Napi::Number::New(env, rtms::STOP_BC_STREAMING_NOT_SUPPORTED));
+    stopReason.Set("UNDEFINED",                               Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::UNDEFINED));
+    stopReason.Set("HOST_TRIGGERED",                          Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::HOST_TRIGGERED));
+    stopReason.Set("USER_TRIGGERED",                          Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::USER_TRIGGERED));
+    stopReason.Set("USER_LEFT",                               Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::USER_LEFT));
+    stopReason.Set("USER_EJECTED",                            Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::USER_EJECTED));
+    stopReason.Set("HOST_DISABLED_APP",                       Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::HOST_DISABLED_APP));
+    stopReason.Set("MEETING_ENDED",                           Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::MEETING_ENDED));
+    stopReason.Set("STREAM_CANCELED",                         Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::STREAM_CANCELED));
+    stopReason.Set("STREAM_REVOKED",                          Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::STREAM_REVOKED));
+    stopReason.Set("ALL_APPS_DISABLED",                       Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::ALL_APPS_DISABLED));
+    stopReason.Set("INTERNAL_EXCEPTION",                      Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::INTERNAL_EXCEPTION));
+    stopReason.Set("CONNECTION_TIMEOUT",                      Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::CONNECTION_TIMEOUT));
+    stopReason.Set("INSTANCE_CONNECTION_INTERRUPTED",         Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::INSTANCE_CONNECTION_INTERRUPTED));
+    stopReason.Set("SIGNAL_CONNECTION_INTERRUPTED",           Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::SIGNAL_CONNECTION_INTERRUPTED));
+    stopReason.Set("DATA_CONNECTION_INTERRUPTED",             Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::DATA_CONNECTION_INTERRUPTED));
+    stopReason.Set("SIGNAL_CONNECTION_CLOSED_ABNORMALLY",     Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::SIGNAL_CONNECTION_CLOSED_ABNORMALLY));
+    stopReason.Set("DATA_CONNECTION_CLOSED_ABNORMALLY",       Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::DATA_CONNECTION_CLOSED_ABNORMALLY));
+    stopReason.Set("EXIT_SIGNAL",                             Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::EXIT_SIGNAL));
+    stopReason.Set("AUTHENTICATION_FAILURE",                  Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::AUTHENTICATION_FAILURE));
+    stopReason.Set("AWAIT_RECONNECTION_TIMEOUT",              Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::AWAIT_RECONNECTION_TIMEOUT));
+    stopReason.Set("RECEIVER_REQUEST_CLOSE",                  Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::RECEIVER_REQUEST_CLOSE));
+    stopReason.Set("CUSTOMER_DISCONNECTED",                   Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::CUSTOMER_DISCONNECTED));
+    stopReason.Set("AGENT_DISCONNECTED",                      Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::AGENT_DISCONNECTED));
+    stopReason.Set("ADMIN_DISABLED_APP",                      Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::ADMIN_DISABLED_APP));
+    stopReason.Set("KEEP_ALIVE_TIMEOUT",                      Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::KEEP_ALIVE_TIMEOUT));
+    stopReason.Set("MANUAL_API_TRIGGERED",                    Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::MANUAL_API_TRIGGERED));
+    stopReason.Set("STREAMING_NOT_SUPPORTED",                 Napi::Number::New(env, (int)rtms::RTMS_STOP_REASON::STREAMING_NOT_SUPPORTED));
     exports.Set("StopReason", stopReason);
 
     // Transcript language constants (mirrors AudioCodec/VideoCodec pattern)
     Napi::Object transcriptLanguage = Napi::Object::New(env);
-    transcriptLanguage.Set("NONE",                Napi::Number::New(env, rtms::LANGUAGE_ID_NONE));
-    transcriptLanguage.Set("ARABIC",              Napi::Number::New(env, rtms::LANGUAGE_ID_ARABIC));
-    transcriptLanguage.Set("BENGALI",             Napi::Number::New(env, rtms::LANGUAGE_ID_BENGALI));
-    transcriptLanguage.Set("CANTONESE",           Napi::Number::New(env, rtms::LANGUAGE_ID_CANTONESE));
-    transcriptLanguage.Set("CATALAN",             Napi::Number::New(env, rtms::LANGUAGE_ID_CATALAN));
-    transcriptLanguage.Set("CHINESE_SIMPLIFIED",  Napi::Number::New(env, rtms::LANGUAGE_ID_CHINESE_SIMPLIFIED));
-    transcriptLanguage.Set("CHINESE_TRADITIONAL", Napi::Number::New(env, rtms::LANGUAGE_ID_CHINESE_TRADITIONAL));
-    transcriptLanguage.Set("CZECH",               Napi::Number::New(env, rtms::LANGUAGE_ID_CZECH));
-    transcriptLanguage.Set("DANISH",              Napi::Number::New(env, rtms::LANGUAGE_ID_DANISH));
-    transcriptLanguage.Set("DUTCH",               Napi::Number::New(env, rtms::LANGUAGE_ID_DUTCH));
-    transcriptLanguage.Set("ENGLISH",             Napi::Number::New(env, rtms::LANGUAGE_ID_ENGLISH));
-    transcriptLanguage.Set("ESTONIAN",            Napi::Number::New(env, rtms::LANGUAGE_ID_ESTONIAN));
-    transcriptLanguage.Set("FINNISH",             Napi::Number::New(env, rtms::LANGUAGE_ID_FINNISH));
-    transcriptLanguage.Set("FRENCH_CANADA",       Napi::Number::New(env, rtms::LANGUAGE_ID_FRENCH_CANADA));
-    transcriptLanguage.Set("FRENCH_FRANCE",       Napi::Number::New(env, rtms::LANGUAGE_ID_FRENCH_FRANCE));
-    transcriptLanguage.Set("GERMAN",              Napi::Number::New(env, rtms::LANGUAGE_ID_GERMAN));
-    transcriptLanguage.Set("HEBREW",              Napi::Number::New(env, rtms::LANGUAGE_ID_HEBREW));
-    transcriptLanguage.Set("HINDI",               Napi::Number::New(env, rtms::LANGUAGE_ID_HINDI));
-    transcriptLanguage.Set("HUNGARIAN",           Napi::Number::New(env, rtms::LANGUAGE_ID_HUNGARIAN));
-    transcriptLanguage.Set("INDONESIAN",          Napi::Number::New(env, rtms::LANGUAGE_ID_INDONESIAN));
-    transcriptLanguage.Set("ITALIAN",             Napi::Number::New(env, rtms::LANGUAGE_ID_ITALIAN));
-    transcriptLanguage.Set("JAPANESE",            Napi::Number::New(env, rtms::LANGUAGE_ID_JAPANESE));
-    transcriptLanguage.Set("KOREAN",              Napi::Number::New(env, rtms::LANGUAGE_ID_KOREAN));
-    transcriptLanguage.Set("MALAY",               Napi::Number::New(env, rtms::LANGUAGE_ID_MALAY));
-    transcriptLanguage.Set("PERSIAN",             Napi::Number::New(env, rtms::LANGUAGE_ID_PERSIAN));
-    transcriptLanguage.Set("POLISH",              Napi::Number::New(env, rtms::LANGUAGE_ID_POLISH));
-    transcriptLanguage.Set("PORTUGUESE",          Napi::Number::New(env, rtms::LANGUAGE_ID_PORTUGUESE));
-    transcriptLanguage.Set("ROMANIAN",            Napi::Number::New(env, rtms::LANGUAGE_ID_ROMANIAN));
-    transcriptLanguage.Set("RUSSIAN",             Napi::Number::New(env, rtms::LANGUAGE_ID_RUSSIAN));
-    transcriptLanguage.Set("SPANISH",             Napi::Number::New(env, rtms::LANGUAGE_ID_SPANISH));
-    transcriptLanguage.Set("SWEDISH",             Napi::Number::New(env, rtms::LANGUAGE_ID_SWEDISH));
-    transcriptLanguage.Set("TAGALOG",             Napi::Number::New(env, rtms::LANGUAGE_ID_TAGALOG));
-    transcriptLanguage.Set("TAMIL",               Napi::Number::New(env, rtms::LANGUAGE_ID_TAMIL));
-    transcriptLanguage.Set("TELUGU",              Napi::Number::New(env, rtms::LANGUAGE_ID_TELUGU));
-    transcriptLanguage.Set("THAI",                Napi::Number::New(env, rtms::LANGUAGE_ID_THAI));
-    transcriptLanguage.Set("TURKISH",             Napi::Number::New(env, rtms::LANGUAGE_ID_TURKISH));
-    transcriptLanguage.Set("UKRAINIAN",           Napi::Number::New(env, rtms::LANGUAGE_ID_UKRAINIAN));
-    transcriptLanguage.Set("VIETNAMESE",          Napi::Number::New(env, rtms::LANGUAGE_ID_VIETNAMESE));
+    transcriptLanguage.Set("NONE",                Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::NONE));
+    transcriptLanguage.Set("ARABIC",              Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::ARABIC));
+    transcriptLanguage.Set("BENGALI",             Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::BENGALI));
+    transcriptLanguage.Set("CANTONESE",           Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::CANTONESE));
+    transcriptLanguage.Set("CATALAN",             Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::CATALAN));
+    transcriptLanguage.Set("CHINESE_SIMPLIFIED",  Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::CHINESE_SIMPLIFIED));
+    transcriptLanguage.Set("CHINESE_TRADITIONAL", Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::CHINESE_TRADITIONAL));
+    transcriptLanguage.Set("CZECH",               Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::CZECH));
+    transcriptLanguage.Set("DANISH",              Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::DANISH));
+    transcriptLanguage.Set("DUTCH",               Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::DUTCH));
+    transcriptLanguage.Set("ENGLISH",             Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::ENGLISH));
+    transcriptLanguage.Set("ESTONIAN",            Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::ESTONIAN));
+    transcriptLanguage.Set("FINNISH",             Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::FINNISH));
+    transcriptLanguage.Set("FRENCH_CANADA",       Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::FRENCH_CANADA));
+    transcriptLanguage.Set("FRENCH_FRANCE",       Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::FRENCH_FRANCE));
+    transcriptLanguage.Set("GERMAN",              Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::GERMAN));
+    transcriptLanguage.Set("HEBREW",              Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::HEBREW));
+    transcriptLanguage.Set("HINDI",               Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::HINDI));
+    transcriptLanguage.Set("HUNGARIAN",           Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::HUNGARIAN));
+    transcriptLanguage.Set("INDONESIAN",          Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::INDONESIAN));
+    transcriptLanguage.Set("ITALIAN",             Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::ITALIAN));
+    transcriptLanguage.Set("JAPANESE",            Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::JAPANESE));
+    transcriptLanguage.Set("KOREAN",              Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::KOREAN));
+    transcriptLanguage.Set("MALAY",               Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::MALAY));
+    transcriptLanguage.Set("PERSIAN",             Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::PERSIAN));
+    transcriptLanguage.Set("POLISH",              Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::POLISH));
+    transcriptLanguage.Set("PORTUGUESE",          Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::PORTUGUESE));
+    transcriptLanguage.Set("ROMANIAN",            Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::ROMANIAN));
+    transcriptLanguage.Set("RUSSIAN",             Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::RUSSIAN));
+    transcriptLanguage.Set("SPANISH",             Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::SPANISH));
+    transcriptLanguage.Set("SWEDISH",             Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::SWEDISH));
+    transcriptLanguage.Set("TAGALOG",             Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::TAGALOG));
+    transcriptLanguage.Set("TAMIL",               Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::TAMIL));
+    transcriptLanguage.Set("TELUGU",              Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::TELUGU));
+    transcriptLanguage.Set("THAI",                Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::THAI));
+    transcriptLanguage.Set("TURKISH",             Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::TURKISH));
+    transcriptLanguage.Set("UKRAINIAN",           Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::UKRAINIAN));
+    transcriptLanguage.Set("VIETNAMESE",          Napi::Number::New(env, (int)rtms::RTMS_TRANSCRIPT_LANGUAGE::VIETNAMESE));
     exports.Set("TranscriptLanguage", transcriptLanguage);
 
     return exports;
