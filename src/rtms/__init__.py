@@ -103,15 +103,12 @@ class LogFormat(str, Enum):
 # Global webhook server
 _webhook_server = None
 
-# Global client registry for run() event loop
+# Global client registry (for status/monitoring — len(rtms._clients))
 _clients: Dict[int, 'Client'] = {}
 _clients_lock = threading.Lock()
-_pending_operations: List[Tuple[Callable, tuple, dict]] = []
-_pending_lock = threading.Lock()
-_main_thread_id: Optional[int] = None
+_sdk_init_lock = threading.Lock()
 _running = False
 _stop_event = threading.Event()
-_run_executor = None  # Global executor set via run(executor=...) or run_async(executor=...)
 
 def _log(level, component, message, details=None):
     """Log a message at the specified level"""
@@ -572,6 +569,313 @@ def _validate_deskshare_params(params):
     _validate_video_params(params)
 
 
+# ============================================================================
+# EventLoop
+# ============================================================================
+
+class EventLoop:
+    """
+    An SDK I/O thread that owns one or more Client lifecycles.
+
+    The Zoom C SDK requires that alloc(), join(), poll(), and release() all run
+    on the same OS thread. EventLoop is that thread. Clients assigned to a loop
+    via add() will have their entire lifecycle managed on the loop's thread.
+
+    Usage::
+
+        loop = rtms.EventLoop()
+
+        @rtms.on_webhook_event
+        def handle(payload):
+            client = rtms.Client(executor=EXECUTOR)
+            client.on_audio_data(on_audio)
+            loop.add(client)
+            client.join(payload['payload'])
+
+        await loop.run_async()   # or loop.run() to block
+
+    Callbacks are dispatched according to the executor set on each Client:
+    - No executor: callback runs inline on the loop's thread (simple, low latency)
+    - executor=ThreadPoolExecutor(...): heavy work offloaded to worker pool
+    - async def callback: bridged to the asyncio event loop via run_coroutine_threadsafe
+    """
+
+    def __init__(self, poll_interval: float = 0.01, name: str = None):
+        """
+        Args:
+            poll_interval: Seconds between poll cycles (default: 0.01 = 10ms)
+            name: Optional thread name for debugging
+        """
+        self._poll_interval = poll_interval
+        self._name = name
+        self._clients: List['Client'] = []
+        self._clients_lock = threading.Lock()
+        self._pending: List['Client'] = []   # clients waiting for alloc+join on this thread
+        self._pending_lock = threading.Lock()
+        self._running = False
+        self._stop_event = threading.Event()
+        self._thread: Optional[threading.Thread] = None
+
+    @property
+    def client_count(self) -> int:
+        """Number of clients currently owned by this loop."""
+        with self._clients_lock:
+            return len(self._clients)
+
+    def add(self, client: 'Client') -> None:
+        """
+        Assign a client to this loop's thread.
+
+        Must be called before client.join(). The loop's thread will call
+        alloc() and join() on behalf of the client.
+
+        Args:
+            client: A Client whose join() will be deferred to this loop's thread
+        """
+        client._assigned_loop = self
+        with self._pending_lock:
+            self._pending.append(client)
+
+    def _drain_pending(self) -> None:
+        """Called from the loop's thread — alloc and join all waiting clients."""
+        with self._pending_lock:
+            pending = self._pending[:]
+            self._pending.clear()
+
+        for client in pending:
+            try:
+                client._do_alloc_and_join()
+                with self._clients_lock:
+                    self._clients.append(client)
+            except Exception as e:
+                log_error('eventloop', f'Failed to alloc/join client: {e}')
+                traceback.print_exc()
+
+    def _poll_all(self) -> None:
+        """Poll all active clients. Removes clients that have left."""
+        with self._clients_lock:
+            active = self._clients[:]
+
+        to_remove = []
+        for client in active:
+            if client._running:
+                try:
+                    client.poll()
+                except Exception as e:
+                    log_error('eventloop', f'Error polling client: {e}')
+                    to_remove.append(client)
+            else:
+                to_remove.append(client)
+
+        if to_remove:
+            with self._clients_lock:
+                for c in to_remove:
+                    self._clients.discard(c) if hasattr(self._clients, 'discard') else None
+            with self._clients_lock:
+                self._clients = [c for c in self._clients if c not in to_remove]
+
+    def run(self, stop_on_empty: bool = False) -> None:
+        """
+        Run the event loop on the current thread (blocking).
+
+        The current thread becomes the SDK I/O thread. Use this when you want
+        explicit control of which thread drives the loop.
+
+        Args:
+            stop_on_empty: Stop automatically when all clients have left
+        """
+        self._running = True
+        self._stop_event.clear()
+        log_info('eventloop', f'Starting event loop{" (" + self._name + ")" if self._name else ""} '
+                              f'(poll_interval={self._poll_interval}s)')
+        try:
+            while self._running and not self._stop_event.is_set():
+                self._drain_pending()
+                self._poll_all()
+                if stop_on_empty:
+                    with self._clients_lock:
+                        if not self._clients and not self._pending:
+                            break
+                time.sleep(self._poll_interval)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            self._running = False
+            log_debug('eventloop', 'Event loop stopped')
+
+    async def run_async(self, stop_on_empty: bool = False) -> None:
+        """
+        Run the event loop as an asyncio coroutine.
+
+        Yields to the asyncio event loop between poll cycles so other coroutines
+        (aiohttp, FastAPI, asyncpg, etc.) run freely. Async callbacks registered
+        on clients are automatically bridged to this event loop.
+
+        Args:
+            stop_on_empty: Stop automatically when all clients have left
+
+        Example::
+
+            async def main():
+                loop = rtms.EventLoop()
+                await asyncio.gather(loop.run_async(), aiohttp_app.start())
+
+            asyncio.run(main())
+        """
+        self._running = True
+        self._stop_event.clear()
+        log_info('eventloop', f'Starting async event loop{" (" + self._name + ")" if self._name else ""} '
+                              f'(poll_interval={self._poll_interval}s)')
+        try:
+            while self._running and not self._stop_event.is_set():
+                self._drain_pending()
+                self._poll_all()
+                if stop_on_empty:
+                    with self._clients_lock:
+                        if not self._clients and not self._pending:
+                            break
+                await asyncio.sleep(self._poll_interval)
+        except asyncio.CancelledError:
+            log_info('eventloop', 'Async event loop cancelled')
+        finally:
+            self._running = False
+            log_debug('eventloop', 'Async event loop stopped')
+
+    def start(self) -> 'EventLoop':
+        """
+        Start the event loop in a background daemon thread.
+
+        Returns self for chaining::
+
+            loop = rtms.EventLoop().start()
+
+        The thread runs until stop() is called or the process exits.
+        """
+        self._thread = threading.Thread(
+            target=self.run,
+            name=self._name or 'rtms-eventloop',
+            daemon=True,
+        )
+        self._thread.start()
+        log_debug('eventloop', f'Background thread started: {self._thread.name}')
+        return self
+
+    def stop(self) -> None:
+        """Signal the event loop to stop after the current poll cycle."""
+        self._running = False
+        self._stop_event.set()
+
+    def join(self, timeout: float = None) -> None:
+        """Wait for the background thread to finish (only valid after start())."""
+        if self._thread:
+            self._thread.join(timeout=timeout)
+
+
+# ============================================================================
+# EventLoopPool
+# ============================================================================
+
+class EventLoopPool:
+    """
+    A pool of EventLoop threads that distributes clients across N SDK I/O threads.
+
+    Use this for high-concurrency deployments where many clients share a fixed
+    number of threads. Each client is permanently assigned to one loop for its
+    entire lifetime.
+
+    Usage::
+
+        pool = rtms.EventLoopPool(threads=4)
+
+        @rtms.on_webhook_event
+        def handle(payload):
+            client = rtms.Client(executor=EXECUTOR)
+            client.on_audio_data(on_audio)
+            pool.add(client)          # routed to least-loaded loop
+            client.join(payload['payload'])
+
+        await pool.run_async()        # or pool.run()
+
+    Scaling guidance:
+    - 1 thread per ~25 clients is a reasonable starting point
+    - Use executor= on Client for CPU/IO-heavy callbacks
+    - Monitor loop.client_count to tune thread count
+    """
+
+    def __init__(
+        self,
+        threads: int = 4,
+        poll_interval: float = 0.01,
+        strategy: str = 'least_loaded',
+    ):
+        """
+        Args:
+            threads: Number of SDK I/O threads (default: 4)
+            poll_interval: Seconds between poll cycles per loop (default: 0.01)
+            strategy: Client routing strategy — 'least_loaded' or 'round_robin'
+        """
+        if threads < 1:
+            raise ValueError("threads must be >= 1")
+        if strategy not in ('least_loaded', 'round_robin'):
+            raise ValueError("strategy must be 'least_loaded' or 'round_robin'")
+        self._loops = [
+            EventLoop(poll_interval=poll_interval, name=f'rtms-pool-{i}')
+            for i in range(threads)
+        ]
+        self._strategy = strategy
+        self._rr_index = 0
+        self._rr_lock = threading.Lock()
+
+    @property
+    def loops(self) -> List[EventLoop]:
+        """The underlying EventLoop list."""
+        return self._loops
+
+    @property
+    def client_count(self) -> int:
+        """Total clients across all loops."""
+        return sum(l.client_count for l in self._loops)
+
+    def add(self, client: 'Client') -> EventLoop:
+        """
+        Assign a client to a loop according to the routing strategy.
+
+        Returns the EventLoop the client was assigned to.
+        """
+        if self._strategy == 'least_loaded':
+            loop = min(self._loops, key=lambda l: l.client_count)
+        else:  # round_robin
+            with self._rr_lock:
+                loop = self._loops[self._rr_index % len(self._loops)]
+                self._rr_index += 1
+        loop.add(client)
+        return loop
+
+    def run(self, stop_on_empty: bool = False) -> None:
+        """
+        Run all loops. Starts N-1 loops as background daemon threads and runs
+        the last one on the current thread (blocking).
+        """
+        for loop in self._loops[:-1]:
+            loop.start()
+        self._loops[-1].run(stop_on_empty=stop_on_empty)
+
+    async def run_async(self, stop_on_empty: bool = False) -> None:
+        """
+        Run all loops as asyncio coroutines concurrently.
+        """
+        await asyncio.gather(*[l.run_async(stop_on_empty=stop_on_empty) for l in self._loops])
+
+    def stop(self) -> None:
+        """Stop all loops."""
+        for loop in self._loops:
+            loop.stop()
+
+
+# Module-level default EventLoop used by rtms.run() / rtms.run_async()
+_default_loop: Optional[EventLoop] = None
+
+
 class Client(_ClientBase):
     """
     RTMS Client - provides real-time media streaming capabilities
@@ -591,33 +895,21 @@ class Client(_ClientBase):
                 are submitted via executor.submit() instead of running inline. Pass
                 concurrent.futures.ThreadPoolExecutor(n) for CPU-bound or I/O-heavy callbacks.
         """
-        # Ensure SDK is initialized before creating client instance
-        if not Client._sdk_initialized:
-            try:
-                ca_path = find_ca_certificate()
-                log_debug("client", f"Initializing SDK with CA: {ca_path}")
-                _ClientBase.initialize(ca_path, 1, "python-rtms")
-                Client._sdk_initialized = True
-                log_debug("client", "SDK initialized successfully")
-            except Exception as e:
-                log_error("client", f"SDK initialization failed: {e}")
-                # Try with empty path as fallback
-                try:
-                    log_debug("client", "Trying SDK initialization with empty CA path")
-                    _ClientBase.initialize("", 1, "python-rtms")
-                    Client._sdk_initialized = True
-                    log_debug("client", "SDK initialized with empty CA path")
-                except Exception as e2:
-                    log_error("client", f"SDK initialization failed completely: {e2}")
-                    raise RuntimeError(f"Failed to initialize RTMS SDK: {e2}")
-
+        # super().__init__() is PyClient() — intentionally a no-op at construction
+        # time. The C SDK handle is allocated lazily in _do_alloc_and_join(), which
+        # runs on the owning EventLoop's thread. This satisfies the C SDK's thread
+        # affinity requirement: alloc/join/poll/release must share one OS thread.
         super().__init__()
-        self._polling_thread = None
         self._polling_interval = 10  # milliseconds
         self._running = False
         self._webhook_server = None
         self._executor = executor  # concurrent.futures.Executor or None
         self._loop = None           # asyncio event loop captured at callback-registration time
+
+        # EventLoop that owns this client's lifecycle (set by loop.add() or auto-created)
+        self._assigned_loop: Optional['EventLoop'] = None
+        # Pending join params — stored until the loop's thread calls _do_alloc_and_join()
+        self._pending_join_params: Optional[dict] = None
 
         # Individual video subscription callbacks
         self._participant_video_callback = None
@@ -673,128 +965,121 @@ class Client(_ClientBase):
             bool: True if joined successfully, False otherwise
         """
 
-        try:
-            # Support for both dictionary-style and parameter-style calls
-            if len(kwargs) > 0:
-                # If additional kwargs are provided, merge them with the named parameters
-                params = {
-                    'meeting_uuid': meeting_uuid,
-                    'webinar_uuid': webinar_uuid,
-                    'session_id': session_id,
-                    'engagement_id': engagement_id,
-                    'rtms_stream_id': rtms_stream_id,
-                    'server_urls': server_urls,
-                    'signature': signature,
-                    'timeout': timeout,
-                    'ca': ca,
-                    'client': client,
-                    'secret': secret,
-                    'poll_interval': poll_interval
-                }
-                # Update with any additional kwargs
-                params.update(kwargs)
-                return self._join_with_params(**params)
+        # Normalise all call forms into a single params dict
+        params = {
+            'meeting_uuid': meeting_uuid,
+            'webinar_uuid': webinar_uuid,
+            'session_id': session_id,
+            'engagement_id': engagement_id,
+            'rtms_stream_id': rtms_stream_id,
+            'server_urls': server_urls,
+            'signature': signature,
+            'timeout': timeout,
+            'ca': ca,
+            'client': client,
+            'secret': secret,
+            'poll_interval': poll_interval,
+        }
+        if kwargs:
+            params.update(kwargs)
+        if isinstance(meeting_uuid, dict):
+            params = dict(meeting_uuid)
 
-            # Check if uuid is actually a dictionary (first param)
-            if isinstance(meeting_uuid, dict):
-                return self._join_with_params(**meeting_uuid)
+        # Store params for the loop thread to consume
+        self._pending_join_params = params
 
-            # Otherwise, use the parameters directly
-            return self._join_with_params(
-                meeting_uuid=meeting_uuid,
-                webinar_uuid=webinar_uuid,
-                session_id=session_id,
-                engagement_id=engagement_id,
-                rtms_stream_id=rtms_stream_id,
-                server_urls=server_urls,
-                signature=signature,
-                timeout=timeout,
-                ca=ca,
-                client=client,
-                secret=secret,
-                poll_interval=poll_interval
-            )
-        except Exception as e:
-            log_error("client", f"Error in join: {e}")
-            traceback.print_exc()
-            return False
+        # If the client has been assigned to an explicit EventLoop, it will be
+        # picked up by that loop's _drain_pending() call — nothing else to do.
+        if self._assigned_loop is not None:
+            log_debug("client", "join() deferred to assigned EventLoop thread")
+            return True
 
-    def _join_with_params(self, **params):
+        # If rtms.run() / rtms.run_async() is active, route to the default loop.
+        if _default_loop is not None:
+            log_debug("client", "join() routed to default EventLoop")
+            _default_loop.add(self)
+            return True
+
+        # Zero-config (Tier 0): no loop assigned and no run() active —
+        # create an implicit single-client EventLoop as a background daemon thread.
+        log_debug("client", "No EventLoop assigned — creating implicit single-client loop")
+        implicit_loop = EventLoop(
+            poll_interval=params.get('poll_interval', 10) / 1000.0,
+            name='rtms-implicit',
+        )
+        implicit_loop.add(self)
+        implicit_loop.start()
+        return True
+
+    def _do_alloc_and_join(self) -> None:
         """
-        Internal method to join with parameter dictionary.
+        Called by EventLoop._drain_pending() on the loop's own thread.
 
-        IMPORTANT: Due to SDK threading constraints, the actual join() must be called
-        from the same thread that runs the event loop. If rtms.run() hasn't been called,
-        we proceed directly (backwards compatible). Otherwise, we queue for main thread.
+        Performs the two operations that must share an OS thread:
+          1. alloc()  — creates the C SDK handle (rtms_alloc)
+          2. join()   — registers callbacks and connects (rtms_set_callbacks + rtms_join)
         """
-        # If rtms.run() hasn't been called yet, proceed directly (backwards compatible)
-        if _main_thread_id is None:
-            return self._do_join(**params)
+        params = self._pending_join_params
+        if params is None:
+            raise RuntimeError("_do_alloc_and_join called with no pending join params")
 
-        # If on main thread (where rtms.run() is executing), join directly
-        if threading.get_ident() == _main_thread_id:
-            return self._do_join(**params)
-
-        # Queue the join for main thread execution
-        log_debug("client", "Join called from non-main thread, queuing request")
-        with _pending_lock:
-            _pending_operations.append((self._do_join, (), params))
-        log_debug("client", "Join request queued, will be processed by rtms.run()")
-        return True  # Return immediately; actual join happens later
-
-    def _do_join(self, **params):
-        """Actually perform the join - always called on main thread or when no event loop"""
         try:
-            # Extract parameters with defaults
-            meeting_uuid = params.get('meeting_uuid')
-            webinar_uuid = params.get('webinar_uuid')
-            session_id = params.get('session_id')
+            meeting_uuid  = params.get('meeting_uuid')
+            webinar_uuid  = params.get('webinar_uuid')
+            session_id    = params.get('session_id')
             engagement_id = params.get('engagement_id')
             rtms_stream_id = params.get('rtms_stream_id')
-            server_urls = params.get('server_urls')
-            signature = params.get('signature')
-            timeout = params.get('timeout', -1)
-            ca = params.get('ca')
-            client = params.get('client', os.getenv('ZM_RTMS_CLIENT'))
-            secret = params.get('secret', os.getenv('ZM_RTMS_SECRET'))
+            server_urls   = params.get('server_urls')
+            signature     = params.get('signature')
+            timeout       = params.get('timeout', -1)
+            client_id     = params.get('client', os.getenv('ZM_RTMS_CLIENT'))
+            secret        = params.get('secret', os.getenv('ZM_RTMS_SECRET'))
             poll_interval = params.get('poll_interval', 10)
 
-            # Use meeting_uuid for Meeting SDK, webinar_uuid for Webinar,
-            # session_id for Video SDK, engagement_id for ZCC
             instance_id = meeting_uuid or webinar_uuid or session_id or engagement_id
-
             if not instance_id:
-                raise ValueError("Either meeting_uuid, webinar_uuid, session_id, or engagement_id is required")
+                raise ValueError("meeting_uuid, webinar_uuid, session_id, or engagement_id is required")
             if not rtms_stream_id:
-                raise ValueError("RTMS Stream ID is required")
+                raise ValueError("rtms_stream_id is required")
             if not server_urls:
-                raise ValueError("Server URLs is required")
+                raise ValueError("server_urls is required")
 
-            # Generate signature if not provided
             if not signature:
-                try:
-                    signature = generate_signature(client, secret, instance_id, rtms_stream_id)
-                except Exception as e:
-                    log_error("client", f"Error generating signature: {e}")
-                    raise
+                signature = generate_signature(client_id, secret, instance_id, rtms_stream_id)
 
-            # Store polling interval
             self._polling_interval = poll_interval
 
-            # Join the meeting/webinar/session/engagement
+            # Phase 1: ensure SDK is initialized on THIS thread (same thread as alloc/join).
+            # The lock ensures init() runs exactly once even if multiple EventLoops start
+            # simultaneously, but the actual C call only happens on the first client's thread.
+            with _sdk_init_lock:
+                if not Client._sdk_initialized:
+                    ca_path = find_ca_certificate()
+                    log_debug("client", f"Initializing SDK with CA: {ca_path}")
+                    try:
+                        _ClientBase.initialize(ca_path, 1, "python-rtms")
+                    except Exception:
+                        log_debug("client", "Trying SDK initialization with empty CA path")
+                        _ClientBase.initialize("", 1, "python-rtms")
+                    Client._sdk_initialized = True
+                    log_debug("client", "SDK initialized successfully")
+
+            # Phase 2: allocate C SDK handle on this thread
+            super().alloc()
+
             session_type = 'meeting' if meeting_uuid else 'webinar' if webinar_uuid else 'engagement' if engagement_id else 'session'
             log_info("client", f"Joining {session_type}: {instance_id}")
+
+            # join() on the same thread as alloc() — C SDK constraint satisfied
             super().join(instance_id, rtms_stream_id, signature, server_urls, timeout)
 
-            # Start polling thread
-            self._start_polling()
-
+            self._running = True
             log_info("client", "Successfully joined")
-            return True
+
         except Exception as e:
-            log_error("client", f"Error joining: {e}")
+            log_error("client", f"Error in _do_alloc_and_join: {e}")
             traceback.print_exc()
-            return False
+            raise
 
     def _initialize_rtms(self, ca_path=None):
         """Initialize the RTMS SDK with the best available CA certificate"""
@@ -818,29 +1103,13 @@ class Client(_ClientBase):
                 log_error("client", f"Failed to initialize with empty CA path: {e2}")
                 raise e  # Raise the original error
 
-    def _poll_if_needed(self):
-        """
-        Poll the RTMS client if needed.
-
-        IMPORTANT: Due to SDK threading constraints, poll() must be called from the
-        main thread (same thread that initialized the SDK). This should be called
-        periodically from the main loop.
-        """
+    def poll(self):
+        """Poll the C SDK for pending events. Called by the owning EventLoop's thread."""
         if self._running:
             try:
                 super().poll()
             except Exception as e:
                 log_error("client", f"Error during polling: {e}")
-
-    def _start_polling(self):
-        """Mark that polling should begin (will be done from main thread)"""
-        self._running = True
-        log_debug("client", "Polling enabled - call _poll_if_needed() from main loop")
-
-    def _stop_polling(self):
-        """Stop polling"""
-        self._running = False
-        log_debug("client", "Polling stopped")
 
     # ========================================================================
     # Callback Dispatch
@@ -1287,15 +1556,18 @@ class Client(_ClientBase):
 
     def leave(self):
         """
-        Leave the RTMS session and stop all threads.
+        Leave the RTMS session.
+
+        Signals the owning EventLoop to stop polling this client and releases
+        the C SDK handle. Safe to call from any thread.
 
         Returns:
             bool: True if left successfully
         """
         log_info("client", "Leaving RTMS session")
 
-        # Stop polling thread
-        self._stop_polling()
+        # Signal the EventLoop to stop polling this client
+        self._running = False
 
         # Unregister from global client registry
         with _clients_lock:
@@ -1454,184 +1726,86 @@ def onWebhookEvent(callback=None, port=None, path=None):
 on_webhook_event = onWebhookEvent
 
 
-def _process_pending_operations():
-    """Process operations queued from other threads"""
-    with _pending_lock:
-        if not _pending_operations:
-            return
-        operations = _pending_operations[:]
-        _pending_operations.clear()
-
-    for func, args, kwargs in operations:
-        try:
-            func(*args, **kwargs)
-        except Exception as e:
-            log_error('rtms', f'Error processing pending operation: {e}')
-            traceback.print_exc()
-
-
-def _cleanup_all_clients():
-    """Clean up all clients on shutdown"""
-    with _clients_lock:
-        for client in list(_clients.values()):
-            try:
-                client.leave()
-            except Exception:
-                pass
-        _clients.clear()
-
-
-def run(poll_interval: float = 0.01, stop_on_empty: bool = False, executor=None):
+def run(poll_interval: float = 0.01, stop_on_empty: bool = False):
     """
-    Start the RTMS event loop.
+    Start the default RTMS event loop (blocking).
 
-    This function blocks and handles:
-    - Polling all active clients
-    - Processing pending operations from other threads (like webhook handlers)
-    - Graceful shutdown on KeyboardInterrupt
+    Clients that call join() without an explicit EventLoop are automatically
+    routed to this default loop. Blocks until interrupted or stop() is called.
 
     Args:
-        poll_interval: Time in seconds between poll cycles (default: 0.01 = 10ms)
-        stop_on_empty: If True, stop when no clients remain (default: False)
-        executor: Optional concurrent.futures.Executor applied as the global default for
-            all clients that do not have their own executor set. Useful when all clients
-            share the same thread pool for callback dispatch.
+        poll_interval: Seconds between poll cycles (default: 0.01 = 10ms)
+        stop_on_empty: Stop automatically when all clients have left
 
-    Example:
-        >>> import rtms
-        >>>
-        >>> @rtms.onWebhookEvent
-        >>> def handle(payload):
-        >>>     client = rtms.Client()
-        >>>     client.on_transcript_data(lambda d,s,t,m: print(m.userName, d))
-        >>>     client.join(payload['payload'])
-        >>>
-        >>> rtms.run()  # Blocks until interrupted
+    Example::
+
+        @rtms.on_webhook_event
+        def handle(payload):
+            client = rtms.Client()
+            client.on_transcript_data(lambda d,s,t,m: print(m.userName, d))
+            client.join(payload['payload'])
+
+        rtms.run()   # blocks until Ctrl-C
     """
-    global _main_thread_id, _running, _run_executor
-
-    _main_thread_id = threading.get_ident()
+    global _default_loop, _running
+    _default_loop = EventLoop(poll_interval=poll_interval, name='rtms-default')
     _running = True
     _stop_event.clear()
-    _run_executor = executor
-
-    log_info('rtms', f'Starting RTMS event loop (poll_interval={poll_interval}s)')
-
     try:
-        while _running and not _stop_event.is_set():
-            # Process pending operations from other threads
-            _process_pending_operations()
-
-            # Poll all active clients
-            with _clients_lock:
-                clients_to_poll = list(_clients.values())
-
-            for client in clients_to_poll:
-                if client._running:
-                    try:
-                        client.poll()
-                    except Exception as e:
-                        log_error('rtms', f'Error polling client: {e}')
-
-            # Check stop_on_empty condition
-            if stop_on_empty and not clients_to_poll:
-                log_info('rtms', 'No active clients, stopping event loop')
-                break
-
-            time.sleep(poll_interval)
-
-    except KeyboardInterrupt:
-        log_info('rtms', 'Received interrupt, shutting down...')
+        _default_loop.run(stop_on_empty=stop_on_empty)
     finally:
         _running = False
-        _main_thread_id = None
-        _run_executor = None
-        _cleanup_all_clients()
+        _default_loop = None
 
 
-async def run_async(poll_interval: float = 0.01, stop_on_empty: bool = False, executor=None):
+async def run_async(poll_interval: float = 0.01, stop_on_empty: bool = False):
     """
-    Start the RTMS event loop as an asyncio coroutine.
+    Start the default RTMS event loop as an asyncio coroutine.
 
-    Drop-in async replacement for rtms.run(). Uses asyncio.sleep() instead of
-    time.sleep(), so it yields control back to the event loop between poll cycles
-    and composes naturally with aiohttp, FastAPI, asyncpg, and other async frameworks.
+    Drop-in async replacement for rtms.run(). Yields to the asyncio event loop
+    between poll cycles so other coroutines (aiohttp, FastAPI, asyncpg) run freely.
 
     Args:
-        poll_interval: Time in seconds between poll cycles (default: 0.01 = 10ms)
-        stop_on_empty: If True, stop when no clients remain (default: False)
-        executor: Optional concurrent.futures.Executor applied as the global default
-            for all clients that do not have their own executor set.
+        poll_interval: Seconds between poll cycles (default: 0.01 = 10ms)
+        stop_on_empty: Stop automatically when all clients have left
 
-    Example:
-        >>> import asyncio, rtms
-        >>>
-        >>> async def main():
-        >>>     await asyncio.gather(
-        >>>         rtms.run_async(),
-        >>>         my_aiohttp_server.start(),
-        >>>     )
-        >>>
-        >>> asyncio.run(main())
+    Example::
+
+        async def main():
+            await asyncio.gather(rtms.run_async(), aiohttp_app.start())
+
+        asyncio.run(main())
     """
-    global _main_thread_id, _running, _run_executor
-
-    _main_thread_id = threading.get_ident()
+    global _default_loop, _running
+    _default_loop = EventLoop(poll_interval=poll_interval, name='rtms-default')
     _running = True
     _stop_event.clear()
-    _run_executor = executor
-
-    log_info('rtms', f'Starting async RTMS event loop (poll_interval={poll_interval}s)')
-
     try:
-        while _running and not _stop_event.is_set():
-            # Process pending operations from other threads
-            _process_pending_operations()
-
-            # Poll all active clients
-            with _clients_lock:
-                clients_to_poll = list(_clients.values())
-
-            for client in clients_to_poll:
-                if client._running:
-                    try:
-                        client.poll()
-                    except Exception as e:
-                        log_error('rtms', f'Error polling client: {e}')
-
-            # Check stop_on_empty condition
-            if stop_on_empty and not clients_to_poll:
-                log_info('rtms', 'No active clients, stopping async event loop')
-                break
-
-            await asyncio.sleep(poll_interval)
-
-    except asyncio.CancelledError:
-        log_info('rtms', 'Async event loop cancelled')
+        await _default_loop.run_async(stop_on_empty=stop_on_empty)
     finally:
         _running = False
-        _main_thread_id = None
-        _run_executor = None
-        # Note: clients are NOT force-cleaned here. In async contexts the
-        # application owns client lifecycle — call client.leave() explicitly.
-        # _cleanup_all_clients() is intentionally omitted.
+        _default_loop = None
 
 
 def stop():
     """
-    Signal the event loop to stop.
+    Stop the default event loop (rtms.run() or rtms.run_async()).
 
-    Call this from another thread to gracefully stop the rtms.run() loop.
+    For EventLoop or EventLoopPool instances, call their .stop() method directly.
     """
     global _running
     _running = False
     _stop_event.set()
+    if _default_loop:
+        _default_loop.stop()
     log_info('rtms', 'Stop signal received')
 
 
 __all__ = [
     # Classes
     "Client",
+    "EventLoop",
+    "EventLoopPool",
     "Session",
     "Participant",
     "Metadata",
