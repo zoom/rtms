@@ -201,6 +201,94 @@ EventExCallback = Callable[[str], None]
 # ============================================================================
 # Client Class
 # ============================================================================
+# EventLoop and EventLoopPool
+# ============================================================================
+
+class EventLoop:
+    """
+    An SDK I/O thread that owns one or more Client lifecycles.
+
+    Manages alloc/join/poll/release on a single dedicated OS thread, satisfying
+    the C SDK's thread-affinity requirement.
+    """
+    def __init__(self, poll_interval: float = 0.01, name: Optional[str] = None) -> None: ...
+
+    @property
+    def client_count(self) -> int: ...
+
+    def add(self, client: 'Client') -> None:
+        """Assign a client to this loop. Must be called before client.join()."""
+        ...
+
+    def run(self, stop_on_empty: bool = False) -> None:
+        """Run the event loop on the current thread (blocking)."""
+        ...
+
+    async def run_async(self, stop_on_empty: bool = False) -> None:
+        """Run the event loop as an asyncio coroutine."""
+        ...
+
+    def start(self) -> 'EventLoop':
+        """Start the event loop in a background daemon thread. Returns self."""
+        ...
+
+    def stop(self) -> None:
+        """Signal the loop to stop after the current poll cycle."""
+        ...
+
+    def join(self, timeout: Optional[float] = None) -> None:
+        """Wait for the background thread to finish (only valid after start())."""
+        ...
+
+
+class EventLoopPool:
+    """
+    A pool of EventLoop threads for distributing clients across N SDK I/O threads.
+
+    Example::
+
+        pool = rtms.EventLoopPool(threads=4)
+
+        @rtms.on_webhook_event
+        def handle(payload):
+            client = rtms.Client(executor=EXECUTOR)
+            client.on_audio_data(on_audio)
+            pool.add(client)
+            client.join(payload['payload'])
+
+        await pool.run_async()
+    """
+    def __init__(
+        self,
+        threads: int = 4,
+        poll_interval: float = 0.01,
+        strategy: Literal['least_loaded', 'round_robin'] = 'least_loaded',
+    ) -> None: ...
+
+    @property
+    def loops(self) -> List[EventLoop]: ...
+
+    @property
+    def client_count(self) -> int: ...
+
+    def add(self, client: 'Client') -> EventLoop:
+        """Route client to a loop per the strategy. Returns the assigned EventLoop."""
+        ...
+
+    def run(self, stop_on_empty: bool = False) -> None:
+        """Run all loops. Starts N-1 as background threads, runs last on current thread."""
+        ...
+
+    async def run_async(self, stop_on_empty: bool = False) -> None:
+        """Run all loops as concurrent asyncio coroutines."""
+        ...
+
+    def stop(self) -> None:
+        """Stop all loops."""
+        ...
+
+
+# ============================================================================
 
 class Client:
     """RTMS Client for connecting to Zoom real-time media streams"""

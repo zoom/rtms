@@ -22,14 +22,45 @@ using namespace rtms;
  */
 class PyClient {
 public:
-    PyClient() : client_(std::make_unique<Client>()) {
-        // Client created successfully
-    }
+    // Phase 1: safe to call from any thread — no C SDK interaction.
+    PyClient() : client_(nullptr) {}
 
     ~PyClient() {
-        // Clear all callbacks before destruction
         clearCallbacks();
     }
+
+    // Phase 2: allocates the C SDK handle. Must be called from the thread that
+    // will own this client for its entire lifetime (join/poll/release must all
+    // run on the same OS thread as alloc).
+    //
+    // Replays all callbacks and params that were buffered before alloc() so
+    // that the caller can set up the client fully before calling alloc()+join().
+    void alloc() {
+        if (client_) return;  // idempotent
+        client_ = std::make_unique<Client>();
+
+        // Replay buffered callbacks
+        if (!join_confirm_callback_.is_none())   _registerJoinConfirm();
+        if (!session_update_callback_.is_none()) _registerSessionUpdate();
+        if (!user_update_callback_.is_none())    _registerUserUpdate();
+        if (!audio_data_callback_.is_none())     _registerAudioData();
+        if (!video_data_callback_.is_none())     _registerVideoData();
+        if (!deskshare_data_callback_.is_none()) _registerDeskshareData();
+        if (!transcript_data_callback_.is_none()) _registerTranscriptData();
+        if (!leave_callback_.is_none())          _registerLeave();
+        if (!event_ex_callback_.is_none())       _registerEventEx();
+        if (!participant_video_callback_.is_none()) _registerParticipantVideo();
+        if (!video_subscribed_callback_.is_none())  _registerVideoSubscribed();
+
+        // Replay buffered params
+        if (pending_audio_params_)      client_->setAudioParams(*pending_audio_params_);
+        if (pending_video_params_)      client_->setVideoParams(*pending_video_params_);
+        if (pending_deskshare_params_)  client_->setDeskshareParams(*pending_deskshare_params_);
+        if (pending_transcript_params_) client_->setTranscriptParams(*pending_transcript_params_);
+        if (!pending_proxy_type_.empty()) client_->setProxy(pending_proxy_type_, pending_proxy_url_);
+    }
+
+    bool isAllocated() const { return client_ != nullptr; }
 
     // ========================================================================
     // Core Methods
@@ -38,25 +69,28 @@ public:
     void join(const std::string& uuid, const std::string& stream_id,
              const std::string& signature, const std::string& server_urls,
              int timeout = -1) {
+        if (!client_) throw std::runtime_error("alloc() must be called before join()");
         client_->join(uuid, stream_id, signature, server_urls, timeout);
     }
 
     void poll() {
+        if (!client_) return;
         py::gil_scoped_release release;
         client_->poll();
     }
 
     void release() {
+        if (!client_) return;
         stopCallbacks();
         client_->release();
     }
 
     std::string uuid() const {
-        return client_->uuid();
+        return client_ ? client_->uuid() : "";
     }
 
     std::string streamId() const {
-        return client_->streamId();
+        return client_ ? client_->streamId() : "";
     }
 
     // ========================================================================
@@ -64,177 +98,100 @@ public:
     // ========================================================================
 
     void enableAudio(bool enable) {
-        client_->enableAudio(enable);
+        if (client_) client_->enableAudio(enable);
     }
 
     void enableVideo(bool enable) {
-        client_->enableVideo(enable);
+        if (client_) client_->enableVideo(enable);
     }
 
     void enableTranscript(bool enable) {
-        client_->enableTranscript(enable);
+        if (client_) client_->enableTranscript(enable);
     }
 
     void enableDeskshare(bool enable) {
-        client_->enableDeskshare(enable);
+        if (client_) client_->enableDeskshare(enable);
     }
 
     // ========================================================================
     // Parameter Setting Methods
+    // Buffer params pre-alloc; apply immediately post-alloc.
     // ========================================================================
 
     void setAudioParams(const AudioParams& params) {
-        client_->setAudioParams(params);
+        pending_audio_params_ = std::make_unique<AudioParams>(params);
+        if (client_) client_->setAudioParams(params);
     }
 
     void setVideoParams(const VideoParams& params) {
-        client_->setVideoParams(params);
+        pending_video_params_ = std::make_unique<VideoParams>(params);
+        if (client_) client_->setVideoParams(params);
     }
 
     void setDeskshareParams(const DeskshareParams& params) {
-        client_->setDeskshareParams(params);
+        pending_deskshare_params_ = std::make_unique<DeskshareParams>(params);
+        if (client_) client_->setDeskshareParams(params);
     }
 
     void setTranscriptParams(const TranscriptParams& params) {
-        client_->setTranscriptParams(params);
+        pending_transcript_params_ = std::make_unique<TranscriptParams>(params);
+        if (client_) client_->setTranscriptParams(params);
     }
 
     void setProxy(const std::string& proxy_type, const std::string& proxy_url) {
-        client_->setProxy(proxy_type, proxy_url);
+        pending_proxy_type_ = proxy_type;
+        pending_proxy_url_ = proxy_url;
+        if (client_) client_->setProxy(proxy_type, proxy_url);
     }
 
     // ========================================================================
     // Callback Registration Methods
+    // Buffer callback pre-alloc; register with C SDK immediately post-alloc.
     // ========================================================================
 
     void onJoinConfirm(py::function callback) {
         join_confirm_callback_ = callback;
-        client_->setOnJoinConfirm([this](int reason) {
-            if (!join_confirm_callback_.is_none()) {
-                py::gil_scoped_acquire acquire;
-                try {
-                    join_confirm_callback_(reason);
-                } catch (const py::error_already_set& e) {
-                    py::print("Error in join confirm callback:", e.what());
-                }
-            }
-        });
+        if (client_) _registerJoinConfirm();
     }
 
     void onSessionUpdate(py::function callback) {
         session_update_callback_ = callback;
-        client_->setOnSessionUpdate([this](int op, const Session& session) {
-            if (!session_update_callback_.is_none()) {
-                py::gil_scoped_acquire acquire;
-                try {
-                    session_update_callback_(op, session);
-                } catch (const py::error_already_set& e) {
-                    py::print("Error in session update callback:", e.what());
-                }
-            }
-        });
+        if (client_) _registerSessionUpdate();
     }
 
     void onUserUpdate(py::function callback) {
         user_update_callback_ = callback;
-        client_->setOnUserUpdate([this](int op, const Participant& participant) {
-            if (!user_update_callback_.is_none()) {
-                py::gil_scoped_acquire acquire;
-                try {
-                    user_update_callback_(op, participant);
-                } catch (const py::error_already_set& e) {
-                    py::print("Error in user update callback:", e.what());
-                }
-            }
-        });
+        if (client_) _registerUserUpdate();
     }
 
     void onAudioData(py::function callback) {
         audio_data_callback_ = callback;
-        client_->setOnAudioData([this](const std::vector<uint8_t>& data, uint64_t timestamp, const Metadata& metadata) {
-            if (!audio_data_callback_.is_none()) {
-                py::gil_scoped_acquire acquire;
-                try {
-                    py::bytes py_data(reinterpret_cast<const char*>(data.data()), data.size());
-                    audio_data_callback_(py_data, data.size(), timestamp, metadata);
-                } catch (const py::error_already_set& e) {
-                    py::print("Error in audio data callback:", e.what());
-                }
-            }
-        });
+        if (client_) _registerAudioData();
     }
 
     void onVideoData(py::function callback) {
         video_data_callback_ = callback;
-        client_->setOnVideoData([this](const std::vector<uint8_t>& data, uint64_t timestamp, const Metadata& metadata) {
-            if (!video_data_callback_.is_none()) {
-                py::gil_scoped_acquire acquire;
-                try {
-                    py::bytes py_data(reinterpret_cast<const char*>(data.data()), data.size());
-                    video_data_callback_(py_data, data.size(), timestamp, metadata);
-                } catch (const py::error_already_set& e) {
-                    py::print("Error in video data callback:", e.what());
-                }
-            }
-        });
+        if (client_) _registerVideoData();
     }
 
     void onDeskshareData(py::function callback) {
         deskshare_data_callback_ = callback;
-        client_->setOnDeskshareData([this](const std::vector<uint8_t>& data, uint64_t timestamp, const Metadata& metadata) {
-            if (!deskshare_data_callback_.is_none()) {
-                py::gil_scoped_acquire acquire;
-                try {
-                    py::bytes py_data(reinterpret_cast<const char*>(data.data()), data.size());
-                    deskshare_data_callback_(py_data, data.size(), timestamp, metadata);
-                } catch (const py::error_already_set& e) {
-                    py::print("Error in deskshare data callback:", e.what());
-                }
-            }
-        });
+        if (client_) _registerDeskshareData();
     }
 
     void onTranscriptData(py::function callback) {
         transcript_data_callback_ = callback;
-        client_->setOnTranscriptData([this](const std::vector<uint8_t>& data, uint64_t timestamp, const Metadata& metadata) {
-            if (!transcript_data_callback_.is_none()) {
-                py::gil_scoped_acquire acquire;
-                try {
-                    py::bytes py_data(reinterpret_cast<const char*>(data.data()), data.size());
-                    transcript_data_callback_(py_data, data.size(), timestamp, metadata);
-                } catch (const py::error_already_set& e) {
-                    py::print("Error in transcript data callback:", e.what());
-                }
-            }
-        });
+        if (client_) _registerTranscriptData();
     }
 
     void onLeave(py::function callback) {
         leave_callback_ = callback;
-        client_->setOnLeave([this](int reason) {
-            if (!leave_callback_.is_none()) {
-                py::gil_scoped_acquire acquire;
-                try {
-                    leave_callback_(reason);
-                } catch (const py::error_already_set& e) {
-                    py::print("Error in leave callback:", e.what());
-                }
-            }
-        });
+        if (client_) _registerLeave();
     }
 
     void onEventEx(py::function callback) {
         event_ex_callback_ = callback;
-        client_->setOnEventEx([this](const std::string& event_data) {
-            if (!event_ex_callback_.is_none()) {
-                py::gil_scoped_acquire acquire;
-                try {
-                    event_ex_callback_(event_data);
-                } catch (const py::error_already_set& e) {
-                    py::print("Error in event ex callback:", e.what());
-                }
-            }
-        });
+        if (client_) _registerEventEx();
     }
 
     // ========================================================================
@@ -242,35 +199,18 @@ public:
     // ========================================================================
 
     void subscribeVideo(int user_id, bool subscribe) {
+        if (!client_) throw std::runtime_error("alloc() must be called before subscribeVideo()");
         client_->subscribeVideo(user_id, subscribe);
     }
 
     void onParticipantVideo(py::function callback) {
         participant_video_callback_ = callback;
-        client_->setOnParticipantVideo([this](const std::vector<int>& users, bool is_on) {
-            if (!participant_video_callback_.is_none()) {
-                py::gil_scoped_acquire acquire;
-                try {
-                    participant_video_callback_(users, is_on);
-                } catch (const py::error_already_set& e) {
-                    py::print("Error in participant video callback:", e.what());
-                }
-            }
-        });
+        if (client_) _registerParticipantVideo();
     }
 
     void onVideoSubscribed(py::function callback) {
         video_subscribed_callback_ = callback;
-        client_->setOnVideoSubscribed([this](int user_id, int status, const std::string& error) {
-            if (!video_subscribed_callback_.is_none()) {
-                py::gil_scoped_acquire acquire;
-                try {
-                    video_subscribed_callback_(user_id, status, error);
-                } catch (const py::error_already_set& e) {
-                    py::print("Error in video subscribed callback:", e.what());
-                }
-            }
-        });
+        if (client_) _registerVideoSubscribed();
     }
 
     // ========================================================================
@@ -278,17 +218,22 @@ public:
     // ========================================================================
 
     void subscribeEvent(const std::vector<int>& events) {
+        if (!client_) {
+            // Buffer for replay after alloc
+            pending_subscriptions_.insert(pending_subscriptions_.end(), events.begin(), events.end());
+            return;
+        }
         client_->subscribeEvent(events);
     }
 
     void unsubscribeEvent(const std::vector<int>& events) {
-        client_->unsubscribeEvent(events);
+        if (client_) client_->unsubscribeEvent(events);
     }
 
 private:
     std::unique_ptr<Client> client_;
 
-    // Python callback storage
+    // Python callback storage (buffered pre-alloc, registered post-alloc)
     py::object join_confirm_callback_ = py::none();
     py::object session_update_callback_ = py::none();
     py::object user_update_callback_ = py::none();
@@ -300,6 +245,137 @@ private:
     py::object event_ex_callback_ = py::none();
     py::object participant_video_callback_ = py::none();
     py::object video_subscribed_callback_ = py::none();
+
+    // Param buffers (applied on alloc)
+    std::unique_ptr<AudioParams>      pending_audio_params_;
+    std::unique_ptr<VideoParams>      pending_video_params_;
+    std::unique_ptr<DeskshareParams>  pending_deskshare_params_;
+    std::unique_ptr<TranscriptParams> pending_transcript_params_;
+    std::string pending_proxy_type_;
+    std::string pending_proxy_url_;
+    std::vector<int> pending_subscriptions_;
+
+    // ── Private registration helpers ────────────────────────────────────────
+    // Each helper wires one stored py::object into the C++ Client.
+    // Called from alloc() (replay) and from the public setter (live update).
+
+    void _registerJoinConfirm() {
+        client_->setOnJoinConfirm([this](int reason) {
+            if (!join_confirm_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try { join_confirm_callback_(reason); }
+                catch (const py::error_already_set& e) { py::print("Error in join_confirm callback:", e.what()); }
+            }
+        });
+    }
+
+    void _registerSessionUpdate() {
+        client_->setOnSessionUpdate([this](int op, const Session& session) {
+            if (!session_update_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try { session_update_callback_(op, session); }
+                catch (const py::error_already_set& e) { py::print("Error in session_update callback:", e.what()); }
+            }
+        });
+    }
+
+    void _registerUserUpdate() {
+        client_->setOnUserUpdate([this](int op, const Participant& participant) {
+            if (!user_update_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try { user_update_callback_(op, participant); }
+                catch (const py::error_already_set& e) { py::print("Error in user_update callback:", e.what()); }
+            }
+        });
+    }
+
+    void _registerAudioData() {
+        client_->setOnAudioData([this](const std::vector<uint8_t>& data, uint64_t timestamp, const Metadata& metadata) {
+            if (!audio_data_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try {
+                    py::bytes py_data(reinterpret_cast<const char*>(data.data()), data.size());
+                    audio_data_callback_(py_data, data.size(), timestamp, metadata);
+                } catch (const py::error_already_set& e) { py::print("Error in audio_data callback:", e.what()); }
+            }
+        });
+    }
+
+    void _registerVideoData() {
+        client_->setOnVideoData([this](const std::vector<uint8_t>& data, uint64_t timestamp, const Metadata& metadata) {
+            if (!video_data_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try {
+                    py::bytes py_data(reinterpret_cast<const char*>(data.data()), data.size());
+                    video_data_callback_(py_data, data.size(), timestamp, metadata);
+                } catch (const py::error_already_set& e) { py::print("Error in video_data callback:", e.what()); }
+            }
+        });
+    }
+
+    void _registerDeskshareData() {
+        client_->setOnDeskshareData([this](const std::vector<uint8_t>& data, uint64_t timestamp, const Metadata& metadata) {
+            if (!deskshare_data_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try {
+                    py::bytes py_data(reinterpret_cast<const char*>(data.data()), data.size());
+                    deskshare_data_callback_(py_data, data.size(), timestamp, metadata);
+                } catch (const py::error_already_set& e) { py::print("Error in deskshare_data callback:", e.what()); }
+            }
+        });
+    }
+
+    void _registerTranscriptData() {
+        client_->setOnTranscriptData([this](const std::vector<uint8_t>& data, uint64_t timestamp, const Metadata& metadata) {
+            if (!transcript_data_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try {
+                    py::bytes py_data(reinterpret_cast<const char*>(data.data()), data.size());
+                    transcript_data_callback_(py_data, data.size(), timestamp, metadata);
+                } catch (const py::error_already_set& e) { py::print("Error in transcript_data callback:", e.what()); }
+            }
+        });
+    }
+
+    void _registerLeave() {
+        client_->setOnLeave([this](int reason) {
+            if (!leave_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try { leave_callback_(reason); }
+                catch (const py::error_already_set& e) { py::print("Error in leave callback:", e.what()); }
+            }
+        });
+    }
+
+    void _registerEventEx() {
+        client_->setOnEventEx([this](const std::string& event_data) {
+            if (!event_ex_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try { event_ex_callback_(event_data); }
+                catch (const py::error_already_set& e) { py::print("Error in event_ex callback:", e.what()); }
+            }
+        });
+    }
+
+    void _registerParticipantVideo() {
+        client_->setOnParticipantVideo([this](const std::vector<int>& users, bool is_on) {
+            if (!participant_video_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try { participant_video_callback_(users, is_on); }
+                catch (const py::error_already_set& e) { py::print("Error in participant_video callback:", e.what()); }
+            }
+        });
+    }
+
+    void _registerVideoSubscribed() {
+        client_->setOnVideoSubscribed([this](int user_id, int status, const std::string& error) {
+            if (!video_subscribed_callback_.is_none()) {
+                py::gil_scoped_acquire acquire;
+                try { video_subscribed_callback_(user_id, status, error); }
+                catch (const py::error_already_set& e) { py::print("Error in video_subscribed callback:", e.what()); }
+            }
+        });
+    }
 
     void clearCallbacks() {
         join_confirm_callback_ = py::none();
@@ -316,7 +392,6 @@ private:
     }
 
     void stopCallbacks() {
-        // Replace callbacks with no-ops to prevent calling Python during shutdown
         if (client_) {
             client_->setOnJoinConfirm([](int) {});
             client_->setOnSessionUpdate([](int, const Session&) {});
@@ -468,6 +543,12 @@ PYBIND11_MODULE(_rtms, m) {
              py::arg("ca_path"), py::arg("is_verify_cert") = 1, py::arg("agent") = nullptr)
         .def_static("uninitialize", &Client::uninitialize,
              "Uninitialize the RTMS SDK")
+        .def("alloc", &PyClient::alloc,
+             "Allocate the C SDK handle. Must be called from the thread that will own this "
+             "client (same thread must call join/poll/release). Replays any callbacks and "
+             "params registered before alloc().")
+        .def("is_allocated", &PyClient::isAllocated,
+             "Return True if alloc() has been called for this client")
         .def("join", &PyClient::join,
              "Join an RTMS session",
              py::arg("uuid"), py::arg("stream_id"), py::arg("signature"),
