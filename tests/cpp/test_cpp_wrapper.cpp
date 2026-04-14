@@ -143,14 +143,14 @@ TEST_CASE("AudioParams toNative() maps fields correctly", "[params][audio]") {
 // VideoParams
 // ============================================================================
 
-TEST_CASE("VideoParams default constructor zeros all fields", "[params][video]") {
+TEST_CASE("VideoParams default constructor uses H264/HD/30fps defaults", "[params][video]") {
     R _;
     VideoParams p;
-    CHECK(p.contentType() == 0);
-    CHECK(p.codec()       == 0);
-    CHECK(p.resolution()  == 0);
-    CHECK(p.dataOpt()     == 0);
-    CHECK(p.fps()         == 0);
+    CHECK(p.contentType() == (int)MEDIA_CONTENT_TYPE::RAW_VIDEO);
+    CHECK(p.codec()       == (int)MEDIA_PAYLOAD_TYPE::H264);
+    CHECK(p.resolution()  == (int)MEDIA_RESOLUTION::HD);
+    CHECK(p.dataOpt()     == (int)MEDIA_DATA_OPTION::VIDEO_SINGLE_ACTIVE_STREAM);
+    CHECK(p.fps()         == 30);
 }
 
 TEST_CASE("VideoParams validate() — invalid configurations throw", "[params][video]") {
@@ -752,26 +752,36 @@ TEST_CASE("setOnUserUpdate auto-subscribes to participant events", "[client][eve
 // Media type auto-enable
 // ============================================================================
 
-TEST_CASE("setOnAudioData enables AUDIO media type via config", "[client][media]") {
+TEST_CASE("setOnAudioData enables AUDIO media type via config on join", "[client][media]") {
     R _;
     Client c;
     c.setOnAudioData([](const std::vector<uint8_t>&, uint64_t, const Metadata&) {});
+    // Config is deferred until join() calls open() — no sdk_->config() before open()
+    CHECK(g_mock_state.config_calls == 0);
+    c.join("u", "s", "sig", "url");
     REQUIRE(g_mock_state.config_calls >= 1);
     CHECK(g_mock_state.last_media_types & Client::AUDIO);
 }
 
-TEST_CASE("setOnVideoData enables VIDEO media type via config", "[client][media]") {
+TEST_CASE("setOnVideoData enables VIDEO media type via config on join", "[client][media]") {
     R _;
     Client c;
     c.setOnVideoData([](const std::vector<uint8_t>&, uint64_t, const Metadata&) {});
+    // Config is deferred until join() — calling sdk_->config() before open()
+    // hangs for VIDEO in the real C++ SDK
+    CHECK(g_mock_state.config_calls == 0);
+    c.join("u", "s", "sig", "url");
     REQUIRE(g_mock_state.config_calls >= 1);
     CHECK(g_mock_state.last_media_types & Client::VIDEO);
 }
 
-TEST_CASE("setOnTranscriptData enables TRANSCRIPT media type via config", "[client][media]") {
+TEST_CASE("setOnTranscriptData enables TRANSCRIPT media type via config on join", "[client][media]") {
     R _;
     Client c;
     c.setOnTranscriptData([](const std::vector<uint8_t>&, uint64_t, const Metadata&) {});
+    // Config is deferred until join()
+    CHECK(g_mock_state.config_calls == 0);
+    c.join("u", "s", "sig", "url");
     REQUIRE(g_mock_state.config_calls >= 1);
     CHECK(g_mock_state.last_media_types & Client::TRANSCRIPT);
 }

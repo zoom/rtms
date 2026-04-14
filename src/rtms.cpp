@@ -251,7 +251,11 @@ void AudioParams::validate() const {
 }
 
 VideoParams::VideoParams()
-    : BaseMediaParams(), resolution_(0), fps_(0) {}
+    : BaseMediaParams(), resolution_((int)MEDIA_RESOLUTION::HD), fps_(30) {
+    setContentType((int)MEDIA_CONTENT_TYPE::RAW_VIDEO);
+    setCodec((int)MEDIA_PAYLOAD_TYPE::H264);
+    setDataOpt((int)MEDIA_DATA_OPTION::VIDEO_SINGLE_ACTIVE_STREAM);
+}
 
 VideoParams::VideoParams(int content_type, int codec, int resolution, int data_opt, int fps)
     : BaseMediaParams(), resolution_(resolution), fps_(fps) {
@@ -307,7 +311,11 @@ transcript_parameters TranscriptParams::toNative() const {
 }
 
 DeskshareParams::DeskshareParams()
-    : BaseMediaParams(), resolution_(0), fps_(0) {}
+    : BaseMediaParams(), resolution_((int)MEDIA_RESOLUTION::HD), fps_(30) {
+    setContentType((int)MEDIA_CONTENT_TYPE::RAW_VIDEO);
+    setCodec((int)MEDIA_PAYLOAD_TYPE::H264);
+    setDataOpt((int)MEDIA_DATA_OPTION::VIDEO_SINGLE_ACTIVE_STREAM);
+}
 
 DeskshareParams::DeskshareParams(int content_type, int codec, int resolution, int fps)
     : BaseMediaParams(), resolution_(resolution), fps_(fps) {
@@ -500,6 +508,7 @@ Client::Client()
     : sdk_(nullptr),
       enabled_media_types_(0),
       media_params_updated_(false),
+      sdk_opened_(false),
       join_confirmed_(false) {
     sdk_ = rtms_sdk_provider::instance()->create_sdk();
     if (!sdk_) {
@@ -536,33 +545,33 @@ void Client::uninitialize() {
 }
 
 void Client::configure(const MediaParams& params, int media_types, bool enable_application_layer_encryption, bool apply_defaults) {
-    // Store the media parameters for future use
+    // Always store the configuration so join() can apply it later
     media_params_ = params;
     enabled_media_types_ = media_types;
     media_params_updated_ = true;
 
-    // If media types are enabled but no params were set, use sensible defaults
-    // This ensures proper metadata attribution (e.g., AUDIO_MULTI_STREAMS for audio)
-    // Skip defaults when called from setAudioParams/setVideoParams/setDeskshareParams
-    // to avoid prematurely filling in default params for other media types
+    // Don't call sdk_->config() until sdk_->open() has been called in join().
+    // Calling config() before open() (e.g. from setOnVideoData) hangs for VIDEO.
+    if (!sdk_opened_) return;
+
+    // If a media type is enabled but no params were provided, fill in defaults.
+    // Skip when called from setAudioParams/setVideoParams/setDeskshareParams (apply_defaults=false).
     if (apply_defaults) {
         if ((media_types & MediaType::AUDIO) && !media_params_.hasAudioParams()) {
 #ifdef RTMS_DEBUG
-            cerr << "[DEBUG CONFIG] Audio enabled but no params set, using defaults (AUDIO_MULTI_STREAMS)" << endl;
+            cerr << "[DEBUG CONFIG] Audio enabled but no params set, using defaults (OPUS/AUDIO_MULTI_STREAMS)" << endl;
 #endif
             media_params_.setAudioParams(AudioParams());
         }
-
         if ((media_types & MediaType::VIDEO) && !media_params_.hasVideoParams()) {
 #ifdef RTMS_DEBUG
-            cerr << "[DEBUG CONFIG] Video enabled but no params set, using defaults" << endl;
+            cerr << "[DEBUG CONFIG] Video enabled but no params set, using defaults (H264/HD/30fps)" << endl;
 #endif
             media_params_.setVideoParams(VideoParams());
         }
-
         if ((media_types & MediaType::DESKSHARE) && !media_params_.hasDeskshareParams()) {
 #ifdef RTMS_DEBUG
-            cerr << "[DEBUG CONFIG] Deskshare enabled but no params set, using defaults" << endl;
+            cerr << "[DEBUG CONFIG] Deskshare enabled but no params set, using defaults (H264/HD/30fps)" << endl;
 #endif
             media_params_.setDeskshareParams(DeskshareParams());
         }
@@ -853,8 +862,13 @@ void Client::join(const string& meeting_uuid, const string& rtms_stream_id,
     // Register this client as the sink — replaces the old static callback registry
     int result = sdk_->open(this);
     throwIfError(result, "open");
+    sdk_opened_ = true;
 
-    if (enabled_media_types_ > 0 && !media_params_updated_) {
+    // Apply any media configuration that was registered before join() via
+    // setOnAudioData / setOnVideoData / setVideoParams etc. Those calls stored
+    // the state in media_params_ / enabled_media_types_ but deferred the actual
+    // sdk_->config() call until now (after open).
+    if (enabled_media_types_ > 0) {
         try {
             configure(media_params_, enabled_media_types_, false);
         } catch (const Exception& e) {

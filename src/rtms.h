@@ -626,6 +626,7 @@ private:
 
     int enabled_media_types_;
     bool media_params_updated_;
+    bool sdk_opened_;
     MediaParams media_params_;
 
     JoinConfirmFn join_confirm_callback_;
