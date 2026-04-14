@@ -192,11 +192,41 @@ client.setTranscriptParams({ srcLanguage: rtms.TranscriptLanguage.ENGLISH });
 
 ## HTTP Proxy
 
-Route RTMS WebSocket traffic through an HTTP proxy. Call `setProxy` before `join()`:
+Route RTMS WebSocket traffic through an HTTP proxy. Call `setProxy` before `join()` — it returns `true` on success:
 
 ```javascript
-client.setProxy("http", "http://proxy.example.com:8080");
+import rtms from "@zoom/rtms";
+
+const clients = new Map();
+
+rtms.onWebhookEvent(({ event, payload }) => {
+    const streamId = payload?.rtms_stream_id;
+
+    if (event.includes("rtms_stopped")) {
+        clients.get(streamId)?.leave();
+        clients.delete(streamId);
+        return;
+    }
+
+    if (!event.includes("rtms_started")) return;
+
+    const client = new rtms.Client();
+    clients.set(streamId, client);
+
+    // Route WebSocket traffic through an HTTP proxy.
+    // Must be called before join(). Returns true on success.
+    const ok = client.setProxy("http", process.env.RTMS_PROXY_URL);
+    if (!ok) console.warn("setProxy failed — joining without proxy");
+
+    client.onTranscriptData((data, size, timestamp, metadata) => {
+        console.log(`[${timestamp}] ${metadata.userName}: ${data}`);
+    });
+
+    client.join(payload);
+});
 ```
+
+The first argument is the proxy type (`"http"`). The second argument is the full proxy URL including host and port.
 
 ## Individual Video Streams
 
