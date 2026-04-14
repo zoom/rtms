@@ -28,7 +28,7 @@ AiInterpreter::AiInterpreter(const ai_interpreter& aii)
       timestamp_(aii.timestamp),
       channel_num_(aii.channel_num),
       sample_rate_(aii.sample_rate) {
-    int count = aii.target_size < 100 ? aii.target_size : 100;
+    int count = (aii.target_size > 0 && aii.target_size < 100) ? aii.target_size : 0;
     targets_.reserve(count);
     for (int i = 0; i < count; ++i)
         targets_.emplace_back(aii.atl[i]);
