@@ -53,16 +53,56 @@ private:
     string name_;
 };
 
+class AiTargetLanguage {
+public:
+    explicit AiTargetLanguage(const ai_target_lan& atl);
+
+    int lid() const;
+    int toneId() const;
+    string voiceId() const;
+    string engine() const;
+
+private:
+    int lid_;
+    int tone_id_;
+    string voice_id_;
+    string engine_;
+};
+
+class AiInterpreter {
+public:
+    explicit AiInterpreter(const ai_interpreter& aii);
+
+    int lid() const;
+    uint64_t timestamp() const;
+    int channelNum() const;
+    int sampleRate() const;
+    const vector<AiTargetLanguage>& targets() const;
+
+private:
+    int lid_;
+    uint64_t timestamp_;
+    int channel_num_;
+    int sample_rate_;
+    vector<AiTargetLanguage> targets_;
+};
+
 class Metadata {
 public:
     explicit Metadata(const rtms_metadata& metadata);
 
     string userName() const;
     int userId() const;
+    uint64_t startTs() const;
+    uint64_t endTs() const;
+    const AiInterpreter& aiInterpreter() const;
 
 private:
     string user_name_;
     int user_id_;
+    uint64_t start_ts_;
+    uint64_t end_ts_;
+    AiInterpreter ai_interpreter_;
 };
 
 class BaseMediaParams {

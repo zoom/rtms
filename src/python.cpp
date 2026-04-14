@@ -438,9 +438,25 @@ PYBIND11_MODULE(_rtms, m) {
         .def_property_readonly("id", &Participant::id)
         .def_property_readonly("name", &Participant::name);
 
+    py::class_<AiTargetLanguage>(m, "AiTargetLanguage")
+        .def_property_readonly("lid", &AiTargetLanguage::lid)
+        .def_property_readonly("toneId", &AiTargetLanguage::toneId)
+        .def_property_readonly("voiceId", &AiTargetLanguage::voiceId)
+        .def_property_readonly("engine", &AiTargetLanguage::engine);
+
+    py::class_<AiInterpreter>(m, "AiInterpreter")
+        .def_property_readonly("lid", &AiInterpreter::lid)
+        .def_property_readonly("timestamp", &AiInterpreter::timestamp)
+        .def_property_readonly("channelNum", &AiInterpreter::channelNum)
+        .def_property_readonly("sampleRate", &AiInterpreter::sampleRate)
+        .def_property_readonly("targets", &AiInterpreter::targets);
+
     py::class_<Metadata>(m, "Metadata")
         .def_property_readonly("userName", &Metadata::userName)
-        .def_property_readonly("userId", &Metadata::userId);
+        .def_property_readonly("userId", &Metadata::userId)
+        .def_property_readonly("startTs", &Metadata::startTs)
+        .def_property_readonly("endTs", &Metadata::endTs)
+        .def_property_readonly("aiInterpreter", &Metadata::aiInterpreter);
 
     // ========================================================================
     // Parameter Classes

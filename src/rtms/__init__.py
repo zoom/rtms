@@ -16,6 +16,7 @@ from pathlib import Path
 from ._rtms import (
     # Classes
     Client as _ClientBase, Session, Participant, Metadata,
+    AiTargetLanguage, AiInterpreter,
     AudioParams, VideoParams, DeskshareParams, TranscriptParams,
 
     # Media type constants
@@ -1808,6 +1809,8 @@ __all__ = [
     "EventLoopPool",
     "Session",
     "Participant",
+    "AiTargetLanguage",
+    "AiInterpreter",
     "Metadata",
     "AudioParams",
     "VideoParams",

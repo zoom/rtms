@@ -184,8 +184,42 @@ export interface MediaTypes {
 }
 
 /**
+ * A single target language entry from an AI interpreter stream
+ *
+ * @category Data Interfaces
+ */
+export interface AiTargetLanguage {
+  /** Language ID of the target language */
+  lid: number;
+  /** Tone ID (dialect/variant) of the target language */
+  toneId: number;
+  /** Voice model identifier used to render this target language */
+  voiceId: string;
+  /** AI engine name (e.g. "zoom_ai") */
+  engine: string;
+}
+
+/**
+ * AI interpreter metadata attached to an audio stream
+ *
+ * @category Data Interfaces
+ */
+export interface AiInterpreter {
+  /** Language ID of the source language being interpreted */
+  lid: number;
+  /** Timestamp of the interpretation event */
+  timestamp: number;
+  /** Number of audio channels in the interpreter stream */
+  channelNum: number;
+  /** Sample rate of the interpreter stream in Hz */
+  sampleRate: number;
+  /** Active target language entries (up to 100) */
+  targets: AiTargetLanguage[];
+}
+
+/**
  * Metadata information about a participant in a Zoom meeting
- * 
+ *
  * @category Data Interfaces
  */
 export interface Metadata {
@@ -193,6 +227,12 @@ export interface Metadata {
   userName: string;
   /** The user ID of the Zoom participant */
   userId: number;
+  /** Stream start timestamp in milliseconds */
+  startTs: number;
+  /** Stream end timestamp in milliseconds */
+  endTs: number;
+  /** AI interpreter metadata (populated when Zoom's AI interpreter is active) */
+  aiInterpreter: AiInterpreter;
 }
 
 /**

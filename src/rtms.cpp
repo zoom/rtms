@@ -12,17 +12,46 @@ int Exception::code() const noexcept {
     return error_code_;
 }
 
+AiTargetLanguage::AiTargetLanguage(const ai_target_lan& atl)
+    : lid_(atl.lid),
+      tone_id_(atl.toneid),
+      voice_id_(atl.voice_id),
+      engine_(atl.engine) {}
+
+int AiTargetLanguage::lid() const { return lid_; }
+int AiTargetLanguage::toneId() const { return tone_id_; }
+string AiTargetLanguage::voiceId() const { return voice_id_; }
+string AiTargetLanguage::engine() const { return engine_; }
+
+AiInterpreter::AiInterpreter(const ai_interpreter& aii)
+    : lid_(aii.lid),
+      timestamp_(aii.timestamp),
+      channel_num_(aii.channel_num),
+      sample_rate_(aii.sample_rate) {
+    int count = aii.target_size < 100 ? aii.target_size : 100;
+    targets_.reserve(count);
+    for (int i = 0; i < count; ++i)
+        targets_.emplace_back(aii.atl[i]);
+}
+
+int AiInterpreter::lid() const { return lid_; }
+uint64_t AiInterpreter::timestamp() const { return timestamp_; }
+int AiInterpreter::channelNum() const { return channel_num_; }
+int AiInterpreter::sampleRate() const { return sample_rate_; }
+const vector<AiTargetLanguage>& AiInterpreter::targets() const { return targets_; }
+
 Metadata::Metadata(const rtms_metadata& metadata)
     : user_name_(metadata.user_name ? metadata.user_name : ""),
-      user_id_(metadata.user_id) {}
+      user_id_(metadata.user_id),
+      start_ts_(metadata.start_ts),
+      end_ts_(metadata.end_ts),
+      ai_interpreter_(metadata.aii) {}
 
-string Metadata::userName() const {
-    return user_name_;
-}
-
-int Metadata::userId() const {
-    return user_id_;
-}
+string Metadata::userName() const { return user_name_; }
+int Metadata::userId() const { return user_id_; }
+uint64_t Metadata::startTs() const { return start_ts_; }
+uint64_t Metadata::endTs() const { return end_ts_; }
+const AiInterpreter& Metadata::aiInterpreter() const { return ai_interpreter_; }
 
 Session::Session(const session_info& info)
     : stat_time_(info.stat_time),

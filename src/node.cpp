@@ -11,6 +11,35 @@
 using namespace Napi;
 using namespace std;
 
+static Napi::Object buildMetadataObj(Napi::Env env, const rtms::Metadata& metadata) {
+    Napi::Object obj = Napi::Object::New(env);
+    obj.Set("userName", Napi::String::New(env, metadata.userName()));
+    obj.Set("userId", Napi::Number::New(env, metadata.userId()));
+    obj.Set("startTs", Napi::Number::New(env, static_cast<double>(metadata.startTs())));
+    obj.Set("endTs", Napi::Number::New(env, static_cast<double>(metadata.endTs())));
+
+    const auto& aii = metadata.aiInterpreter();
+    Napi::Object aiObj = Napi::Object::New(env);
+    aiObj.Set("lid", Napi::Number::New(env, aii.lid()));
+    aiObj.Set("timestamp", Napi::Number::New(env, static_cast<double>(aii.timestamp())));
+    aiObj.Set("channelNum", Napi::Number::New(env, aii.channelNum()));
+    aiObj.Set("sampleRate", Napi::Number::New(env, aii.sampleRate()));
+
+    Napi::Array targets = Napi::Array::New(env, aii.targets().size());
+    for (size_t i = 0; i < aii.targets().size(); ++i) {
+        const auto& t = aii.targets()[i];
+        Napi::Object tObj = Napi::Object::New(env);
+        tObj.Set("lid", Napi::Number::New(env, t.lid()));
+        tObj.Set("toneId", Napi::Number::New(env, t.toneId()));
+        tObj.Set("voiceId", Napi::String::New(env, t.voiceId()));
+        tObj.Set("engine", Napi::String::New(env, t.engine()));
+        targets.Set(i, tObj);
+    }
+    aiObj.Set("targets", targets);
+    obj.Set("aiInterpreter", aiObj);
+    return obj;
+}
+
 class NodeClient : public Napi::ObjectWrap<NodeClient> {
 public:
     static Napi::Object init(Napi::Env env, Napi::Object exports);
@@ -452,15 +481,10 @@ Napi::Value NodeClient::setOnDeskshareData(const Napi::CallbackInfo& info) {
     );
 
     client_->setOnDeskshareData([this](const vector<uint8_t>& data, uint64_t timestamp, const rtms::Metadata& metadata) {
-        auto callback = [data, timestamp, userName = metadata.userName(), userId = metadata.userId()]
+        auto callback = [data, timestamp, metadata]
                        (Napi::Env env, Napi::Function jsCallback) {
             Napi::Buffer<uint8_t> buffer = Napi::Buffer<uint8_t>::Copy(env, data.data(), data.size());
-            
-            Napi::Object metadataObj = Napi::Object::New(env);
-            metadataObj.Set("userName", Napi::String::New(env, userName));
-            metadataObj.Set("userId", Napi::Number::New(env, userId));
-
-            jsCallback.Call({buffer, Napi::Number::New(env, data.size()), Napi::Number::New(env, timestamp), metadataObj});
+            jsCallback.Call({buffer, Napi::Number::New(env, data.size()), Napi::Number::New(env, timestamp), buildMetadataObj(env, metadata)});
         };
         tsfn_ds_data_.BlockingCall(callback);
     });
@@ -488,15 +512,10 @@ Napi::Value NodeClient::setOnAudioData(const Napi::CallbackInfo& info) {
     );
 
     client_->setOnAudioData([this](const vector<uint8_t>& data, uint64_t timestamp, const rtms::Metadata& metadata) {
-        auto callback = [data, timestamp, userName = metadata.userName(), userId = metadata.userId()]
+        auto callback = [data, timestamp, metadata]
                        (Napi::Env env, Napi::Function jsCallback) {
             Napi::Buffer<uint8_t> buffer = Napi::Buffer<uint8_t>::Copy(env, data.data(), data.size());
-            
-            Napi::Object metadataObj = Napi::Object::New(env);
-            metadataObj.Set("userName", Napi::String::New(env, userName));
-            metadataObj.Set("userId", Napi::Number::New(env, userId));
-
-            jsCallback.Call({buffer, Napi::Number::New(env, data.size()), Napi::Number::New(env, timestamp), metadataObj});
+            jsCallback.Call({buffer, Napi::Number::New(env, data.size()), Napi::Number::New(env, timestamp), buildMetadataObj(env, metadata)});
         };
         tsfn_audio_data_.BlockingCall(callback);
     });
@@ -524,15 +543,10 @@ Napi::Value NodeClient::setOnVideoData(const Napi::CallbackInfo& info) {
     );
 
     client_->setOnVideoData([this](const vector<uint8_t>& data, uint64_t timestamp, const rtms::Metadata& metadata) {
-        auto callback = [data, timestamp, userName = metadata.userName(), userId = metadata.userId()]
+        auto callback = [data, timestamp, metadata]
                        (Napi::Env env, Napi::Function jsCallback) {
             Napi::Buffer<uint8_t> buffer = Napi::Buffer<uint8_t>::Copy(env, data.data(), data.size());
-            
-            Napi::Object metadataObj = Napi::Object::New(env);
-            metadataObj.Set("userName", Napi::String::New(env, userName));
-            metadataObj.Set("userId", Napi::Number::New(env, userId));
-
-            jsCallback.Call({buffer, Napi::Number::New(env, data.size()), Napi::Number::New(env, timestamp), metadataObj});
+            jsCallback.Call({buffer, Napi::Number::New(env, data.size()), Napi::Number::New(env, timestamp), buildMetadataObj(env, metadata)});
         };
         tsfn_video_data_.BlockingCall(callback);
     });
@@ -560,15 +574,10 @@ Napi::Value NodeClient::setOnTranscriptData(const Napi::CallbackInfo& info) {
     );
 
     client_->setOnTranscriptData([this](const vector<uint8_t>& data, uint64_t timestamp, const rtms::Metadata& metadata) {
-        auto callback = [data, timestamp, userName = metadata.userName(), userId = metadata.userId()]
+        auto callback = [data, timestamp, metadata]
                        (Napi::Env env, Napi::Function jsCallback) {
             Napi::Buffer<uint8_t> buffer = Napi::Buffer<uint8_t>::Copy(env, data.data(), data.size());
-            
-            Napi::Object metadataObj = Napi::Object::New(env);
-            metadataObj.Set("userName", Napi::String::New(env, userName));
-            metadataObj.Set("userId", Napi::Number::New(env, userId));
-
-            jsCallback.Call({buffer, Napi::Number::New(env, data.size()), Napi::Number::New(env, timestamp), metadataObj});
+            jsCallback.Call({buffer, Napi::Number::New(env, data.size()), Napi::Number::New(env, timestamp), buildMetadataObj(env, metadata)});
         };
         tsfn_transcript_data_.BlockingCall(callback);
     });
@@ -814,7 +823,7 @@ Napi::Value NodeClient::enableTranscript(const Napi::CallbackInfo& info) {
     return Napi::Boolean::New(env, true);
 }
 
-NodeClient::NodeClient(const Napi::CallbackInfo& info) 
+NodeClient::NodeClient(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<NodeClient>(info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
