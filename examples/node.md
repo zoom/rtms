@@ -235,11 +235,11 @@ By default you receive a single composite stream of the active speaker. To recei
 ```javascript
 // Subscribe when a participant joins, unsubscribe when they leave
 client.onUserUpdate((op, participant) => {
-    if (op === rtms.USER_JOIN && participant?.userId) {
-        client.subscribeVideo(participant.userId, true);
+    if (op === rtms.USER_JOIN && participant?.id) {
+        client.subscribeVideo(participant.id, true);
     }
-    if (op === rtms.USER_LEAVE && participant?.userId) {
-        client.subscribeVideo(participant.userId, false);
+    if (op === rtms.USER_LEAVE && participant?.id) {
+        client.subscribeVideo(participant.id, false);
     }
 });
 
