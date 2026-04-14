@@ -1116,16 +1116,8 @@ export class Client {
    * 
    * @example
    * ```typescript
-   * client.onVideoData((buffer, size, timestamp, trackId, metadata) => {
+   * client.onVideoData((buffer, size, timestamp, metadata) => {
    *   console.log(`Received ${size} bytes of video from ${metadata.userName}`);
-   *   console.log(`Track ID: ${trackId}`);
-   *   
-   *   // Process the video data
-   *   // buffer - Raw video data (Buffer)
-   *   // size - Size of the video data in bytes
-   *   // timestamp - Timestamp of the video data
-   *   // trackId - ID of the video track
-   *   // metadata - Information about the sender
    * });
    * ```
    */

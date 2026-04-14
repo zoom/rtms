@@ -160,14 +160,14 @@ client.onAudioData((data, size, timestamp, metadata) => {
     console.log(`Audio: ${data.length}B from ${metadata.userName}`);
 });
 
-// Video — H.264 / raw frames; trackId identifies the source participant
-client.onVideoData((data, size, timestamp, trackId, metadata) => {
-    console.log(`Video track ${trackId}: ${data.length}B`);
+// Video — H.264 / raw frames
+client.onVideoData((data, size, timestamp, metadata) => {
+    console.log(`Video: ${size}B from ${metadata.userName}`);
 });
 
 // Desktop share
-client.onDeskshareData((data, size, timestamp, trackId, metadata) => {
-    console.log(`Deskshare track ${trackId}: ${data.length}B`);
+client.onDeskshareData((data, size, timestamp, metadata) => {
+    console.log(`Deskshare: ${size}B from ${metadata.userName}`);
 });
 ```
 
