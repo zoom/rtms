@@ -847,8 +847,14 @@ void Client::subscribeVideo(int user_id, bool subscribe)
 
 void Client::setOnParticipantVideo(ParticipantVideoFn callback)
 {
-    lock_guard<mutex> lock(mutex_);
-    participant_video_callback_ = std::move(callback);
+    {
+        lock_guard<mutex> lock(mutex_);
+        participant_video_callback_ = std::move(callback);
+    }
+    subscribeEvent({
+        (int)EVENT_TYPE::PARTICIPANT_VIDEO_ON,
+        (int)EVENT_TYPE::PARTICIPANT_VIDEO_OFF,
+    });
 }
 
 void Client::setOnVideoSubscribed(VideoSubscribedFn callback)
