@@ -196,7 +196,7 @@ jobs:
   # TEST JOBS - Test against pre-built artifacts
   # ============================================================================
 
-  # C++ unit tests — use a mock SDK so no real SDK binary is needed
+  # C++ unit tests — mock SDK replaces the binary; real headers downloaded via check-deps
   test-cpp-linux:
     name: Test C++ Core (Linux)
     runs-on: ubuntu-latest
@@ -205,8 +205,18 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Setup Node.js (for check-deps.js SDK download)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24.x'
+
     - name: Install CMake
       run: sudo apt-get install -y cmake
+
+    - name: Download SDK headers
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: node scripts/check-deps.js
 
     - name: Build and run C++ tests
       run: |
@@ -221,6 +231,16 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Setup Node.js (for check-deps.js SDK download)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24.x'
+
+    - name: Download SDK headers
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: node scripts/check-deps.js
 
     - name: Build and run C++ tests
       run: |
@@ -256,6 +276,9 @@ jobs:
     - name: Install dependencies
       run: npm install
 
+    - name: Compile TypeScript
+      run: npx tsc
+
     - name: Run Node.js tests
       run: npx jest tests/ts/rtms.test.ts tests/ts/rtms.wrapper.test.ts
 
@@ -282,6 +305,9 @@ jobs:
 
     - name: Install dependencies
       run: npm install
+
+    - name: Compile TypeScript
+      run: npx tsc
 
     - name: Run Node.js tests
       run: npx jest tests/ts/rtms.test.ts tests/ts/rtms.wrapper.test.ts
