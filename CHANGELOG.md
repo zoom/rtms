@@ -42,7 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`AiInterpreter` fields**: `Metadata` now exposes `aiInterpreter` with language pair targets from the AI language interpreter SDK feature
 
 #### Constants & Enums
-- **`IntEnum` for Python codec/rate/option types**: `AudioCodec`, `VideoCodec`, `AudioSampleRate`, `AudioChannel`, `AudioDataOption`, `VideoDataOption` are now proper Python `IntEnum` values (comparisons with integers still work)
+- **`IntEnum` for Python codec/rate/option types**: `AudioCodec`, `VideoCodec`, `AudioSampleRate`, `AudioChannel`, `DataOption` are now proper Python `IntEnum` values (comparisons with integers still work)
+- **`DataOption`**: Unified stream delivery mode enum covering both audio (`AUDIO_MIXED_STREAM`, `AUDIO_MULTI_STREAMS`) and video (`VIDEO_SINGLE_ACTIVE_STREAM`, `VIDEO_SINGLE_INDIVIDUAL_STREAM`, `VIDEO_MIXED_GALLERY_VIEW`) options — mirrors the C++ `MEDIA_DATA_OPTION` enum directly; `AudioDataOption` and `VideoDataOption` kept as backward-compat aliases
+- **Bidirectional param aliases**: All four param structs (`AudioParams`, `VideoParams`, `DeskshareParams`, `TranscriptParams`) now accept both `snake_case` and `camelCase` field names so existing code continues to work regardless of convention
 
 ### Fixed
 
@@ -51,6 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`AiInterpreter.target_size` out-of-bounds**: Guard against uninitialized or negative `target_size` values from the C SDK to prevent array over-reads
 - **`_run_executor` undefined**: Python's `_wrap_callback` referenced a module-level `_run_executor` that was never initialised; added the initialisation and wired the `executor` kwarg through `run()` / `run_async()`
 - **Redundant `RTMS_` prefix on C++ enum names**: All enum classes inside the `rtms` namespace drop the redundant prefix (`RTMS_EVENT_TYPE` → `EVENT_TYPE`, `RTMS_SESSION_STATE` → `SESSION_STATE`, etc.) — internal refactor, no public API change
+- **Spurious configure warnings on leave**: `updateMediaConfiguration` was called during callback teardown after the session was already closed, printing 4 `"Failed to update media configuration"` warnings on every clean leave; suppressed by tracking `sdk_opened_` state and calling `markClosed()` before stopping callbacks
+- **SIGSEGV on meeting end (Python)**: Race condition between the EventLoop thread (inside `poll()`) and the webhook thread (calling `release()`) caused a use-after-free crash with exit status 139; fixed with `poll_mutex_` — `poll()` releases the GIL before acquiring the mutex so neither thread can deadlock the other
 
 ### Changed
 
@@ -68,6 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Python tests** (122 tests): Coverage for asyncio, executor dispatch, context manager, GIL release, ZCC `engagement_id` routing, individual video methods, transcript params, and all new constants
 - **Node.js wrapper tests** (98 tests): Integration tests against the real built ESM module covering all Client methods, callbacks, event subscriptions, constants, and utility functions
 - **Test reorganisation**: Tests moved from `tests/` root into `tests/ts/`, `tests/py/`, `tests/cpp/` subdirectories for clarity
+- **CI test path fixes**: CI/CD workflows updated to reference new test locations; C++ unit tests added as dedicated `test-cpp-linux` and `test-cpp-macos` jobs using the mock SDK (no real Zoom SDK binary required in CI)
 
 ## [1.0.3] - 2026-02-17
 
