@@ -74,19 +74,27 @@ public:
     }
 
     void poll() {
-        if (!client_) return;
+        // Release the GIL *before* acquiring poll_mutex_ to prevent deadlock:
+        // release() holds poll_mutex_ while the webhook thread holds the GIL.
+        // If poll() tried to acquire poll_mutex_ while holding the GIL, the two
+        // threads would deadlock. Releasing the GIL first breaks the cycle.
         py::gil_scoped_release release;
-        client_->poll();
+        std::lock_guard<std::mutex> lk(poll_mutex_);
+        if (client_) client_->poll();
     }
 
     void release() {
         if (!client_) return;
+        // Hold poll_mutex_ for the entire release sequence so that any in-flight
+        // poll() completes before we tear down the C SDK handle.
+        std::lock_guard<std::mutex> lk(poll_mutex_);
         // markClosed() sets sdk_opened_=false so that stopCallbacks() calls
         // setOnAudioData/Video/etc. with empty lambdas without triggering
         // configure() on an already-dead session (avoids 4 spurious warnings).
         client_->markClosed();
         stopCallbacks();
         client_->release();
+        client_.reset();  // prevent subsequent poll() from calling into released SDK
     }
 
     std::string uuid() const {
@@ -236,6 +244,7 @@ public:
 
 private:
     std::unique_ptr<Client> client_;
+    std::mutex poll_mutex_;  // guards poll() vs release() race
 
     // Python callback storage (buffered pre-alloc, registered post-alloc)
     py::object join_confirm_callback_ = py::none();
