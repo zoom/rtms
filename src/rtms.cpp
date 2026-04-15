@@ -638,7 +638,7 @@ void Client::updateMediaConfiguration(int mediaType, bool enable) {
         enabled_media_types_ &= mediaType;
     }
 
-    if (sdk_) {
+    if (sdk_ && sdk_opened_) {
         try {
             configure(media_params_, enabled_media_types_, false);
         } catch (const Exception& e) {
@@ -899,9 +899,12 @@ void Client::poll() {
 void Client::release() {
     sdk_->leave(0);
 
-    // Reset join state
+    // Reset join state — mark sdk_opened_ false before release_sdk so that
+    // any stopCallbacks() calls triggered during cleanup (e.g. setOnAudioData
+    // with an empty lambda) do not attempt sdk_->config() on a dead session.
     {
         lock_guard<mutex> lock(mutex_);
+        sdk_opened_ = false;
         join_confirmed_ = false;
         pending_event_subscriptions_.clear();
         subscribed_events_.clear();
