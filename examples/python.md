@@ -103,6 +103,132 @@ with rtms.Client() as client:
 # client.leave() called automatically on exit
 ```
 
+## Media Callbacks
+
+All callbacks receive a `metadata` object with `userId` and `userName`:
+
+```python
+# Transcript — text data with speaker info
+@client.on_transcript_data
+def on_transcript(data, size, timestamp, metadata):
+    print(f'[{timestamp}] {metadata.userName}: {data.decode()}')
+
+# Audio — raw PCM / Opus frames
+@client.on_audio_data
+def on_audio(data, size, timestamp, metadata):
+    print(f'Audio: {len(data)}B from {metadata.userName}')
+
+# Video — H.264 / raw frames
+@client.on_video_data
+def on_video(data, size, timestamp, metadata):
+    print(f'Video: {size}B from {metadata.userName}')
+
+# Desktop share
+@client.on_deskshare_data
+def on_deskshare(data, size, timestamp, metadata):
+    print(f'Deskshare: {size}B from {metadata.userName}')
+```
+
+> **Speaker identification with mixed audio:** When using the default `AUDIO_MIXED_STREAM`, audio metadata does not identify the current speaker. Use `on_active_speaker_event` to track who is speaking:
+>
+> ```python
+> @client.on_active_speaker_event
+> def on_speaker(timestamp, user_id, user_name):
+>     print(f'Active speaker: {user_name} ({user_id})')
+> ```
+
+## Media Configuration
+
+By default each stream type uses sensible settings (OPUS audio at 48 kHz, H.264 video at HD/30 fps). Call the relevant `set_*_params` method before `join()` to override any field — unspecified fields keep their defaults.
+
+### Video
+
+```python
+# Switch from the default composite active-speaker stream to per-participant streams
+params = rtms.VideoParams()
+params.dataOpt = rtms.VideoDataOption.VIDEO_SINGLE_INDIVIDUAL_STREAM
+client.set_video_params(params)
+
+# Full control — set only the fields you want to change
+params = rtms.VideoParams()
+params.codec      = rtms.VideoCodec.H264
+params.resolution = rtms.VideoResolution.HD
+params.fps        = 30
+params.dataOpt    = rtms.VideoDataOption.VIDEO_SINGLE_ACTIVE_STREAM
+client.set_video_params(params)
+```
+
+`VideoCodec` constants: `H264`, `JPG`, `PNG`. `VideoResolution` constants: `SD`, `HD`, `FHD`, `QHD`. `VideoDataOption` constants: `VIDEO_SINGLE_ACTIVE_STREAM` (default composite), `VIDEO_SINGLE_INDIVIDUAL_STREAM` (per-participant), `VIDEO_MIXED_GALLERY_VIEW`.
+
+### Audio
+
+```python
+# Receive a single mixed stream instead of the default per-participant streams
+params = rtms.AudioParams()
+params.dataOpt = rtms.AudioDataOption.AUDIO_MIXED_STREAM
+client.set_audio_params(params)
+```
+
+`AudioSampleRate` constants: `SR_8K`, `SR_16K`, `SR_32K`, `SR_48K` (default). `AudioChannel` constants: `MONO`, `STEREO` (default). `AudioDataOption` constants: `AUDIO_MULTI_STREAMS` (default, per-participant), `AUDIO_MIXED_STREAM`.
+
+### Desktop Share
+
+```python
+params = rtms.DeskshareParams()
+params.codec      = rtms.VideoCodec.H264
+params.resolution = rtms.VideoResolution.FHD
+params.fps        = 5
+client.set_deskshare_params(params)
+```
+
+Uses the same `codec`, `resolution`, `fps`, and `dataOpt` fields as video.
+
+### Transcript Language
+
+By default the SDK auto-detects the spoken language before enabling transcription (~30 seconds). Providing a language hint lets transcription begin immediately:
+
+```python
+# Hint the source language — skips auto-detect, transcription starts immediately
+params = rtms.TranscriptParams()
+params.srcLanguage = rtms.TranscriptLanguage.ENGLISH
+client.set_transcript_params(params)
+```
+
+`TranscriptLanguage` constants: `ENGLISH`, `SPANISH`, `JAPANESE`, `CHINESE_SIMPLIFIED`, and many more. To use auto-detection, omit `set_transcript_params` or set `srcLanguage = rtms.TranscriptLanguage.NONE`.
+
+## Individual Video Streams
+
+By default you receive a single composite stream of the active speaker. To receive per-participant video, first configure `VIDEO_SINGLE_INDIVIDUAL_STREAM`, then subscribe per participant as they join:
+
+```python
+# Must be called before join() — switches from composite to per-participant streams
+params = rtms.VideoParams()
+params.dataOpt = rtms.VideoDataOption.VIDEO_SINGLE_INDIVIDUAL_STREAM
+client.set_video_params(params)
+
+# Subscribe when a participant joins, unsubscribe when they leave
+@client.on_user_update
+def on_user(op, participant):
+    if op == rtms.USER_JOIN and participant.id:
+        client.subscribe_video(participant.id, True)
+    if op == rtms.USER_LEAVE and participant.id:
+        client.subscribe_video(participant.id, False)
+
+# Fires when a participant's video turns on or off
+@client.on_participant_video
+def on_participant_video(user_ids, is_on):
+    print(f'Video {"on" if is_on else "off"} for users: {user_ids}')
+
+# Fires with the subscription result for each subscribe_video() call
+@client.on_video_subscribed
+def on_video_subscribed(user_id, status, error):
+    print(f'subscribe_video({user_id}): status={status}' + (f' error={error}' if error else ''))
+
+@client.on_video_data
+def on_video(data, size, timestamp, metadata):
+    print(f'Video: {size}B from {metadata.userName}')
+```
+
 ## asyncio Integration
 
 `run_async()` is a drop-in replacement for `run()` that uses `asyncio.sleep()` between polls, so it composes naturally with aiohttp, FastAPI, asyncpg, and any other async framework on a shared event loop:

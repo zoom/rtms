@@ -190,6 +190,52 @@ client.setTranscriptParams({ srcLanguage: rtms.TranscriptLanguage.ENGLISH });
 
 `TranscriptLanguage` constants: `ENGLISH`, `SPANISH`, `JAPANESE`, `CHINESE_SIMPLIFIED`, and many more. To use auto-detection, omit `setTranscriptParams` or pass `srcLanguage: rtms.TranscriptLanguage.NONE`.
 
+## Media Configuration
+
+By default each stream type uses sensible settings (OPUS audio at 48 kHz, H.264 video at HD/30 fps). Call the relevant `set*Params` method before `join()` to override any field — unspecified fields keep their defaults.
+
+### Video
+
+```javascript
+// Switch from the default composite active-speaker stream to per-participant streams
+client.setVideoParams({
+    dataOpt: rtms.VideoDataOption.VIDEO_SINGLE_INDIVIDUAL_STREAM,
+});
+
+// Full control — all fields optional
+client.setVideoParams({
+    codec:      rtms.VideoCodec.H264,
+    resolution: rtms.VideoResolution.HD,
+    fps:        30,
+    dataOpt:    rtms.VideoDataOption.VIDEO_SINGLE_ACTIVE_STREAM,
+});
+```
+
+`VideoCodec` constants: `H264`, `JPG`, `PNG`. `VideoResolution` constants: `SD`, `HD`, `FHD`, `QHD`. `VideoDataOption` constants: `VIDEO_SINGLE_ACTIVE_STREAM` (default composite), `VIDEO_SINGLE_INDIVIDUAL_STREAM` (per-participant), `VIDEO_MIXED_GALLERY_VIEW`.
+
+### Audio
+
+```javascript
+// Receive a single mixed stream instead of the default per-participant streams
+client.setAudioParams({
+    dataOpt: rtms.AudioDataOption.AUDIO_MIXED_STREAM,
+});
+```
+
+`AudioSampleRate` constants: `SR_8K`, `SR_16K`, `SR_32K`, `SR_48K` (default). `AudioChannel` constants: `MONO`, `STEREO` (default). `AudioDataOption` constants: `AUDIO_MULTI_STREAMS` (default, per-participant), `AUDIO_MIXED_STREAM`.
+
+### Desktop Share
+
+```javascript
+client.setDeskshareParams({
+    codec:      rtms.VideoCodec.H264,
+    resolution: rtms.VideoResolution.FHD,
+    fps:        5,
+});
+```
+
+Uses the same `codec`, `resolution`, `fps`, and `dataOpt` fields as video.
+
 ## HTTP Proxy
 
 Route RTMS WebSocket traffic through an HTTP proxy. Call `setProxy` before `join()` — it returns `true` on success:
@@ -230,9 +276,14 @@ The first argument is the proxy type (`"http"`). The second argument is the full
 
 ## Individual Video Streams
 
-By default you receive a single composite stream of the active speaker. To receive per-participant video, subscribe with `subscribeVideo` and register the result callbacks:
+By default you receive a single composite stream of the active speaker. To receive per-participant video, first configure `VIDEO_SINGLE_INDIVIDUAL_STREAM`, then subscribe per participant as they join:
 
 ```javascript
+// Must be called before join() — switches from composite to per-participant streams
+client.setVideoParams({
+    dataOpt: rtms.VideoDataOption.VIDEO_SINGLE_INDIVIDUAL_STREAM,
+});
+
 // Subscribe when a participant joins, unsubscribe when they leave
 client.onUserUpdate((op, participant) => {
     if (op === rtms.USER_JOIN && participant?.id) {
