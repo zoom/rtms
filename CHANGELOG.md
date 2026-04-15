@@ -5,6 +5,70 @@ All notable changes to the Zoom RTMS SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-04-15
+
+### Added
+
+#### ZCC (Zoom Contact Center) Support
+- **`engagement_id` in `join()`**: ZCC voice engagements identify sessions with an `engagement_id` instead of `meeting_uuid`; `join()` now accepts `engagement_id` as an alternative identifier (all bindings)
+- **ZCC event constants**: `EVENT_CONSUMER_ANSWERED`, `EVENT_CONSUMER_END`, `EVENT_USER_ANSWERED`, `EVENT_USER_END`, `EVENT_USER_HOLD`, `EVENT_USER_UNHOLD` exported as flat module-level constants in both Node.js and Python
+
+#### Transcript Configuration
+- **`TranscriptParams`**: New parameter class for configuring transcript streams (language hint, content type, language detection)
+- **`TranscriptLanguage` constants**: Full set of language constants (`ENGLISH`, `SPANISH`, `JAPANESE`, `CHINESE_SIMPLIFIED`, and many more) for skipping auto-detection (~30 s delay) by hinting the source language
+- **`setTranscriptParams()`/`set_transcript_params()`**: New method on Client to apply transcript configuration before joining (Node.js and Python)
+
+#### HTTP Proxy Support
+- **`setProxy()`/`set_proxy()`**: New method on Client for configuring HTTP and HTTPS proxies for RTMS connections (Node.js and Python)
+
+#### Individual Video Streams
+- **`subscribeVideo()`/`subscribe_video()`**: Subscribe or unsubscribe per-participant video when using `VIDEO_SINGLE_INDIVIDUAL_STREAM` mode
+- **`onParticipantVideo()`/`on_participant_video()`**: Callback fired when a participant's video turns on or off
+- **`onVideoSubscribed()`/`on_video_subscribed()`**: Callback fired with the result of each `subscribeVideo()` call
+- **`EVENT_PARTICIPANT_VIDEO_ON` / `EVENT_PARTICIPANT_VIDEO_OFF`**: Exported as flat module-level constants in both Node.js and Python
+
+#### Python — Concurrency & Scaling
+- **`EventLoop` / `EventLoopPool`**: New primitives for fine-grained control over polling threads; `EventLoop` wraps a dedicated background thread, `EventLoopPool` balances clients across a pool of threads
+- **`run_async()`**: Drop-in async replacement for `run()` using `asyncio.sleep()` between polls; composes naturally with aiohttp, FastAPI, asyncpg
+- **Executor dispatch**: `Client(executor=...)` and `run(executor=...)` / `run_async(executor=...)` dispatch data callbacks to a `concurrent.futures.Executor`, keeping the poll loop fast for CPU-bound or I/O-heavy callbacks
+- **Async callback detection**: Coroutine callbacks are detected automatically and scheduled on the running event loop via `asyncio.run_coroutine_threadsafe`
+- **GIL release in `poll()`**: The C++ poll call now releases the GIL, allowing other Python threads (e.g. the webhook HTTP server) to run freely during polling
+- **Context manager support**: `with rtms.Client() as client:` guarantees `leave()` is called on exit
+- **Lazy `alloc()` / thread affinity**: `Client()` construction is safe from any thread; the C SDK handle is allocated lazily on the EventLoop's own thread to satisfy the C SDK's thread-affinity constraint
+- **Snake_case aliases**: All `camelCase` methods have `snake_case` aliases (`on_audio_data`, `set_audio_params`, `subscribe_event`, etc.)
+
+#### Metadata & AI Interpreter Fields
+- **Full metadata fields**: `Metadata` now exposes `userId`, `userName`, `startTs`, `endTs` in both bindings
+- **`AiInterpreter` fields**: `Metadata` now exposes `aiInterpreter` with language pair targets from the AI language interpreter SDK feature
+
+#### Constants & Enums
+- **`IntEnum` for Python codec/rate/option types**: `AudioCodec`, `VideoCodec`, `AudioSampleRate`, `AudioChannel`, `AudioDataOption`, `VideoDataOption` are now proper Python `IntEnum` values (comparisons with integers still work)
+
+### Fixed
+
+- **`setOnParticipantVideo` missing auto-subscription**: Registering the participant video callback now automatically subscribes to `EVENT_PARTICIPANT_VIDEO_ON` and `EVENT_PARTICIPANT_VIDEO_OFF` events, matching the pattern used by `setOnUserUpdate` ([#108](https://github.com/zoom/rtms/issues/108))
+- **`config()` called before `open()`**: Video/audio/transcript params are now applied after the SDK session is open; calling `setVideoParams()` before `join()` no longer fails silently
+- **`AiInterpreter.target_size` out-of-bounds**: Guard against uninitialized or negative `target_size` values from the C SDK to prevent array over-reads
+- **`_run_executor` undefined**: Python's `_wrap_callback` referenced a module-level `_run_executor` that was never initialised; added the initialisation and wired the `executor` kwarg through `run()` / `run_async()`
+- **Redundant `RTMS_` prefix on C++ enum names**: All enum classes inside the `rtms` namespace drop the redundant prefix (`RTMS_EVENT_TYPE` → `EVENT_TYPE`, `RTMS_SESSION_STATE` → `SESSION_STATE`, etc.) — internal refactor, no public API change
+
+### Changed
+
+- **Protocol enums moved to `rtms.h`**: `EVENT_TYPE`, `ZCC_VOICE_EVENT_TYPE`, `SESSION_STATE`, `STREAM_STATE`, `MESSAGE_TYPE`, `STOP_REASON`, and `TRANSCRIPT_LANGUAGE` are now defined in the shared C++ header, making them automatically available to both Node.js and Python bindings
+
+### Documentation
+
+- **Node.js API reference**: New "Media Configuration" section covering `setVideoParams`, `setAudioParams`, `setDeskshareParams`, `setTranscriptParams` with codec/resolution/option constants; updated "Individual Video Streams" section
+- **Python API reference**: New "Media Callbacks", "Media Configuration", and "Individual Video Streams" sections; asyncio integration and executor dispatch examples; scaling strategy guide (4-layer progression from single-process to multi-process)
+- **ZCC product guide**: Added Zoom Contact Center as a supported product with webhook event names and `engagement_id` usage
+
+### Testing
+
+- **C++ unit tests** (70 tests): Full mock-SDK test suite covering Client lifecycle, session/user events, media callbacks, proxy, transcript params, individual video subscriptions, metadata construction, and `AiInterpreter` bounds guarding
+- **Python tests** (122 tests): Coverage for asyncio, executor dispatch, context manager, GIL release, ZCC `engagement_id` routing, individual video methods, transcript params, and all new constants
+- **Node.js wrapper tests** (98 tests): Integration tests against the real built ESM module covering all Client methods, callbacks, event subscriptions, constants, and utility functions
+- **Test reorganisation**: Tests moved from `tests/` root into `tests/ts/`, `tests/py/`, `tests/cpp/` subdirectories for clarity
+
 ## [1.0.3] - 2026-02-17
 
 ### Fixed
