@@ -96,8 +96,8 @@ describe('index.ts wrapper — real built module', () => {
   // --------------------------------------------------------------------------
   describe('Client — callback registration methods', () => {
     const callbacks = [
-      'onJoinConfirm', 'onSessionUpdate', 'onParticipantEvent',
-      'onActiveSpeakerEvent', 'onSharingEvent', 'onEventEx',
+      'onJoinConfirm', 'onSessionUpdate', 'onUserUpdate',
+      'onParticipantEvent', 'onActiveSpeakerEvent', 'onSharingEvent', 'onEventEx',
       'onAudioData', 'onVideoData', 'onDeskshareData', 'onTranscriptData', 'onLeave',
     ];
 

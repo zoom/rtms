@@ -57,6 +57,8 @@ class TestConstants:
         assert rtms.EVENT_SHARING_START == 5
         assert rtms.EVENT_SHARING_STOP == 6
         assert rtms.EVENT_MEDIA_CONNECTION_INTERRUPTED == 7
+        assert rtms.EVENT_PARTICIPANT_VIDEO_ON == 8
+        assert rtms.EVENT_PARTICIPANT_VIDEO_OFF == 9
         assert rtms.EVENT_CONSUMER_ANSWERED == 8
         assert rtms.EVENT_CONSUMER_END == 9
         assert rtms.EVENT_USER_ANSWERED == 10
@@ -73,20 +75,20 @@ class TestConstants:
 
     def test_audio_codec_constants(self):
         """Test audio codec constants exist"""
-        assert 'OPUS' in rtms.AudioCodec
-        assert 'L16' in rtms.AudioCodec
-        assert 'G711' in rtms.AudioCodec
+        assert 'OPUS' in rtms.AudioCodec.__members__
+        assert 'L16' in rtms.AudioCodec.__members__
+        assert 'G711' in rtms.AudioCodec.__members__
 
     def test_video_codec_constants(self):
         """Test video codec constants exist"""
-        assert 'H264' in rtms.VideoCodec
-        assert 'JPG' in rtms.VideoCodec
+        assert 'H264' in rtms.VideoCodec.__members__
+        assert 'JPG' in rtms.VideoCodec.__members__
 
     def test_sample_rate_constants(self):
         """Test audio sample rate constants"""
-        assert 'SR_48K' in rtms.AudioSampleRate
-        assert 'SR_16K' in rtms.AudioSampleRate
-        assert 'SR_8K' in rtms.AudioSampleRate
+        assert 'SR_48K' in rtms.AudioSampleRate.__members__
+        assert 'SR_16K' in rtms.AudioSampleRate.__members__
+        assert 'SR_8K' in rtms.AudioSampleRate.__members__
 
 
 class TestLogging:
@@ -177,6 +179,29 @@ class TestClient:
         assert hasattr(client, 'subscribeEvent')
         assert callable(client.subscribeEvent)
         assert hasattr(client, 'unsubscribeEvent')
+
+    def test_client_has_individual_video_methods(self):
+        """Test that Client has individual video stream methods"""
+        client = rtms.Client()
+        assert hasattr(client, 'subscribe_video')
+        assert callable(client.subscribe_video)
+        assert hasattr(client, 'subscribeVideo')   # camelCase alias
+        assert hasattr(client, 'on_participant_video')
+        assert callable(client.on_participant_video)
+        assert hasattr(client, 'onParticipantVideo')
+        assert hasattr(client, 'on_video_subscribed')
+        assert callable(client.on_video_subscribed)
+        assert hasattr(client, 'onVideoSubscribed')
+
+    def test_on_participant_video_accepts_callback(self):
+        """Test that on_participant_video registers a callback without error"""
+        client = rtms.Client()
+        client.on_participant_video(lambda user_ids, is_on: None)
+
+    def test_on_video_subscribed_accepts_callback(self):
+        """Test that on_video_subscribed registers a callback without error"""
+        client = rtms.Client()
+        client.on_video_subscribed(lambda user_id, status, error: None)
         assert callable(client.unsubscribeEvent)
 
     def test_client_callback_registration(self):
@@ -345,10 +370,10 @@ class TestThreadSafety:
         assert callable(rtms.stop)
 
     def test_client_has_polling_control(self):
-        """Test client has polling control"""
+        """Test client has EventLoop integration attributes"""
         client = rtms.Client()
-        assert hasattr(client, '_poll_if_needed')
-        assert hasattr(client, '_running')
+        assert hasattr(client, '_do_alloc_and_join')
+        assert hasattr(client, '_pending_join_params')
 
 
 class TestTranscriptParams:
@@ -438,8 +463,8 @@ class TestZccEngagementId:
     def test_join_with_engagement_id_returns_true(self):
         """join() called with engagement_id should return True, not False."""
         client, NativeClient = self._make_client_with_mocked_native()
-        with patch.object(NativeClient, 'join', return_value=None), \
-             patch.object(client, '_start_polling'):
+        # join() stores params and returns True immediately (defers to EventLoop)
+        with patch.object(client, '_do_alloc_and_join'):
             result = client.join(
                 engagement_id='engagement-abc-123',
                 rtms_stream_id='stream-xyz',
@@ -451,30 +476,34 @@ class TestZccEngagementId:
         assert result is True
 
     def test_do_join_with_engagement_id_does_not_raise(self):
-        """_do_join() with engagement_id should not raise a missing-identifier error."""
+        """_do_alloc_and_join() with engagement_id should not raise a missing-identifier error."""
         client, NativeClient = self._make_client_with_mocked_native()
+        client._pending_join_params = {
+            'engagement_id': 'engagement-abc-123',
+            'rtms_stream_id': 'stream-xyz',
+            'server_urls': 'wss://rtms.zoom.us',
+            'signature': 'mock-sig',
+            'timeout': -1,
+        }
         with patch.object(NativeClient, 'join', return_value=None), \
-             patch.object(client, '_start_polling'):
+             patch.object(NativeClient, 'alloc', return_value=None):
             # Before implementation: raises ValueError
             # After implementation: should complete cleanly
-            client._do_join(
-                engagement_id='engagement-abc-123',
-                rtms_stream_id='stream-xyz',
-                server_urls='wss://rtms.zoom.us',
-                signature='mock-sig',
-            )
+            client._do_alloc_and_join()
 
     def test_engagement_id_passed_as_first_arg_to_native_join(self):
         """engagement_id should be forwarded as the meeting_uuid positional arg."""
         client, NativeClient = self._make_client_with_mocked_native()
+        client._pending_join_params = {
+            'engagement_id': 'eng-abc-123',
+            'rtms_stream_id': 'stream-xyz',
+            'server_urls': 'wss://rtms.zoom.us',
+            'signature': 'mock-sig',
+            'timeout': -1,
+        }
         with patch.object(NativeClient, 'join', return_value=None) as mock_native_join, \
-             patch.object(client, '_start_polling'):
-            client._do_join(
-                engagement_id='eng-abc-123',
-                rtms_stream_id='stream-xyz',
-                server_urls='wss://rtms.zoom.us',
-                signature='mock-sig',
-            )
+             patch.object(NativeClient, 'alloc', return_value=None):
+            client._do_alloc_and_join()
         mock_native_join.assert_called_once_with(
             'eng-abc-123', 'stream-xyz', 'mock-sig', 'wss://rtms.zoom.us', -1
         )
@@ -482,15 +511,17 @@ class TestZccEngagementId:
     def test_engagement_id_lower_priority_than_meeting_uuid(self):
         """When both meeting_uuid and engagement_id are supplied, meeting_uuid wins."""
         client, NativeClient = self._make_client_with_mocked_native()
+        client._pending_join_params = {
+            'meeting_uuid': 'meeting-uuid-wins',
+            'engagement_id': 'engagement-id-loses',
+            'rtms_stream_id': 'stream-xyz',
+            'server_urls': 'wss://rtms.zoom.us',
+            'signature': 'mock-sig',
+            'timeout': -1,
+        }
         with patch.object(NativeClient, 'join', return_value=None) as mock_native_join, \
-             patch.object(client, '_start_polling'):
-            client._do_join(
-                meeting_uuid='meeting-uuid-wins',
-                engagement_id='engagement-id-loses',
-                rtms_stream_id='stream-xyz',
-                server_urls='wss://rtms.zoom.us',
-                signature='mock-sig',
-            )
+             patch.object(NativeClient, 'alloc', return_value=None):
+            client._do_alloc_and_join()
         first_arg = mock_native_join.call_args[0][0]
         assert first_arg == 'meeting-uuid-wins'
 

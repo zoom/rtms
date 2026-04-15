@@ -742,8 +742,8 @@ TEST_CASE("setOnUserUpdate auto-subscribes to participant events", "[client][eve
     // After join confirm, pending subscriptions should include participant events
     REQUIRE(g_mock_state.subscribe_calls >= 1);
     auto& evts = g_mock_state.last_subscribed_events;
-    bool has_join  = std::find(evts.begin(), evts.end(), Client::EVENT_PARTICIPANT_JOIN)  != evts.end();
-    bool has_leave = std::find(evts.begin(), evts.end(), Client::EVENT_PARTICIPANT_LEAVE) != evts.end();
+    bool has_join  = std::find(evts.begin(), evts.end(), (int)EVENT_TYPE::PARTICIPANT_JOIN)  != evts.end();
+    bool has_leave = std::find(evts.begin(), evts.end(), (int)EVENT_TYPE::PARTICIPANT_LEAVE) != evts.end();
     CHECK(has_join);
     CHECK(has_leave);
 }
@@ -845,6 +845,8 @@ TEST_CASE("Client::setTranscriptParams calls config with updated params", "[clie
     Client c;
     // Enable transcript first so the reconfigure path runs
     c.setOnTranscriptData([](const std::vector<uint8_t>&, uint64_t, const Metadata&) {});
+    // Must join first — configure() is deferred until after open() sets sdk_opened_=true
+    c.join("u", "s", "sig", "url");
     int calls_before = g_mock_state.config_calls;
 
     TranscriptParams tp;
@@ -1013,4 +1015,113 @@ TEST_CASE("on_video_subscript_resp does not fire when no callback is registered"
     Client c;
     c.join("u", "s", "sig", "url");
     REQUIRE_NOTHROW(mock_trigger_video_subscript_resp(12345, 0, ""));
+}
+
+// ============================================================================
+// setOnParticipantVideo auto-subscribe
+// ============================================================================
+
+TEST_CASE("setOnParticipantVideo auto-subscribes to video on/off events", "[client][events]") {
+    R _;
+    Client c;
+    c.setOnParticipantVideo([](const std::vector<int>&, bool) {});
+    // Before join: subscriptions should be queued, not sent to sdk yet
+    CHECK(g_mock_state.subscribe_calls == 0);
+
+    c.join("u", "s", "sig", "url");
+    mock_trigger_join_confirm(0);
+
+    // After join confirm, pending subscriptions must include both video events
+    REQUIRE(g_mock_state.subscribe_calls >= 1);
+    auto& evts = g_mock_state.last_subscribed_events;
+    bool has_on  = std::find(evts.begin(), evts.end(), (int)EVENT_TYPE::PARTICIPANT_VIDEO_ON)  != evts.end();
+    bool has_off = std::find(evts.begin(), evts.end(), (int)EVENT_TYPE::PARTICIPANT_VIDEO_OFF) != evts.end();
+    CHECK(has_on);
+    CHECK(has_off);
+}
+
+// ============================================================================
+// Metadata — startTs / endTs / AiInterpreter
+// ============================================================================
+
+TEST_CASE("Metadata construction — start_ts and end_ts", "[data][metadata]") {
+    R _;
+
+    SECTION("start_ts and end_ts are copied correctly") {
+        rtms_metadata md{};
+        md.start_ts = 1000000ULL;
+        md.end_ts   = 2000000ULL;
+        Metadata m(md);
+        CHECK(m.startTs() == 1000000ULL);
+        CHECK(m.endTs()   == 2000000ULL);
+    }
+
+    SECTION("zero timestamps are preserved") {
+        rtms_metadata md{};
+        md.start_ts = 0;
+        md.end_ts   = 0;
+        Metadata m(md);
+        CHECK(m.startTs() == 0ULL);
+        CHECK(m.endTs()   == 0ULL);
+    }
+}
+
+TEST_CASE("AiInterpreter construction — zero targets when target_size is zero", "[data][metadata]") {
+    R _;
+    rtms_metadata md{};
+    md.aii.lid         = 9;        // ENGLISH
+    md.aii.timestamp   = 12345ULL;
+    md.aii.channel_num = 1;
+    md.aii.sample_rate = 16000;
+    md.aii.target_size = 0;
+
+    Metadata m(md);
+    const auto& ai = m.aiInterpreter();
+    CHECK(ai.lid()        == 9);
+    CHECK(ai.timestamp()  == 12345ULL);
+    CHECK(ai.channelNum() == 1);
+    CHECK(ai.sampleRate() == 16000);
+    CHECK(ai.targets().empty());
+}
+
+TEST_CASE("AiInterpreter construction — target_size guarded against out-of-bounds values", "[data][metadata]") {
+    R _;
+
+    SECTION("target_size larger than atl array is clamped") {
+        rtms_metadata md{};
+        md.aii.target_size = 999;  // atl has only 100 entries
+        // Must not read past bounds — just constructing should be safe
+        Metadata m(md);
+        CHECK(m.aiInterpreter().targets().size() <= 100);
+    }
+
+    SECTION("negative target_size produces empty targets") {
+        rtms_metadata md{};
+        md.aii.target_size = -1;
+        Metadata m(md);
+        CHECK(m.aiInterpreter().targets().empty());
+    }
+}
+
+TEST_CASE("AiInterpreter construction — one target populated correctly", "[data][metadata]") {
+    R _;
+    rtms_metadata md{};
+    md.aii.lid         = 9;
+    md.aii.timestamp   = 100ULL;
+    md.aii.channel_num = 2;
+    md.aii.sample_rate = 48000;
+    md.aii.target_size = 1;
+    md.aii.atl[0].lid    = 14;  // GERMAN
+    md.aii.atl[0].toneid = 0;
+    strncpy(md.aii.atl[0].voice_id, "voice-de-1", MAX_VOICE_ID_LEN - 1);
+    strncpy(md.aii.atl[0].engine,   "engine-A",   MAX_ENGINE_LEN - 1);
+
+    Metadata m(md);
+    const auto& ai = m.aiInterpreter();
+    REQUIRE(ai.targets().size() == 1);
+    const auto& tgt = ai.targets()[0];
+    CHECK(tgt.lid()     == 14);
+    CHECK(tgt.toneId()  == 0);
+    CHECK(tgt.voiceId() == "voice-de-1");
+    CHECK(tgt.engine()  == "engine-A");
 }
