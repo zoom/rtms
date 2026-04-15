@@ -663,9 +663,9 @@ void Client::setOnUserUpdate(UserUpdateFn callback) {
         user_update_callback_ = std::move(callback);
     }
     subscribeEvent({
-        (int)RTMS_EVENT_TYPE::ACTIVE_SPEAKER_CHANGE,
-        (int)RTMS_EVENT_TYPE::PARTICIPANT_JOIN,
-        (int)RTMS_EVENT_TYPE::PARTICIPANT_LEAVE,
+        (int)EVENT_TYPE::ACTIVE_SPEAKER_CHANGE,
+        (int)EVENT_TYPE::PARTICIPANT_JOIN,
+        (int)EVENT_TYPE::PARTICIPANT_LEAVE,
     });
 }
 

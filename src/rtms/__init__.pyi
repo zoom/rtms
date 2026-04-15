@@ -674,7 +674,7 @@ USER_LEAVE: int
 
 # ============================================================================
 # Constants - Event Types (for subscribeEvent/unsubscribeEvent)
-# These match RTMS_EVENT_TYPE from Zoom's C SDK
+# These match EVENT_TYPE from Zoom's C SDK
 # ============================================================================
 
 EVENT_UNDEFINED: int

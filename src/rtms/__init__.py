@@ -30,7 +30,7 @@ from ._rtms import (
     USER_JOIN, USER_LEAVE,
 
     # Event types for subscribeEvent/unsubscribeEvent (used with onEventEx callback)
-    # These match RTMS_EVENT_TYPE from Zoom's C SDK
+    # These match EVENT_TYPE from Zoom's C SDK
     EVENT_UNDEFINED, EVENT_FIRST_PACKET_TIMESTAMP,
     EVENT_ACTIVE_SPEAKER_CHANGE, EVENT_PARTICIPANT_JOIN, EVENT_PARTICIPANT_LEAVE,
     EVENT_SHARING_START, EVENT_SHARING_STOP,
@@ -1838,7 +1838,7 @@ __all__ = [
     "USER_LEAVE",
 
     # Constants - Event Types (for subscribeEvent/onEventEx)
-    # These match RTMS_EVENT_TYPE from Zoom's C SDK
+    # These match EVENT_TYPE from Zoom's C SDK
     "EVENT_UNDEFINED",
     "EVENT_FIRST_PACKET_TIMESTAMP",
     "EVENT_ACTIVE_SPEAKER_CHANGE",

@@ -196,8 +196,8 @@ enum class MEDIA_DATA_TYPE {
     ALL        = 32,
 };
 
-// RTMS_SESSION_STATE
-enum class RTMS_SESSION_STATE {
+// SESSION_STATE
+enum class SESSION_STATE {
     INACTIVE   = 0,
     INITIALIZE = 1,
     STARTED    = 2,
@@ -206,8 +206,8 @@ enum class RTMS_SESSION_STATE {
     STOPPED    = 5,
 };
 
-// RTMS_STREAM_STATE
-enum class RTMS_STREAM_STATE {
+// STREAM_STATE
+enum class STREAM_STATE {
     INACTIVE    = 0,
     ACTIVE      = 1,
     INTERRUPTED = 2,
@@ -217,8 +217,8 @@ enum class RTMS_STREAM_STATE {
     RESUMED     = 6,
 };
 
-// RTMS_EVENT_TYPE — standard meeting events for subscribeEvent
-enum class RTMS_EVENT_TYPE {
+// EVENT_TYPE — standard meeting events for subscribeEvent
+enum class EVENT_TYPE {
         UNDEFINED                    = 0,
         FIRST_PACKET_TIMESTAMP       = 1,
         ACTIVE_SPEAKER_CHANGE        = 2,
@@ -239,8 +239,8 @@ enum class RTMS_EVENT_TYPE {
 };
 
 
-// RTMS_ZCC_VOICE_EVENT_TYPE — Zoom Contact Center voice events
-enum class RTMS_ZCC_VOICE_EVENT_TYPE {
+// ZCC_VOICE_EVENT_TYPE — Zoom Contact Center voice events
+enum class ZCC_VOICE_EVENT_TYPE {
     UNDEFINED                      = 0,
     CONSUMER_ANSWERED              = 8,
     CONSUMER_END                   = 9,
@@ -265,8 +265,8 @@ enum class RTMS_ZCC_VOICE_EVENT_TYPE {
     CONFERENCE_PARTICIPANT_TIMEOUT = 28,
 };
 
-// RTMS_MESSAGE_TYPE — WebSocket protocol message types
-enum class RTMS_MESSAGE_TYPE {
+// MESSAGE_TYPE — WebSocket protocol message types
+enum class MESSAGE_TYPE {
     UNDEFINED                = 0,
     SIGNALING_HAND_SHAKE_REQ = 1,
     SIGNALING_HAND_SHAKE_RESP = 2,
@@ -299,8 +299,8 @@ enum class RTMS_MESSAGE_TYPE {
     VIDEO_SUBSCRIPTION_RESP  = 29,
 };
 
-// RTMS_STOP_REASON — reasons for stream termination
-enum class RTMS_STOP_REASON {
+// STOP_REASON — reasons for stream termination
+enum class STOP_REASON {
     UNDEFINED                              = 0,
     HOST_TRIGGERED                         = 1,
     USER_TRIGGERED                         = 2,
@@ -330,9 +330,9 @@ enum class RTMS_STOP_REASON {
     STREAMING_NOT_SUPPORTED                = 26,
 };
 
-// RTMS_TRANSCRIPT_LANGUAGE — source language IDs for transcript configuration.
+// TRANSCRIPT_LANGUAGE — source language IDs for transcript configuration.
 // Use NONE (-1) to enable automatic language detection (LID).
-enum class RTMS_TRANSCRIPT_LANGUAGE {
+enum class TRANSCRIPT_LANGUAGE {
     NONE                = -1,
     ARABIC              = 0,
     BENGALI             = 1,
