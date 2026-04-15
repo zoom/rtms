@@ -146,7 +146,7 @@ By default each stream type uses sensible settings (OPUS audio at 48 kHz, H.264 
 ```python
 # Switch from the default composite active-speaker stream to per-participant streams
 params = rtms.VideoParams()
-params.dataOpt = rtms.VideoDataOption.VIDEO_SINGLE_INDIVIDUAL_STREAM
+params.data_opt = rtms.VideoDataOption.VIDEO_SINGLE_INDIVIDUAL_STREAM
 client.set_video_params(params)
 
 # Full control — set only the fields you want to change
@@ -154,7 +154,7 @@ params = rtms.VideoParams()
 params.codec      = rtms.VideoCodec.H264
 params.resolution = rtms.VideoResolution.HD
 params.fps        = 30
-params.dataOpt    = rtms.VideoDataOption.VIDEO_SINGLE_ACTIVE_STREAM
+params.data_opt   = rtms.VideoDataOption.VIDEO_SINGLE_ACTIVE_STREAM
 client.set_video_params(params)
 ```
 
@@ -165,7 +165,7 @@ client.set_video_params(params)
 ```python
 # Receive a single mixed stream instead of the default per-participant streams
 params = rtms.AudioParams()
-params.dataOpt = rtms.AudioDataOption.AUDIO_MIXED_STREAM
+params.data_opt = rtms.AudioDataOption.AUDIO_MIXED_STREAM
 client.set_audio_params(params)
 ```
 
@@ -181,7 +181,7 @@ params.fps        = 5
 client.set_deskshare_params(params)
 ```
 
-Uses the same `codec`, `resolution`, `fps`, and `dataOpt` fields as video.
+Uses the same `codec`, `resolution`, `fps`, and `data_opt` fields as video.
 
 ### Transcript Language
 
@@ -190,11 +190,11 @@ By default the SDK auto-detects the spoken language before enabling transcriptio
 ```python
 # Hint the source language — skips auto-detect, transcription starts immediately
 params = rtms.TranscriptParams()
-params.srcLanguage = rtms.TranscriptLanguage.ENGLISH
+params.src_language = rtms.TranscriptLanguage.ENGLISH
 client.set_transcript_params(params)
 ```
 
-`TranscriptLanguage` constants: `ENGLISH`, `SPANISH`, `JAPANESE`, `CHINESE_SIMPLIFIED`, and many more. To use auto-detection, omit `set_transcript_params` or set `srcLanguage = rtms.TranscriptLanguage.NONE`.
+`TranscriptLanguage` constants: `ENGLISH`, `SPANISH`, `JAPANESE`, `CHINESE_SIMPLIFIED`, and many more. To use auto-detection, omit `set_transcript_params` or set `src_language = rtms.TranscriptLanguage.NONE`.
 
 ## Individual Video Streams
 
@@ -203,7 +203,7 @@ By default you receive a single composite stream of the active speaker. To recei
 ```python
 # Must be called before join() — switches from composite to per-participant streams
 params = rtms.VideoParams()
-params.dataOpt = rtms.VideoDataOption.VIDEO_SINGLE_INDIVIDUAL_STREAM
+params.data_opt = rtms.VideoDataOption.VIDEO_SINGLE_INDIVIDUAL_STREAM
 client.set_video_params(params)
 
 # Subscribe when a participant joins, unsubscribe when they leave

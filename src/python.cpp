@@ -468,40 +468,59 @@ PYBIND11_MODULE(_rtms, m) {
              py::arg("content_type"), py::arg("codec"), py::arg("sample_rate"),
              py::arg("channel"), py::arg("data_opt"), py::arg("duration"),
              py::arg("frame_size"))
+        // camelCase (primary — kept for backwards compat)
         .def_property("contentType", &AudioParams::contentType, &AudioParams::setContentType)
-        .def_property("codec", &AudioParams::codec, &AudioParams::setCodec)
-        .def_property("sampleRate", &AudioParams::sampleRate, &AudioParams::setSampleRate)
-        .def_property("channel", &AudioParams::channel, &AudioParams::setChannel)
-        .def_property("dataOpt", &AudioParams::dataOpt, &AudioParams::setDataOpt)
-        .def_property("duration", &AudioParams::duration, &AudioParams::setDuration)
-        .def_property("frameSize", &AudioParams::frameSize, &AudioParams::setFrameSize);
+        .def_property("codec",       &AudioParams::codec,       &AudioParams::setCodec)
+        .def_property("sampleRate",  &AudioParams::sampleRate,  &AudioParams::setSampleRate)
+        .def_property("channel",     &AudioParams::channel,     &AudioParams::setChannel)
+        .def_property("dataOpt",     &AudioParams::dataOpt,     &AudioParams::setDataOpt)
+        .def_property("duration",    &AudioParams::duration,    &AudioParams::setDuration)
+        .def_property("frameSize",   &AudioParams::frameSize,   &AudioParams::setFrameSize)
+        // snake_case aliases
+        .def_property("content_type", &AudioParams::contentType, &AudioParams::setContentType)
+        .def_property("sample_rate",  &AudioParams::sampleRate,  &AudioParams::setSampleRate)
+        .def_property("data_opt",     &AudioParams::dataOpt,     &AudioParams::setDataOpt)
+        .def_property("frame_size",   &AudioParams::frameSize,   &AudioParams::setFrameSize);
 
     py::class_<VideoParams>(m, "VideoParams")
         .def(py::init<>())
         .def(py::init<int, int, int, int, int>(),
              py::arg("content_type"), py::arg("codec"), py::arg("resolution"),
              py::arg("data_opt"), py::arg("fps"))
+        // camelCase (primary — kept for backwards compat)
         .def_property("contentType", &VideoParams::contentType, &VideoParams::setContentType)
-        .def_property("codec", &VideoParams::codec, &VideoParams::setCodec)
-        .def_property("resolution", &VideoParams::resolution, &VideoParams::setResolution)
-        .def_property("dataOpt", &VideoParams::dataOpt, &VideoParams::setDataOpt)
-        .def_property("fps", &VideoParams::fps, &VideoParams::setFps);
+        .def_property("codec",       &VideoParams::codec,       &VideoParams::setCodec)
+        .def_property("resolution",  &VideoParams::resolution,  &VideoParams::setResolution)
+        .def_property("dataOpt",     &VideoParams::dataOpt,     &VideoParams::setDataOpt)
+        .def_property("fps",         &VideoParams::fps,         &VideoParams::setFps)
+        // snake_case aliases
+        .def_property("content_type", &VideoParams::contentType, &VideoParams::setContentType)
+        .def_property("data_opt",     &VideoParams::dataOpt,     &VideoParams::setDataOpt);
 
     py::class_<DeskshareParams>(m, "DeskshareParams")
         .def(py::init<>())
         .def(py::init<int, int, int, int>(),
              py::arg("content_type"), py::arg("codec"), py::arg("resolution"),
              py::arg("fps"))
+        // camelCase (primary — kept for backwards compat)
         .def_property("contentType", &DeskshareParams::contentType, &DeskshareParams::setContentType)
-        .def_property("codec", &DeskshareParams::codec, &DeskshareParams::setCodec)
-        .def_property("resolution", &DeskshareParams::resolution, &DeskshareParams::setResolution)
-        .def_property("fps", &DeskshareParams::fps, &DeskshareParams::setFps);
+        .def_property("codec",       &DeskshareParams::codec,       &DeskshareParams::setCodec)
+        .def_property("resolution",  &DeskshareParams::resolution,  &DeskshareParams::setResolution)
+        .def_property("fps",         &DeskshareParams::fps,         &DeskshareParams::setFps)
+        // snake_case aliases
+        .def_property("content_type", &DeskshareParams::contentType, &DeskshareParams::setContentType)
+        .def_property("data_opt",     &DeskshareParams::dataOpt,     &DeskshareParams::setDataOpt);
 
     py::class_<TranscriptParams>(m, "TranscriptParams")
         .def(py::init<>())
-        .def_property("content_type", &TranscriptParams::contentType, &TranscriptParams::setContentType)
-        .def_property("src_language", &TranscriptParams::srcLanguage, &TranscriptParams::setSrcLanguage)
-        .def_property("enable_lid", &TranscriptParams::enableLid, &TranscriptParams::setEnableLid);
+        // snake_case (primary)
+        .def_property("content_type", &TranscriptParams::contentType,  &TranscriptParams::setContentType)
+        .def_property("src_language", &TranscriptParams::srcLanguage,  &TranscriptParams::setSrcLanguage)
+        .def_property("enable_lid",   &TranscriptParams::enableLid,    &TranscriptParams::setEnableLid)
+        // camelCase aliases
+        .def_property("contentType",  &TranscriptParams::contentType,  &TranscriptParams::setContentType)
+        .def_property("srcLanguage",  &TranscriptParams::srcLanguage,  &TranscriptParams::setSrcLanguage)
+        .def_property("enableLid",    &TranscriptParams::enableLid,    &TranscriptParams::setEnableLid);
 
     // TranscriptLanguage constants dict (matches pattern of AudioCodec, VideoCodec, etc.)
     // Values sourced from the TRANSCRIPT_LANGUAGE enum in rtms.h
