@@ -599,6 +599,7 @@ public:
     void join(const string& meeting_uuid, const string& rtms_stream_id, const string& signature, const string& server_url, int timeout = -1);
 
     void poll();
+    void markClosed();   // mark sdk_opened_=false before teardown so configure() becomes a no-op
     void release();
 
     string uuid() const;

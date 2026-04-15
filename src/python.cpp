@@ -81,6 +81,10 @@ public:
 
     void release() {
         if (!client_) return;
+        // markClosed() sets sdk_opened_=false so that stopCallbacks() calls
+        // setOnAudioData/Video/etc. with empty lambdas without triggering
+        // configure() on an already-dead session (avoids 4 spurious warnings).
+        client_->markClosed();
         stopCallbacks();
         client_->release();
     }

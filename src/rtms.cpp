@@ -896,12 +896,14 @@ void Client::poll() {
     throwIfError(result, "poll");
 }
 
+void Client::markClosed() {
+    lock_guard<mutex> lock(mutex_);
+    sdk_opened_ = false;
+}
+
 void Client::release() {
     sdk_->leave(0);
 
-    // Reset join state — mark sdk_opened_ false before release_sdk so that
-    // any stopCallbacks() calls triggered during cleanup (e.g. setOnAudioData
-    // with an empty lambda) do not attempt sdk_->config() on a dead session.
     {
         lock_guard<mutex> lock(mutex_);
         sdk_opened_ = false;
