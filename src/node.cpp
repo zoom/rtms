@@ -986,6 +986,8 @@ Napi::Object NodeClient::init(Napi::Env env, Napi::Object exports) {
     exports.Set(Napi::String::New(env, "EVENT_SHARING_START"),                Napi::Number::New(env, (int)rtms::EVENT_TYPE::SHARING_START));
     exports.Set(Napi::String::New(env, "EVENT_SHARING_STOP"),                 Napi::Number::New(env, (int)rtms::EVENT_TYPE::SHARING_STOP));
     exports.Set(Napi::String::New(env, "EVENT_MEDIA_CONNECTION_INTERRUPTED"), Napi::Number::New(env, (int)rtms::EVENT_TYPE::MEDIA_CONNECTION_INTERRUPTED));
+    exports.Set(Napi::String::New(env, "EVENT_PARTICIPANT_VIDEO_ON"),         Napi::Number::New(env, (int)rtms::EVENT_TYPE::PARTICIPANT_VIDEO_ON));
+    exports.Set(Napi::String::New(env, "EVENT_PARTICIPANT_VIDEO_OFF"),        Napi::Number::New(env, (int)rtms::EVENT_TYPE::PARTICIPANT_VIDEO_OFF));
     exports.Set(Napi::String::New(env, "EVENT_CONSUMER_ANSWERED"),            Napi::Number::New(env, (int)rtms::ZCC_VOICE_EVENT_TYPE::CONSUMER_ANSWERED));
     exports.Set(Napi::String::New(env, "EVENT_CONSUMER_END"),                 Napi::Number::New(env, (int)rtms::ZCC_VOICE_EVENT_TYPE::CONSUMER_END));
     exports.Set(Napi::String::New(env, "EVENT_USER_ANSWERED"),                Napi::Number::New(env, (int)rtms::ZCC_VOICE_EVENT_TYPE::USER_ANSWERED));

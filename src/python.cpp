@@ -722,6 +722,8 @@ PYBIND11_MODULE(_rtms, m) {
     m.attr("EVENT_SHARING_START") = py::int_(static_cast<int>(EVENT_TYPE::SHARING_START));
     m.attr("EVENT_SHARING_STOP") = py::int_(static_cast<int>(EVENT_TYPE::SHARING_STOP));
     m.attr("EVENT_MEDIA_CONNECTION_INTERRUPTED") = py::int_(static_cast<int>(EVENT_TYPE::MEDIA_CONNECTION_INTERRUPTED));
+    m.attr("EVENT_PARTICIPANT_VIDEO_ON")  = py::int_(static_cast<int>(EVENT_TYPE::PARTICIPANT_VIDEO_ON));
+    m.attr("EVENT_PARTICIPANT_VIDEO_OFF") = py::int_(static_cast<int>(EVENT_TYPE::PARTICIPANT_VIDEO_OFF));
     m.attr("EVENT_CONSUMER_ANSWERED") = py::int_(static_cast<int>(ZCC_VOICE_EVENT_TYPE::CONSUMER_ANSWERED));
     m.attr("EVENT_CONSUMER_END") = py::int_(static_cast<int>(ZCC_VOICE_EVENT_TYPE::CONSUMER_END));
     m.attr("EVENT_USER_ANSWERED") = py::int_(static_cast<int>(ZCC_VOICE_EVENT_TYPE::USER_ANSWERED));

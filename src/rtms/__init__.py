@@ -35,6 +35,7 @@ from ._rtms import (
     EVENT_ACTIVE_SPEAKER_CHANGE, EVENT_PARTICIPANT_JOIN, EVENT_PARTICIPANT_LEAVE,
     EVENT_SHARING_START, EVENT_SHARING_STOP,
     EVENT_MEDIA_CONNECTION_INTERRUPTED,
+    EVENT_PARTICIPANT_VIDEO_ON, EVENT_PARTICIPANT_VIDEO_OFF,
     EVENT_CONSUMER_ANSWERED, EVENT_CONSUMER_END,
     EVENT_USER_ANSWERED, EVENT_USER_END, EVENT_USER_HOLD, EVENT_USER_UNHOLD,
 
@@ -110,6 +111,7 @@ _clients_lock = threading.Lock()
 _sdk_init_lock = threading.Lock()
 _running = False
 _stop_event = threading.Event()
+_run_executor: Optional['Executor'] = None
 
 def _log(level, component, message, details=None):
     """Log a message at the specified level"""
@@ -1727,7 +1729,7 @@ def onWebhookEvent(callback=None, port=None, path=None):
 on_webhook_event = onWebhookEvent
 
 
-def run(poll_interval: float = 0.01, stop_on_empty: bool = False):
+def run(poll_interval: float = 0.01, stop_on_empty: bool = False, executor=None):
     """
     Start the default RTMS event loop (blocking).
 
@@ -1737,6 +1739,8 @@ def run(poll_interval: float = 0.01, stop_on_empty: bool = False):
     Args:
         poll_interval: Seconds between poll cycles (default: 0.01 = 10ms)
         stop_on_empty: Stop automatically when all clients have left
+        executor: Optional concurrent.futures.Executor for dispatching data
+            callbacks on all clients that don't have their own executor set.
 
     Example::
 
@@ -1748,7 +1752,8 @@ def run(poll_interval: float = 0.01, stop_on_empty: bool = False):
 
         rtms.run()   # blocks until Ctrl-C
     """
-    global _default_loop, _running
+    global _default_loop, _running, _run_executor
+    _run_executor = executor
     _default_loop = EventLoop(poll_interval=poll_interval, name='rtms-default')
     _running = True
     _stop_event.clear()
@@ -1757,9 +1762,10 @@ def run(poll_interval: float = 0.01, stop_on_empty: bool = False):
     finally:
         _running = False
         _default_loop = None
+        _run_executor = None
 
 
-async def run_async(poll_interval: float = 0.01, stop_on_empty: bool = False):
+async def run_async(poll_interval: float = 0.01, stop_on_empty: bool = False, executor=None):
     """
     Start the default RTMS event loop as an asyncio coroutine.
 
@@ -1769,6 +1775,8 @@ async def run_async(poll_interval: float = 0.01, stop_on_empty: bool = False):
     Args:
         poll_interval: Seconds between poll cycles (default: 0.01 = 10ms)
         stop_on_empty: Stop automatically when all clients have left
+        executor: Optional concurrent.futures.Executor for dispatching data
+            callbacks on all clients that don't have their own executor set.
 
     Example::
 
@@ -1777,7 +1785,8 @@ async def run_async(poll_interval: float = 0.01, stop_on_empty: bool = False):
 
         asyncio.run(main())
     """
-    global _default_loop, _running
+    global _default_loop, _running, _run_executor
+    _run_executor = executor
     _default_loop = EventLoop(poll_interval=poll_interval, name='rtms-default')
     _running = True
     _stop_event.clear()
@@ -1786,6 +1795,7 @@ async def run_async(poll_interval: float = 0.01, stop_on_empty: bool = False):
     finally:
         _running = False
         _default_loop = None
+        _run_executor = None
 
 
 def stop():
@@ -1847,6 +1857,8 @@ __all__ = [
     "EVENT_SHARING_START",
     "EVENT_SHARING_STOP",
     "EVENT_MEDIA_CONNECTION_INTERRUPTED",
+    "EVENT_PARTICIPANT_VIDEO_ON",
+    "EVENT_PARTICIPANT_VIDEO_OFF",
     "EVENT_CONSUMER_ANSWERED",
     "EVENT_CONSUMER_END",
     "EVENT_USER_ANSWERED",
