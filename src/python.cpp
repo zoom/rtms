@@ -814,11 +814,20 @@ PYBIND11_MODULE(_rtms, m) {
     audioChannel["STEREO"] = (int)AUDIO_CHANNEL::STEREO;
     m.attr("AudioChannel") = audioChannel;
 
-    py::dict audioDataOption;
-    audioDataOption["UNDEFINED"]           = (int)MEDIA_DATA_OPTION::UNDEFINED;
-    audioDataOption["AUDIO_MIXED_STREAM"]  = (int)MEDIA_DATA_OPTION::AUDIO_MIXED_STREAM;
-    audioDataOption["AUDIO_MULTI_STREAMS"] = (int)MEDIA_DATA_OPTION::AUDIO_MULTI_STREAMS;
-    m.attr("AudioDataOption") = audioDataOption;
+    // DataOption — unified dict for all audio and video stream delivery modes.
+    // Mirrors the C++ MEDIA_DATA_OPTION enum directly.
+    // AudioDataOption and VideoDataOption are kept as backward-compat aliases.
+    py::dict dataOption;
+    dataOption["UNDEFINED"]                    = (int)MEDIA_DATA_OPTION::UNDEFINED;
+    dataOption["AUDIO_MIXED_STREAM"]           = (int)MEDIA_DATA_OPTION::AUDIO_MIXED_STREAM;
+    dataOption["AUDIO_MULTI_STREAMS"]          = (int)MEDIA_DATA_OPTION::AUDIO_MULTI_STREAMS;
+    dataOption["VIDEO_SINGLE_ACTIVE_STREAM"]   = (int)MEDIA_DATA_OPTION::VIDEO_SINGLE_ACTIVE_STREAM;
+    dataOption["VIDEO_SINGLE_INDIVIDUAL_STREAM"] = (int)MEDIA_DATA_OPTION::VIDEO_SINGLE_INDIVIDUAL_STREAM;
+    dataOption["VIDEO_MIXED_SPEAKER_VIEW"]     = (int)MEDIA_DATA_OPTION::VIDEO_SINGLE_INDIVIDUAL_STREAM;  // legacy alias
+    dataOption["VIDEO_MIXED_GALLERY_VIEW"]     = (int)MEDIA_DATA_OPTION::VIDEO_MIXED_GALLERY_VIEW;
+    m.attr("DataOption")      = dataOption;
+    m.attr("AudioDataOption") = dataOption;  // legacy alias
+    m.attr("VideoDataOption") = dataOption;  // legacy alias
 
     // ========================================================================
     // Constants - Video Parameters
@@ -846,12 +855,6 @@ PYBIND11_MODULE(_rtms, m) {
     videoResolution["QHD"] = (int)MEDIA_RESOLUTION::QHD;
     m.attr("VideoResolution") = videoResolution;
 
-    py::dict videoDataOption;
-    videoDataOption["UNDEFINED"]                  = (int)MEDIA_DATA_OPTION::UNDEFINED;
-    videoDataOption["VIDEO_SINGLE_ACTIVE_STREAM"] = (int)MEDIA_DATA_OPTION::VIDEO_SINGLE_ACTIVE_STREAM;
-    videoDataOption["VIDEO_MIXED_SPEAKER_VIEW"]   = (int)MEDIA_DATA_OPTION::VIDEO_SINGLE_INDIVIDUAL_STREAM;
-    videoDataOption["VIDEO_MIXED_GALLERY_VIEW"]   = (int)MEDIA_DATA_OPTION::VIDEO_MIXED_GALLERY_VIEW;
-    m.attr("VideoDataOption") = videoDataOption;
 
     // ========================================================================
     // Constants - Media Data Types

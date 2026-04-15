@@ -50,11 +50,10 @@ from ._rtms import (
     AudioCodec as _AudioCodec,
     AudioSampleRate as _AudioSampleRate,
     AudioChannel as _AudioChannel,
-    AudioDataOption as _AudioDataOption,
+    DataOption as _DataOption,
     VideoContentType as _VideoContentType,
     VideoCodec as _VideoCodec,
     VideoResolution as _VideoResolution,
-    VideoDataOption as _VideoDataOption,
     MediaDataType as _MediaDataType,
     SessionState as _SessionState,
     StreamState as _StreamState,
@@ -69,11 +68,12 @@ AudioContentType  = IntEnum("AudioContentType",  _AudioContentType)
 AudioCodec        = IntEnum("AudioCodec",         _AudioCodec)
 AudioSampleRate   = IntEnum("AudioSampleRate",    _AudioSampleRate)
 AudioChannel      = IntEnum("AudioChannel",       _AudioChannel)
-AudioDataOption   = IntEnum("AudioDataOption",    _AudioDataOption)
+DataOption        = IntEnum("DataOption",         _DataOption)
+AudioDataOption   = DataOption  # legacy alias
 VideoContentType  = IntEnum("VideoContentType",   _VideoContentType)
 VideoCodec        = IntEnum("VideoCodec",         _VideoCodec)
 VideoResolution   = IntEnum("VideoResolution",    _VideoResolution)
-VideoDataOption   = IntEnum("VideoDataOption",    _VideoDataOption)
+VideoDataOption   = DataOption  # legacy alias
 MediaDataType     = IntEnum("MediaDataType",      _MediaDataType)
 SessionState      = IntEnum("SessionState",       _SessionState)
 StreamState       = IntEnum("StreamState",        _StreamState)
@@ -479,11 +479,11 @@ def _validate_audio_params(params):
 
     # Check data option
     if hasattr(params, 'dataOpt') and params.dataOpt is not None:
-        valid_opts = [v for k, v in AudioDataOption.__dict__.items() if not k.startswith('_')]
+        valid_opts = [v for k, v in DataOption.__dict__.items() if not k.startswith('_')]
         if params.dataOpt not in valid_opts:
             errors.append(
                 f"Invalid audio dataOpt: {params.dataOpt}. "
-                f"Use rtms.AudioDataOption constants (e.g., rtms.AudioDataOption.AUDIO_MULTI_STREAMS)"
+                f"Use rtms.DataOption constants (e.g., rtms.DataOption.AUDIO_MULTI_STREAMS)"
             )
 
     # Validate codec-specific requirements
@@ -555,11 +555,11 @@ def _validate_video_params(params):
 
     # Check data option
     if hasattr(params, 'dataOpt') and params.dataOpt is not None:
-        valid_opts = [v for k, v in VideoDataOption.__dict__.items() if not k.startswith('_')]
+        valid_opts = [v for k, v in DataOption.__dict__.items() if not k.startswith('_')]
         if params.dataOpt not in valid_opts:
             errors.append(
                 f"Invalid video dataOpt: {params.dataOpt}. "
-                f"Use rtms.VideoDataOption constants (e.g., rtms.VideoDataOption.VIDEO_SINGLE_ACTIVE_STREAM)"
+                f"Use rtms.DataOption constants (e.g., rtms.DataOption.VIDEO_SINGLE_ACTIVE_STREAM)"
             )
 
     if errors:
@@ -1885,11 +1885,12 @@ __all__ = [
     "AudioCodec",
     "AudioSampleRate",
     "AudioChannel",
-    "AudioDataOption",
+    "DataOption",
+    "AudioDataOption",  # legacy alias for DataOption
     "VideoContentType",
     "VideoCodec",
     "VideoResolution",
-    "VideoDataOption",
+    "VideoDataOption",  # legacy alias for DataOption
     "MediaDataType",
     "SessionState",
     "StreamState",

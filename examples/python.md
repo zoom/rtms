@@ -146,7 +146,7 @@ By default each stream type uses sensible settings (OPUS audio at 48 kHz, H.264 
 ```python
 # Switch from the default composite active-speaker stream to per-participant streams
 params = rtms.VideoParams()
-params.data_opt = rtms.VideoDataOption.VIDEO_SINGLE_INDIVIDUAL_STREAM
+params.data_opt = rtms.DataOption.VIDEO_SINGLE_INDIVIDUAL_STREAM
 client.set_video_params(params)
 
 # Full control — set only the fields you want to change
@@ -154,22 +154,22 @@ params = rtms.VideoParams()
 params.codec      = rtms.VideoCodec.H264
 params.resolution = rtms.VideoResolution.HD
 params.fps        = 30
-params.data_opt   = rtms.VideoDataOption.VIDEO_SINGLE_ACTIVE_STREAM
+params.data_opt   = rtms.DataOption.VIDEO_SINGLE_ACTIVE_STREAM
 client.set_video_params(params)
 ```
 
-`VideoCodec` constants: `H264`, `JPG`, `PNG`. `VideoResolution` constants: `SD`, `HD`, `FHD`, `QHD`. `VideoDataOption` constants: `VIDEO_SINGLE_ACTIVE_STREAM` (default composite), `VIDEO_SINGLE_INDIVIDUAL_STREAM` (per-participant), `VIDEO_MIXED_GALLERY_VIEW`.
+`VideoCodec` constants: `H264`, `JPG`, `PNG`. `VideoResolution` constants: `SD`, `HD`, `FHD`, `QHD`. `DataOption` video constants: `VIDEO_SINGLE_ACTIVE_STREAM` (default composite), `VIDEO_SINGLE_INDIVIDUAL_STREAM` (per-participant), `VIDEO_MIXED_GALLERY_VIEW`.
 
 ### Audio
 
 ```python
 # Receive a single mixed stream instead of the default per-participant streams
 params = rtms.AudioParams()
-params.data_opt = rtms.AudioDataOption.AUDIO_MIXED_STREAM
+params.data_opt = rtms.DataOption.AUDIO_MIXED_STREAM
 client.set_audio_params(params)
 ```
 
-`AudioSampleRate` constants: `SR_8K`, `SR_16K`, `SR_32K`, `SR_48K` (default). `AudioChannel` constants: `MONO`, `STEREO` (default). `AudioDataOption` constants: `AUDIO_MULTI_STREAMS` (default, per-participant), `AUDIO_MIXED_STREAM`.
+`AudioSampleRate` constants: `SR_8K`, `SR_16K`, `SR_32K`, `SR_48K` (default). `AudioChannel` constants: `MONO`, `STEREO` (default). `DataOption` audio constants: `AUDIO_MULTI_STREAMS` (default, per-participant), `AUDIO_MIXED_STREAM`.
 
 ### Desktop Share
 
@@ -203,7 +203,7 @@ By default you receive a single composite stream of the active speaker. To recei
 ```python
 # Must be called before join() — switches from composite to per-participant streams
 params = rtms.VideoParams()
-params.data_opt = rtms.VideoDataOption.VIDEO_SINGLE_INDIVIDUAL_STREAM
+params.data_opt = rtms.DataOption.VIDEO_SINGLE_INDIVIDUAL_STREAM
 client.set_video_params(params)
 
 # Subscribe when a participant joins, unsubscribe when they leave
