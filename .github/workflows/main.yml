@@ -278,8 +278,8 @@ jobs:
 
     - name: Extract native prebuild
       # install.js skips extraction when .git exists (dev mode detection).
-      # Run prebuild-install directly to place rtms.node in build/Release/.
-      run: npx prebuild-install -r napi
+      # --force bypasses that check so the full install flow runs in CI.
+      run: node scripts/install.js --force
 
     - name: Compile TypeScript
       run: npx tsc
