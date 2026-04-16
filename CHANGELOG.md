@@ -48,13 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **`setOnParticipantVideo` missing auto-subscription**: Registering the participant video callback now automatically subscribes to `EVENT_PARTICIPANT_VIDEO_ON` and `EVENT_PARTICIPANT_VIDEO_OFF` events, matching the pattern used by `setOnUserUpdate` ([#108](https://github.com/zoom/rtms/issues/108))
-- **`config()` called before `open()`**: Video/audio/transcript params are now applied after the SDK session is open; calling `setVideoParams()` before `join()` no longer fails silently
-- **`AiInterpreter.target_size` out-of-bounds**: Guard against uninitialized or negative `target_size` values from the C SDK to prevent array over-reads
-- **`_run_executor` undefined**: Python's `_wrap_callback` referenced a module-level `_run_executor` that was never initialised; added the initialisation and wired the `executor` kwarg through `run()` / `run_async()`
-- **Redundant `RTMS_` prefix on C++ enum names**: All enum classes inside the `rtms` namespace drop the redundant prefix (`RTMS_EVENT_TYPE` → `EVENT_TYPE`, `RTMS_SESSION_STATE` → `SESSION_STATE`, etc.) — internal refactor, no public API change
 - **Spurious configure warnings on leave**: `updateMediaConfiguration` was called during callback teardown after the session was already closed, printing 4 `"Failed to update media configuration"` warnings on every clean leave; suppressed by tracking `sdk_opened_` state and calling `markClosed()` before stopping callbacks
-- **SIGSEGV on meeting end (Python)**: Race condition between the EventLoop thread (inside `poll()`) and the webhook thread (calling `release()`) caused a use-after-free crash with exit status 139; fixed with `poll_mutex_` — `poll()` releases the GIL before acquiring the mutex so neither thread can deadlock the other
 
 ### Changed
 
