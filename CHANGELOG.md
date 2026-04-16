@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Transcript Configuration
 - **`TranscriptParams`**: New parameter class for configuring transcript streams (language hint, content type, language detection)
-- **`TranscriptLanguage` constants**: Full set of language constants (`ENGLISH`, `SPANISH`, `JAPANESE`, `CHINESE_SIMPLIFIED`, and many more) for skipping auto-detection (~30 s delay) by hinting the source language
+- **`TranscriptLanguage` constants**: Full set of language constants (`ENGLISH`, `SPANISH`, `JAPANESE`, `CHINESE_SIMPLIFIED`, and many more) for skipping auto-detection (~3s delay) by hinting the source language
 - **`setTranscriptParams()`/`set_transcript_params()`**: New method on Client to apply transcript configuration before joining (Node.js and Python)
 
 #### HTTP Proxy Support
