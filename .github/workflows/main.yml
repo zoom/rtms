@@ -312,7 +312,9 @@ jobs:
       run: npm install
 
     - name: Extract native prebuild
-      run: npx prebuild-install -r napi
+      # Use install.js so macOS framework archives (.framework.tar.gz) are
+      # extracted after prebuild-install runs. --force bypasses dev-mode check.
+      run: node scripts/install.js --force
 
     - name: Compile TypeScript
       run: npx tsc
