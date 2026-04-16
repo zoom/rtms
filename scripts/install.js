@@ -87,8 +87,11 @@ function installPrebuild() {
   try {
     log('Attempting to download prebuilt binary...');
 
-    // Use prebuild-install to download from GitHub releases
-    execSync('prebuild-install -r napi', {
+    // Use prebuild-install to download from GitHub releases.
+    // Resolve from node_modules/.bin/ so this works after `npm install`
+    // where the binary is local, not in system PATH.
+    const prebuildInstallBin = join(__dirname, '..', 'node_modules', '.bin', 'prebuild-install');
+    execSync(`${prebuildInstallBin} -r napi`, {
       stdio: 'inherit',
       env: process.env
     });
