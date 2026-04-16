@@ -41,9 +41,9 @@ The RTMS SDK allows developers to:
 
 ### Node.js
 
-**⚠️ Requirements: Node.js >= 20.3.0 (Node.js 24 LTS recommended)**
+**⚠️ Requirements: Node.js >= 22.0.0 (Node.js 24 LTS recommended)**
 
-The RTMS SDK uses N-API versions 9 and 10, which require Node.js 20.3.0 or higher.
+The RTMS SDK uses N-API versions 9 and 10, which require Node.js 22.0.0 or higher.
 
 ```bash
 # Check your Node.js version
@@ -60,9 +60,9 @@ npm install @zoom/rtms
 nvm install 24       # Install Node.js 24 LTS (recommended)
 nvm use 24
 
-# Or install Node.js 20 LTS (minimum)
-nvm install 20
-nvm use 20
+# Or install Node.js 22 LTS (minimum supported)
+nvm install 22
+nvm use 22
 
 # Reinstall the package
 npm install @zoom/rtms
@@ -240,13 +240,13 @@ If you encounter issues some of these steps may help.
 - Error message: `Segmentation fault (core dumped)`
 - Stack trace shows `napi_module_register_by_symbol`
 
-**Root Cause:** Using Node.js version < 20.3.0
+**Root Cause:** Using Node.js version < 22.0.0
 
 **Solution:** See [Using NVM](#using-nvm)
 
 
 **Prevention:**
-- Always use Node.js 20.3.0 or higher
+- Always use Node.js 22.0.0 or higher
 - Use recommended version with `.nvmrc`: `nvm use` (Node.js 24 LTS)
 - Check version before installing: `node --version`
 
@@ -254,7 +254,7 @@ If you encounter issues some of these steps may help.
 Verify you're using a supported platform (darwin-arm64 or linux-x64)
 
 ### 3. SDK Files
-Ensure RTMS C SDK files are correctly placed in the appropriate lib directory
+Ensure RTMS C++ SDK files are correctly placed in the appropriate lib directory
 
 ### 4. Build Mode
 Try both debug and release modes (`npm run debug` or `npm run release`)
@@ -292,7 +292,7 @@ The RTMS SDK can be built from source using either Docker (recommended) or local
 
 #### Prerequisites
 - Docker and Docker Compose
-- Zoom RTMS C SDK files (contact Zoom for access)
+- Zoom RTMS C++ SDK files (contact Zoom for access)
 - Task installed (or use Docker's Task installation)
 
 #### Steps
@@ -325,12 +325,12 @@ Docker Compose creates **distributable packages** for linux-x64 (prebuilds for N
 ### Building Locally
 
 #### Prerequisites
-- Node.js (>= 20.3.0, LTS recommended)
+- Node.js (>= 22.0.0, LTS recommended)
 - Python 3.10+ with pip (for Python build)
 - CMake 3.25+
 - C/C++ build tools
 - Task (go-task) - https://taskfile.dev/installation/
-- Zoom RTMS C SDK files (contact Zoom for access)
+- Zoom RTMS C++ SDK files (contact Zoom for access)
 
 #### Steps
 ```bash
@@ -384,7 +384,7 @@ task setup                    # Fetch SDK and install dependencies
 BUILD_TYPE=Debug task build:js    # Build in debug mode
 BUILD_TYPE=Release task build:js  # Build in release mode (default)
 
-# Debug logging for C SDK callbacks
+# Debug logging for C++ SDK callbacks
 RTMS_DEBUG=ON task build:js       # Enable verbose callback logging
 ```
 

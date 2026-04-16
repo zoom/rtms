@@ -255,7 +255,7 @@ jobs:
     needs: [build-nodejs-linux]
     strategy:
       matrix:
-        node-version: ['20.3.0', '24.x']  # Test minimum (N-API v9) and latest LTS
+        node-version: ['22.x', '24.x']  # Test current LTS and latest LTS
       fail-fast: false  # Continue testing other versions if one fails
 
     steps:

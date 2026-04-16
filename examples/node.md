@@ -2,7 +2,7 @@
 
 Complete API reference and examples for the `@zoom/rtms` Node.js package.
 
-**Requirements:** Node.js >= 20.3.0 (Node.js 24 LTS recommended)
+**Requirements:** Node.js >= 22.0.0 (Node.js 24 LTS recommended)
 
 For product-specific webhook events and payload fields, see the [product guides](../README.md#supported-products).
 
