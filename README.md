@@ -172,59 +172,40 @@ pip install rtms
 
 
 ```python
-#!/usr/bin/env python3
 import rtms
-import signal
-import sys
 from dotenv import load_dotenv
 
 load_dotenv()
 
-client = rtms.Client()
+clients = {}
 
-# Graceful shutdown handler
-def signal_handler(sig, frame):
-    print('\nShutting down gracefully...')
-    client.leave()
-    sys.exit(0)
 
-signal.signal(signal.SIGINT, signal_handler)
+@rtms.on_webhook_event
+def handle_webhook(webhook):
+    event = webhook.get('event')
+    payload = webhook.get('payload', {})
+    stream_id = payload.get('rtms_stream_id')
 
-# Webhook event handler
-@client.on_webhook_event()
-def handle_webhook(payload):
-    if payload.get('event') == 'meeting.rtms_started':
-        rtms_payload = payload.get('payload', {})
-        client.join(
-            meeting_uuid=rtms_payload.get('meeting_uuid'),
-            rtms_stream_id=rtms_payload.get('rtms_stream_id'),
-            server_urls=rtms_payload.get('server_urls'),
-            signature=rtms_payload.get('signature')
-        )
+    if event == 'meeting.rtms_stopped':
+        client = clients.pop(stream_id, None)
+        if client:
+            client.leave()
+        return
 
-# Callback handlers
-@client.onJoinConfirm
-def on_join(reason):
-    print(f'Joined meeting: {reason}')
+    if event != 'meeting.rtms_started':
+        return
 
-@client.onTranscriptData
-def on_transcript(data, size, timestamp, metadata):
-    text = data.decode('utf-8')
-    print(f'[{metadata.userName}]: {text}')
+    client = rtms.Client()
+    clients[stream_id] = client
 
-@client.onLeave
-def on_leave(reason):
-    print(f'Left meeting: {reason}')
+    @client.on_transcript_data
+    def _(data, _, timestamp, metadata):
+        print(f'[transcript] ts={timestamp} user="{metadata.userName}": {data.decode()}')
 
-if __name__ == '__main__':
-    print('Webhook server running on http://localhost:8080')
-    import time
-    while True:
-        # Process queued join requests from webhook thread
-        client._process_join_queue()
-        # Poll for SDK events
-        client._poll_if_needed()
-        time.sleep(0.01)
+    client.join(payload)
+
+
+rtms.run()
 ```
 
 > **Production note:** The example above does not validate the incoming webhook signature. Zoom cryptographically signs every webhook — production apps must verify signatures before processing. See [Webhook Validation](examples/python.md#webhook-validation) 
