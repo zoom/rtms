@@ -184,8 +184,42 @@ export interface MediaTypes {
 }
 
 /**
+ * A single target language entry from an AI interpreter stream
+ *
+ * @category Data Interfaces
+ */
+export interface AiTargetLanguage {
+  /** Language ID of the target language */
+  lid: number;
+  /** Tone ID (dialect/variant) of the target language */
+  toneId: number;
+  /** Voice model identifier used to render this target language */
+  voiceId: string;
+  /** AI engine name (e.g. "zoom_ai") */
+  engine: string;
+}
+
+/**
+ * AI interpreter metadata attached to an audio stream
+ *
+ * @category Data Interfaces
+ */
+export interface AiInterpreter {
+  /** Language ID of the source language being interpreted */
+  lid: number;
+  /** Timestamp of the interpretation event */
+  timestamp: number;
+  /** Number of audio channels in the interpreter stream */
+  channelNum: number;
+  /** Sample rate of the interpreter stream in Hz */
+  sampleRate: number;
+  /** Active target language entries (up to 100) */
+  targets: AiTargetLanguage[];
+}
+
+/**
  * Metadata information about a participant in a Zoom meeting
- * 
+ *
  * @category Data Interfaces
  */
 export interface Metadata {
@@ -193,6 +227,12 @@ export interface Metadata {
   userName: string;
   /** The user ID of the Zoom participant */
   userId: number;
+  /** Stream start timestamp in milliseconds */
+  startTs: number;
+  /** Stream end timestamp in milliseconds */
+  endTs: number;
+  /** AI interpreter metadata (populated when Zoom's AI interpreter is active) */
+  aiInterpreter: AiInterpreter;
 }
 
 /**
@@ -296,6 +336,70 @@ export interface DeskshareParams {
   fps?: number;
 }
 
+/**
+ * Configuration parameters for transcript streams
+ *
+ * @category Media Configuration
+ */
+export interface TranscriptParams {
+  /** Source language ID. Use TranscriptLanguage constants. Default: NONE (auto-detect after 30s) */
+  srcLanguage?: number;
+  /** Enable Language Identification. Default: true */
+  enableLid?: boolean;
+}
+
+/**
+ * Language ID constants for use with TranscriptParams.srcLanguage
+ *
+ * @example
+ * ```typescript
+ * const params = new rtms.TranscriptParams();
+ * params.setSrcLanguage(rtms.TranscriptLanguage.ENGLISH);
+ * ```
+ *
+ * @category Constants
+ */
+export const TranscriptLanguage: {
+  readonly NONE: number;
+  readonly ARABIC: number;
+  readonly BENGALI: number;
+  readonly CANTONESE: number;
+  readonly CATALAN: number;
+  readonly CHINESE_SIMPLIFIED: number;
+  readonly CHINESE_TRADITIONAL: number;
+  readonly CZECH: number;
+  readonly DANISH: number;
+  readonly DUTCH: number;
+  readonly ENGLISH: number;
+  readonly ESTONIAN: number;
+  readonly FINNISH: number;
+  readonly FRENCH_CANADA: number;
+  readonly FRENCH_FRANCE: number;
+  readonly GERMAN: number;
+  readonly HEBREW: number;
+  readonly HINDI: number;
+  readonly HUNGARIAN: number;
+  readonly INDONESIAN: number;
+  readonly ITALIAN: number;
+  readonly JAPANESE: number;
+  readonly KOREAN: number;
+  readonly MALAY: number;
+  readonly PERSIAN: number;
+  readonly POLISH: number;
+  readonly PORTUGUESE: number;
+  readonly ROMANIAN: number;
+  readonly RUSSIAN: number;
+  readonly SPANISH: number;
+  readonly SWEDISH: number;
+  readonly TAGALOG: number;
+  readonly TAMIL: number;
+  readonly TELUGU: number;
+  readonly THAI: number;
+  readonly TURKISH: number;
+  readonly UKRAINIAN: number;
+  readonly VIETNAMESE: number;
+};
+
 
 //-----------------------------------------------------------------------------------
 // Parameter interfaces
@@ -318,6 +422,8 @@ export interface JoinParams {
   webinar_uuid?: string;
   /** The session ID (for Video SDK events) - used when meeting_uuid is not provided */
   session_id?: string;
+  /** The engagement ID (for ZCC events) - used when meeting_uuid is not provided */
+  engagement_id?: string;
   /** The RTMS stream ID for this connection */
   rtms_stream_id: string;
   /** The server URL(s) to connect to */
@@ -761,7 +867,41 @@ export class Client {
    * @returns true if the operation succeeds
    */
     setDeskshareParams(params: DeskshareParams): boolean;
-  
+
+  /**
+   * Configures a proxy for SDK connections.
+   *
+   * @param proxy_type Proxy protocol type (e.g. `'http'`, `'https'`)
+   * @param proxy_url Full proxy URL including host and port
+   * @returns true if the operation succeeds
+   */
+  setProxy(proxy_type: string, proxy_url: string): boolean;
+
+  /**
+   * Subscribe or unsubscribe from an individual participant's video stream.
+   *
+   * @param userId The participant's user ID
+   * @param subscribe true to subscribe, false to unsubscribe
+   * @returns true if the operation succeeds
+   */
+  subscribeVideo(userId: number, subscribe: boolean): boolean;
+
+  /**
+   * Sets a callback fired when participants' video state changes.
+   *
+   * @param callback Invoked with an array of user IDs and a boolean indicating video on/off
+   * @returns true if registration succeeds
+   */
+  onParticipantVideo(callback: (users: number[], isOn: boolean) => void): boolean;
+
+  /**
+   * Sets a callback fired in response to a `subscribeVideo` call.
+   *
+   * @param callback Invoked with userId, status code, and an error string (empty on success)
+   * @returns true if registration succeeds
+   */
+  onVideoSubscribed(callback: (userId: number, status: number, error: string) => void): boolean;
+
   /**
    * Sets a callback for join confirmation events
    * 
@@ -976,16 +1116,8 @@ export class Client {
    * 
    * @example
    * ```typescript
-   * client.onVideoData((buffer, size, timestamp, trackId, metadata) => {
+   * client.onVideoData((buffer, size, timestamp, metadata) => {
    *   console.log(`Received ${size} bytes of video from ${metadata.userName}`);
-   *   console.log(`Track ID: ${trackId}`);
-   *   
-   *   // Process the video data
-   *   // buffer - Raw video data (Buffer)
-   *   // size - Size of the video data in bytes
-   *   // timestamp - Timestamp of the video data
-   *   // trackId - ID of the video track
-   *   // metadata - Information about the sender
    * });
    * ```
    */

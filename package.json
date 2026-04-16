@@ -1,6 +1,6 @@
 {
   "name": "@zoom/rtms",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "Node.js Wrapper for the Zoom RTMS C SDK",
   "main": "./build/Release/index.js",
   "types": "rtms.d.ts",
@@ -17,6 +17,7 @@
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "cmake-js": "^8.0.0",
+    "ts-jest": "^29.4.6",
     "typedoc": "^0.28.14",
     "typedoc-plugin-missing-exports": "^4.1.2",
     "typescript": "^5.9.3"
@@ -80,6 +81,6 @@
   ],
   "license": "MIT",
   "engines": {
-    "node": ">=20.3.0"
+    "node": ">=22.0.0"
   }
 }

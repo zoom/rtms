@@ -13,6 +13,7 @@ The RTMS SDK works with multiple Zoom products:
 - **[Zoom Meetings](examples/meetings.md)** - Real-time streams from Zoom Meetings
 - **[Zoom Webinars](examples/webinars.md)** - Broadcast-quality streams from Zoom Webinars
 - **[Zoom Video SDK](examples/videosdk.md)** - Custom video experiences with RTMS access
+- **[Zoom Contact Center](examples/zcc.md)** - Real-time streams from Zoom Contact Center voice engagements
 
 See [examples/](examples/) for complete guides and code samples.
 
@@ -40,9 +41,9 @@ The RTMS SDK allows developers to:
 
 ### Node.js
 
-**⚠️ Requirements: Node.js >= 20.3.0 (Node.js 24 LTS recommended)**
+**⚠️ Requirements: Node.js >= 22.0.0 (Node.js 24 LTS recommended)**
 
-The RTMS SDK uses N-API versions 9 and 10, which require Node.js 20.3.0 or higher.
+The RTMS SDK uses N-API versions 9 and 10, which require Node.js 22.0.0 or higher.
 
 ```bash
 # Check your Node.js version
@@ -52,23 +53,20 @@ node --version
 npm install @zoom/rtms
 ```
 
+#### Using NVM
 **If you're using an older version of Node.js:**
 ```bash
 # Using nvm (recommended)
 nvm install 24       # Install Node.js 24 LTS (recommended)
 nvm use 24
 
-# Or install Node.js 20 LTS (minimum)
-nvm install 20
-nvm use 20
+# Or install Node.js 22 LTS (minimum supported)
+nvm install 22
+nvm use 22
 
 # Reinstall the package
 npm install @zoom/rtms
 ```
-
-**Download Node.js:** https://nodejs.org/
-
-The Node.js package provides both class-based and singleton APIs for connecting to RTMS streams.
 
 ### Python
 
@@ -95,59 +93,37 @@ pyenv local 3.12
 # macOS: brew install python@3.12
 ```
 
-**Download Python:** https://www.python.org/downloads/
-
-The Python package provides a Pythonic decorator-based API with full feature parity to Node.js.
-
-## For Contributors
-
-**This project uses [Task](https://taskfile.dev) (go-task) for development builds and testing.**
-
-If you're an **end user** installing via npm or pip, you don't need Task - the installation will work automatically using prebuilt binaries.
-
-If you're a **contributor** building from source, you'll need to install Task:
-
-**macOS:**
-```bash
-brew install go-task
-```
-
-**Linux:**
-```bash
-sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b ~/.local/bin
-```
-
-**Quick Start for Contributors:**
-```bash
-# Verify your environment meets requirements
-task doctor
-
-# Setup the project (fetch SDK, install dependencies)
-task setup
-
-# Build for your platform
-task build:js          # Build Node.js bindings
-task build:py          # Build Python bindings
-
-# Run tests
-task test:js           # Test Node.js
-task test:py           # Test Python
-
-# See all available commands
-task --list
-```
-
-For detailed contribution guidelines, build instructions, and troubleshooting, see [CONTRIBUTING.md](CONTRIBUTING.md).
-
 ## Usage
 
-> **Speaker Identification with Mixed Audio**
->
-> When using `AUDIO_MIXED_STREAM` (the default), all participants are mixed into a single audio stream and the audio callback's metadata will **not** identify the current speaker. To identify who is speaking, register an `onActiveSpeakerEvent` callback — it fires whenever the active speaker changes. See [Troubleshooting #7](#7-identifying-speakers-with-mixed-audio-streams) and [#80](https://github.com/zoom/rtms/issues/80) for details.
+Regardless of the language that you use the RTMS SDK follows the same basic steps: 
 
-### Node.js - Webhook Integration
+ - Receive and validate the webhook event
+ - Create an RTMS SDK Client 
+ - Assign data callbacks to that client
+ - Join the meeting with the event payload
 
-Easily respond to Zoom webhooks and connect to RTMS streams:
+### Configure
+
+All SDK languages read from the environment or a `.env` file:
+
+```bash
+# Required - Your Zoom OAuth credentials
+ZM_RTMS_CLIENT=your_client_id
+ZM_RTMS_SECRET=your_client_secret
+
+# Optional - Webhook server configuration
+ZM_RTMS_PORT=8080
+ZM_RTMS_PATH=/webhook
+
+# Optional - Logging configuration
+ZM_RTMS_LOG_LEVEL=debug          # error, warn, info, debug, trace
+ZM_RTMS_LOG_FORMAT=progressive    # progressive or json
+ZM_RTMS_LOG_ENABLED=true          # true or false
+```
+
+### Node.js
+
+For more details, see our [Quickstart App](https://github.com/zoom/rtms-quickstart-js)
 
 ```javascript
 import rtms from "@zoom/rtms";
@@ -168,163 +144,32 @@ rtms.onWebhookEvent(({event, payload}) => {
 });
 ```
 
-### Node.js - Advanced Webhook Handling
+> **Production note:** The example above does not validate the incoming webhook signature. Zoom cryptographically signs every webhook — production apps must verify signatures before processing. See [Webhook Validation](examples/node.md#webhook-validation)
 
-For advanced use cases requiring custom webhook validation or response handling (e.g., Zoom's webhook validation challenge), you can use the enhanced callback with raw HTTP access:
+### Python 
 
-```javascript
-import rtms from "@zoom/rtms";
+For more details, see our [Quickstart App](https://github.com/zoom/rtms-quickstart-py)
 
-rtms.onWebhookEvent((payload, req, res) => {
-    // Access request headers for webhook validation
-    const signature = req.headers['x-zoom-signature'];
-    
-    // Handle Zoom's webhook validation challenge
-    if (req.headers['x-zoom-webhook-validator']) {
-        const validationToken = req.headers['x-zoom-webhook-validator'];
-        
-        // Echo back the validation token
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ plainToken: validationToken }));
-        return;
-    }
-    
-    // Custom validation logic
-    if (!validateWebhookSignature(payload, signature)) {
-        res.writeHead(401, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Invalid signature' }));
-        return;
-    }
-    
-    // Process the webhook payload
-    if (payload.event === "meeting.rtms_started") {
-        const client = new rtms.Client();
-        
-        client.onAudioData((data, timestamp, metadata) => {
-            console.log(`Received audio from ${metadata.userName}`);
-        });
-        
-        client.join(payload.payload);
-    }
-    
-    // Send custom response
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok' }));
-});
+#### Environment Setup
+
+Create a virtual environment and install dependencies:
+
+```bash
+# Create virtual environment
+python3 -m venv .venv
+
+# Activate virtual environment
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
+pip install python-dotenv
+
+# Install RTMS SDK
+pip install rtms
 ```
 
-### Node.js - Sharing Ports with Existing Servers
+#### Quickstart
 
-If you need to integrate webhook handling with your existing Express, Fastify, or other HTTP server (useful for Cloud Run, Kubernetes, or any deployment requiring a single port), use `createWebhookHandler`:
-
-```javascript
-import express from 'express';
-import rtms from '@zoom/rtms';
-
-const app = express();
-app.use(express.json());
-
-// Your existing application routes
-app.get('/health', (req, res) => {
-    res.json({ status: 'healthy' });
-});
-
-app.get('/admin', (req, res) => {
-    res.json({ admin: 'panel' });
-});
-
-// Create a webhook handler that can be mounted on your existing server
-const webhookHandler = rtms.createWebhookHandler(
-    (payload) => {
-        console.log(`Received webhook: ${payload.event}`);
-
-        if (payload.event === "meeting.rtms_started") {
-            const client = new rtms.Client();
-            client.onAudioData((data, timestamp, metadata) => {
-                console.log(`Audio from ${metadata.userName}`);
-            });
-            client.join(payload.payload);
-        }
-    },
-    '/zoom/webhook'  // Path to handle
-);
-
-// Mount the webhook handler on your Express app
-app.post('/zoom/webhook', webhookHandler);
-
-// Single port for all routes
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Webhook endpoint: http://localhost:${PORT}/zoom/webhook`);
-    console.log(`Health check: http://localhost:${PORT}/health`);
-});
-```
-
-You can also use `RawWebhookCallback` with `createWebhookHandler` for custom validation:
-
-```javascript
-const webhookHandler = rtms.createWebhookHandler(
-    (payload, req, res) => {
-        // Custom validation with raw HTTP access
-        const signature = req.headers['x-zoom-signature'];
-
-        if (!validateSignature(payload, signature)) {
-            res.writeHead(401);
-            res.end('Unauthorized');
-            return;
-        }
-
-        // Process webhook...
-
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ status: 'ok' }));
-    },
-    '/zoom/webhook'
-);
-
-app.post('/zoom/webhook', webhookHandler);
-```
-
-### Node.js - Class-Based Approach
-
-For greater control or connecting to multiple streams simultaneously:
-
-```javascript
-import rtms from "@zoom/rtms";
-
-const client = new rtms.Client();
-
-client.onAudioData((data, timestamp, metadata) => {
-    console.log(`Received audio: ${data.length} bytes`);
-});
-
-client.join({
-    meeting_uuid: "your_meeting_uuid",
-    rtms_stream_id: "your_stream_id",
-    server_urls: "wss://example.zoom.us",
-});
-```
-
-### Node.js - Global Singleton
-
-When you only need to connect to a single RTMS stream:
-
-```javascript
-import rtms from "@zoom/rtms";
-
-rtms.onAudioData((data, timestamp, metadata) => {
-    console.log(`Received audio from ${metadata.userName}`);
-});
-
-rtms.join({
-    meeting_uuid: "your_meeting_uuid",
-    rtms_stream_id: "your_stream_id",
-    server_urls: "wss://rtms.zoom.us"
-});
-```
-
-### Python - Basic Usage
 
 ```python
 #!/usr/bin/env python3
@@ -382,76 +227,62 @@ if __name__ == '__main__':
         time.sleep(0.01)
 ```
 
-### Python - Advanced Webhook Validation
+> **Production note:** The example above does not validate the incoming webhook signature. Zoom cryptographically signs every webhook — production apps must verify signatures before processing. See [Webhook Validation](examples/python.md#webhook-validation) 
 
-For production use cases requiring custom webhook validation:
+## Troubleshooting
 
+If you encounter issues some of these steps may help.
+
+### 1. Segmentation Fault / Crash on Startup
+
+**Symptoms:**
+- Immediate crash when requiring/importing the module
+- Error message: `Segmentation fault (core dumped)`
+- Stack trace shows `napi_module_register_by_symbol`
+
+**Root Cause:** Using Node.js version < 22.0.0
+
+**Solution:** See [Using NVM](#using-nvm)
+
+
+**Prevention:**
+- Always use Node.js 22.0.0 or higher
+- Use recommended version with `.nvmrc`: `nvm use` (Node.js 24 LTS)
+- Check version before installing: `node --version`
+
+### 2. Platform Support
+Verify you're using a supported platform (darwin-arm64 or linux-x64)
+
+### 3. SDK Files
+Ensure RTMS C++ SDK files are correctly placed in the appropriate lib directory
+
+### 4. Build Mode
+Try both debug and release modes (`npm run debug` or `npm run release`)
+
+### 5. Dependencies
+Verify all prerequisites are installed
+
+### 6. Audio Defaults Mismatch
+This SDK uses different default audio parameters than the raw RTMS WebSocket protocol for better out-of-the-box quality. If you need to match the WebSocket protocol defaults, see [#92](https://github.com/zoom/rtms/issues/92) for details.
+
+### 7. Identifying Speakers with Mixed Audio Streams
+When using `AUDIO_MIXED_STREAM`, the audio callback's metadata does not identify the current speaker since all participants are mixed into a single stream. To identify who is speaking, use the `onActiveSpeakerEvent` callback:
+
+**Node.js:**
+```javascript
+client.onActiveSpeakerEvent((timestamp, userId, userName) => {
+    console.log(`Active speaker: ${userName} (${userId})`);
+});
+```
+
+**Python:**
 ```python
-import rtms
-import hmac
-import hashlib
-
-client = rtms.Client()
-
-@client.on_webhook_event()
-def handle_webhook(payload, request, response):
-    # Access request headers for validation
-    signature = request.headers.get('x-zoom-signature')
-
-    # Handle Zoom's webhook validation challenge
-    if request.headers.get('x-zoom-webhook-validator'):
-        validator = request.headers['x-zoom-webhook-validator']
-        response.set_status(200)
-        response.send({'plainToken': validator})
-        return
-
-    # Custom signature validation
-    if not validate_signature(payload, signature):
-        response.set_status(401)
-        response.send({'error': 'Invalid signature'})
-        return
-
-    # Process valid webhook
-    if payload.get('event') == 'meeting.rtms_started':
-        client.join(payload.get('payload'))
-
-    response.send({'status': 'ok'})
+@client.onActiveSpeakerEvent
+def on_active_speaker(timestamp, user_id, user_name):
+    print(f"Active speaker: {user_name} ({user_id})")
 ```
 
-### Python - Environment Setup
-
-Create a virtual environment and install dependencies:
-
-```bash
-# Create virtual environment
-python3 -m venv .venv
-
-# Activate virtual environment
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install dependencies
-pip install python-dotenv
-
-# Install RTMS SDK
-pip install rtms
-```
-
-Create a `.env` file:
-
-```bash
-# Required - Your Zoom OAuth credentials
-ZM_RTMS_CLIENT=your_client_id
-ZM_RTMS_SECRET=your_client_secret
-
-# Optional - Webhook server configuration
-ZM_RTMS_PORT=8080
-ZM_RTMS_PATH=/webhook
-
-# Optional - Logging configuration
-ZM_RTMS_LOG_LEVEL=debug          # error, warn, info, debug, trace
-ZM_RTMS_LOG_FORMAT=progressive    # progressive or json
-ZM_RTMS_LOG_ENABLED=true          # true or false
-```
+This callback notifies your application whenever the active speaker changes in the meeting. You can also use the lower-level `onEventEx` function with the active speaker event type directly. See [#80](https://github.com/zoom/rtms/issues/80) for more details.
 
 ## Building from Source
 
@@ -461,7 +292,7 @@ The RTMS SDK can be built from source using either Docker (recommended) or local
 
 #### Prerequisites
 - Docker and Docker Compose
-- Zoom RTMS C SDK files (contact Zoom for access)
+- Zoom RTMS C++ SDK files (contact Zoom for access)
 - Task installed (or use Docker's Task installation)
 
 #### Steps
@@ -494,12 +325,12 @@ Docker Compose creates **distributable packages** for linux-x64 (prebuilds for N
 ### Building Locally
 
 #### Prerequisites
-- Node.js (>= 20.3.0, LTS recommended)
+- Node.js (>= 22.0.0, LTS recommended)
 - Python 3.10+ with pip (for Python build)
 - CMake 3.25+
 - C/C++ build tools
 - Task (go-task) - https://taskfile.dev/installation/
-- Zoom RTMS C SDK files (contact Zoom for access)
+- Zoom RTMS C++ SDK files (contact Zoom for access)
 
 #### Steps
 ```bash
@@ -553,95 +384,17 @@ task setup                    # Fetch SDK and install dependencies
 BUILD_TYPE=Debug task build:js    # Build in debug mode
 BUILD_TYPE=Release task build:js  # Build in release mode (default)
 
-# Debug logging for C SDK callbacks
+# Debug logging for C++ SDK callbacks
 RTMS_DEBUG=ON task build:js       # Enable verbose callback logging
 ```
 
-## Troubleshooting
+## For Contributors
 
-If you encounter issues:
-
-### 1. Segmentation Fault / Crash on Startup
-
-**Symptoms:**
-- Immediate crash when requiring/importing the module
-- Error message: `Segmentation fault (core dumped)`
-- Stack trace shows `napi_module_register_by_symbol`
-
-**Root Cause:** Using Node.js version < 20.3.0
-
-**Solution:**
-```bash
-# 1. Check your Node.js version
-node --version
-
-# 2. If < 20.3.0, upgrade to a supported version
-
-# Using nvm (recommended):
-nvm install 24           # Install Node.js 24 LTS (recommended)
-nvm use 24
-
-# Or install minimum version:
-nvm install 20
-nvm use 20
-
-# Or download from: https://nodejs.org/
-
-# 3. Clear npm cache and reinstall
-npm cache clean --force
-rm -rf node_modules package-lock.json
-npm install
-```
-
-**Prevention:**
-- Always use Node.js 20.3.0 or higher
-- Use recommended version with `.nvmrc`: `nvm use` (Node.js 24 LTS)
-- Check version before installing: `node --version`
-
-### 2. Platform Support
-Verify you're using a supported platform (darwin-arm64 or linux-x64)
-
-### 3. SDK Files
-Ensure RTMS C SDK files are correctly placed in the appropriate lib directory
-
-### 4. Build Mode
-Try both debug and release modes (`npm run debug` or `npm run release`)
-
-### 5. Dependencies
-Verify all prerequisites are installed
-
-### 6. Audio Defaults Mismatch
-This SDK uses different default audio parameters than the raw RTMS WebSocket protocol for better out-of-the-box quality. If you need to match the WebSocket protocol defaults, see [#92](https://github.com/zoom/rtms/issues/92) for details.
-
-### 7. Identifying Speakers with Mixed Audio Streams
-When using `AUDIO_MIXED_STREAM`, the audio callback's metadata does not identify the current speaker since all participants are mixed into a single stream. To identify who is speaking, use the `onActiveSpeakerEvent` callback:
-
-**Node.js:**
-```javascript
-client.onActiveSpeakerEvent((timestamp, userId, userName) => {
-    console.log(`Active speaker: ${userName} (${userId})`);
-});
-```
-
-**Python:**
-```python
-@client.onActiveSpeakerEvent
-def on_active_speaker(timestamp, user_id, user_name):
-    print(f"Active speaker: {user_name} ({user_id})")
-```
-
-This callback notifies your application whenever the active speaker changes in the meeting. You can also use the lower-level `onEventEx` function with the active speaker event type directly. See [#80](https://github.com/zoom/rtms/issues/80) for more details.
+For detailed contribution guidelines, build instructions, and troubleshooting, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## For Maintainers
 
-If you're a maintainer looking to build, test, or publish new releases of the RTMS SDK, please refer to [PUBLISHING.md](PUBLISHING.md) for comprehensive documentation on:
-
-- Building platform-specific wheels and prebuilds
-- Publishing to npm and PyPI
-- GitHub Actions CI/CD workflow
-- Testing procedures
-- Troubleshooting common issues
-- Release workflows for Node.js and Python
+If you're a maintainer looking to build, test, or publish new releases of the RTMS SDK, please refer to [PUBLISHING.md](PUBLISHING.md)
 
 ## License
 

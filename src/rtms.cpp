@@ -5,9 +5,6 @@
 
 namespace rtms {
 
-unordered_map<struct rtms_csdk*, Client*> Client::sdk_registry_;
-mutex Client::registry_mutex_;
-
 Exception::Exception(int error_code, const string& message)
     : runtime_error(message), error_code_(error_code) {}
 
@@ -15,17 +12,46 @@ int Exception::code() const noexcept {
     return error_code_;
 }
 
+AiTargetLanguage::AiTargetLanguage(const ai_target_lan& atl)
+    : lid_(atl.lid),
+      tone_id_(atl.toneid),
+      voice_id_(atl.voice_id),
+      engine_(atl.engine) {}
+
+int AiTargetLanguage::lid() const { return lid_; }
+int AiTargetLanguage::toneId() const { return tone_id_; }
+string AiTargetLanguage::voiceId() const { return voice_id_; }
+string AiTargetLanguage::engine() const { return engine_; }
+
+AiInterpreter::AiInterpreter(const ai_interpreter& aii)
+    : lid_(aii.lid),
+      timestamp_(aii.timestamp),
+      channel_num_(aii.channel_num),
+      sample_rate_(aii.sample_rate) {
+    int count = (aii.target_size > 0 && aii.target_size < 100) ? aii.target_size : 0;
+    targets_.reserve(count);
+    for (int i = 0; i < count; ++i)
+        targets_.emplace_back(aii.atl[i]);
+}
+
+int AiInterpreter::lid() const { return lid_; }
+uint64_t AiInterpreter::timestamp() const { return timestamp_; }
+int AiInterpreter::channelNum() const { return channel_num_; }
+int AiInterpreter::sampleRate() const { return sample_rate_; }
+const vector<AiTargetLanguage>& AiInterpreter::targets() const { return targets_; }
+
 Metadata::Metadata(const rtms_metadata& metadata)
     : user_name_(metadata.user_name ? metadata.user_name : ""),
-      user_id_(metadata.user_id) {}
+      user_id_(metadata.user_id),
+      start_ts_(metadata.start_ts),
+      end_ts_(metadata.end_ts),
+      ai_interpreter_(metadata.aii) {}
 
-string Metadata::userName() const {
-    return user_name_;
-}
-
-int Metadata::userId() const {
-    return user_id_;
-}
+string Metadata::userName() const { return user_name_; }
+int Metadata::userId() const { return user_id_; }
+uint64_t Metadata::startTs() const { return start_ts_; }
+uint64_t Metadata::endTs() const { return end_ts_; }
+const AiInterpreter& Metadata::aiInterpreter() const { return ai_interpreter_; }
 
 Session::Session(const session_info& info)
     : stat_time_(info.stat_time),
@@ -126,7 +152,7 @@ AudioParams::AudioParams()
     setDataOpt(2);      // AUDIO_MULTI_STREAMS - enables per-participant audio with userId
 }
 
-AudioParams::AudioParams(int content_type, int codec, int sample_rate, 
+AudioParams::AudioParams(int content_type, int codec, int sample_rate,
                                int channel, int data_opt, int duration, int frame_size)
     : BaseMediaParams(), sample_rate_(sample_rate), channel_(channel),
       duration_(duration), frame_size_(frame_size) {
@@ -225,7 +251,11 @@ void AudioParams::validate() const {
 }
 
 VideoParams::VideoParams()
-    : BaseMediaParams(), resolution_(0), fps_(0) {}
+    : BaseMediaParams(), resolution_((int)MEDIA_RESOLUTION::HD), fps_(30) {
+    setContentType((int)MEDIA_CONTENT_TYPE::RAW_VIDEO);
+    setCodec((int)MEDIA_PAYLOAD_TYPE::H264);
+    setDataOpt((int)MEDIA_DATA_OPTION::VIDEO_SINGLE_ACTIVE_STREAM);
+}
 
 VideoParams::VideoParams(int content_type, int codec, int resolution, int data_opt, int fps)
     : BaseMediaParams(), resolution_(resolution), fps_(fps) {
@@ -251,8 +281,41 @@ int VideoParams::fps() const {
     return fps_;
 }
 
-DeskshareParams::DeskshareParams() 
-    : BaseMediaParams(), resolution_(0), fps_(0) {}
+TranscriptParams::TranscriptParams()
+    : BaseMediaParams(), src_language_(-1), enable_lid_(true) {
+    setContentType(5);  // TEXT
+}
+
+void TranscriptParams::setSrcLanguage(int src_language) {
+    src_language_ = src_language;
+}
+
+void TranscriptParams::setEnableLid(bool enable_lid) {
+    enable_lid_ = enable_lid;
+}
+
+int TranscriptParams::srcLanguage() const {
+    return src_language_;
+}
+
+bool TranscriptParams::enableLid() const {
+    return enable_lid_;
+}
+
+transcript_parameters TranscriptParams::toNative() const {
+    transcript_parameters p{};
+    p.content_type  = contentType();
+    p.src_language  = src_language_;
+    p.enable_lid    = enable_lid_;
+    return p;
+}
+
+DeskshareParams::DeskshareParams()
+    : BaseMediaParams(), resolution_((int)MEDIA_RESOLUTION::HD), fps_(30) {
+    setContentType((int)MEDIA_CONTENT_TYPE::RAW_VIDEO);
+    setCodec((int)MEDIA_PAYLOAD_TYPE::H264);
+    setDataOpt((int)MEDIA_DATA_OPTION::VIDEO_SINGLE_ACTIVE_STREAM);
+}
 
 DeskshareParams::DeskshareParams(int content_type, int codec, int resolution, int fps)
     : BaseMediaParams(), resolution_(resolution), fps_(fps) {
@@ -391,18 +454,35 @@ bool MediaParams::hasVideoParams() const {
     return video_params_ != nullptr;
 }
 
+void MediaParams::setTranscriptParams(const TranscriptParams& transcript_params) {
+    transcript_params_ = make_unique<TranscriptParams>(transcript_params);
+}
+
+const TranscriptParams& MediaParams::transcriptParams() const {
+    if (!transcript_params_) {
+        throw Exception(RTMS_SDK_NOT_EXIST, "Transcript parameters not set");
+    }
+    return *transcript_params_;
+}
+
+bool MediaParams::hasTranscriptParams() const {
+    return transcript_params_ != nullptr;
+}
+
 media_parameters MediaParams::toNative() const {
     media_parameters params;
     memset(&params, 0, sizeof(params));
     params.audio_param = nullptr;
     params.video_param = nullptr;
-    
+    params.ds_param = nullptr;
+    params.tr_param = nullptr;
+
     if (audio_params_) {
         audio_parameters* audio_params = new audio_parameters();
         *audio_params = audio_params_->toNative();
         params.audio_param = audio_params;
     }
-    
+
     if (video_params_) {
         video_parameters* video_params = new video_parameters();
         *video_params = video_params_->toNative();
@@ -414,7 +494,13 @@ media_parameters MediaParams::toNative() const {
         *ds_params = ds_params_->toNative();
         params.ds_param = ds_params;
     }
-    
+
+    if (transcript_params_) {
+        transcript_parameters* tr_params = new transcript_parameters();
+        *tr_params = transcript_params_->toNative();
+        params.tr_param = tr_params;
+    }
+
     return params;
 }
 
@@ -422,25 +508,18 @@ Client::Client()
     : sdk_(nullptr),
       enabled_media_types_(0),
       media_params_updated_(false),
+      sdk_opened_(false),
       join_confirmed_(false) {
-    sdk_ = rtms_alloc();
+    sdk_ = rtms_sdk_provider::instance()->create_sdk();
     if (!sdk_) {
         throw Exception(RTMS_SDK_FAILURE, "Failed to allocate RTMS SDK instance");
     }
-    
-    lock_guard<mutex> lock(registry_mutex_);
-    sdk_registry_[sdk_] = this;
 }
 
 Client::~Client() {
     try {
         if (sdk_) {
-            {
-                lock_guard<mutex> lock(registry_mutex_);
-                sdk_registry_.erase(sdk_);
-            }
-            
-            rtms_release(sdk_);
+            rtms_sdk_provider::instance()->release_sdk(sdk_);
             sdk_ = nullptr;
         }
     } catch (const exception& e) {
@@ -449,46 +528,50 @@ Client::~Client() {
 }
 
 void Client::initialize(const string& ca_path, int is_verify_cert, const char* agent) {
-    // SDK will crash if agent is nullptr, so pass empty string instead
-    const char* agent_str = (agent != nullptr) ? agent : "";
-    int result = rtms_init(ca_path.empty() ? nullptr : ca_path.c_str(), is_verify_cert, agent_str);
+    if (agent && agent[0] != '\0') {
+        g_agent = agent;
+    }
+    int result = rtms_sdk_provider::instance()->init(
+        ca_path.empty() ? nullptr : ca_path.c_str(),
+        is_verify_cert != 0
+    );
     if (result != RTMS_SDK_OK) {
         throw Exception(result, "Failed to initialize RTMS SDK");
     }
 }
 
 void Client::uninitialize() {
-    rtms_uninit();
+    rtms_sdk_provider::instance()->uninit();
 }
 
 void Client::configure(const MediaParams& params, int media_types, bool enable_application_layer_encryption, bool apply_defaults) {
-    // Store the media parameters for future use
+    // Always store the configuration so join() can apply it later
     media_params_ = params;
     enabled_media_types_ = media_types;
     media_params_updated_ = true;
 
-    // If media types are enabled but no params were set, use sensible defaults
-    // This ensures proper metadata attribution (e.g., AUDIO_MULTI_STREAMS for audio)
-    // Skip defaults when called from setAudioParams/setVideoParams/setDeskshareParams
-    // to avoid prematurely filling in default params for other media types
+    // Don't call sdk_->config() until sdk_->open() has been called in join().
+    // Calling config() before open() (e.g. from setOnVideoData) hangs for VIDEO.
+    if (!sdk_opened_) return;
+
+    // If a media type is enabled but no params were provided, fill in defaults.
+    // Skip when called from setAudioParams/setVideoParams/setDeskshareParams (apply_defaults=false).
     if (apply_defaults) {
         if ((media_types & MediaType::AUDIO) && !media_params_.hasAudioParams()) {
 #ifdef RTMS_DEBUG
-            cerr << "[DEBUG CONFIG] Audio enabled but no params set, using defaults (AUDIO_MULTI_STREAMS)" << endl;
+            cerr << "[DEBUG CONFIG] Audio enabled but no params set, using defaults (OPUS/AUDIO_MULTI_STREAMS)" << endl;
 #endif
             media_params_.setAudioParams(AudioParams());
         }
-
         if ((media_types & MediaType::VIDEO) && !media_params_.hasVideoParams()) {
 #ifdef RTMS_DEBUG
-            cerr << "[DEBUG CONFIG] Video enabled but no params set, using defaults" << endl;
+            cerr << "[DEBUG CONFIG] Video enabled but no params set, using defaults (H264/HD/30fps)" << endl;
 #endif
             media_params_.setVideoParams(VideoParams());
         }
-
         if ((media_types & MediaType::DESKSHARE) && !media_params_.hasDeskshareParams()) {
 #ifdef RTMS_DEBUG
-            cerr << "[DEBUG CONFIG] Deskshare enabled but no params set, using defaults" << endl;
+            cerr << "[DEBUG CONFIG] Deskshare enabled but no params set, using defaults (H264/HD/30fps)" << endl;
 #endif
             media_params_.setDeskshareParams(DeskshareParams());
         }
@@ -496,17 +579,17 @@ void Client::configure(const MediaParams& params, int media_types, bool enable_a
 
     if (!media_params_.hasAudioParams() && !media_params_.hasVideoParams() && !media_params_.hasDeskshareParams()) {
 #ifdef RTMS_DEBUG
-        cerr << "[DEBUG CONFIG] Calling rtms_config with NULL params, media_types=" << media_types << endl;
+        cerr << "[DEBUG CONFIG] Calling config with NULL params, media_types=" << media_types << endl;
 #endif
-        int result = rtms_config(sdk_, NULL, media_types, enable_application_layer_encryption ? 1 : 0);
+        int result = sdk_->config(nullptr, media_types, enable_application_layer_encryption ? 1 : 0);
         throwIfError(result, "configure with null params");
         return;
     }
-    
+
     media_parameters native_params = media_params_.toNative();
 
 #ifdef RTMS_DEBUG
-    cerr << "[DEBUG CONFIG] Calling rtms_config with params, media_types=" << media_types << endl;
+    cerr << "[DEBUG CONFIG] Calling config with params, media_types=" << media_types << endl;
     if (native_params.audio_param) {
         cerr << "[DEBUG CONFIG] audio_param: data_opt=" << native_params.audio_param->data_opt
              << " content_type=" << native_params.audio_param->content_type
@@ -516,15 +599,18 @@ void Client::configure(const MediaParams& params, int media_types, bool enable_a
     }
 #endif
 
-    int result = rtms_config(sdk_, &native_params, media_types, enable_application_layer_encryption ? 1 : 0);
-    
+    int result = sdk_->config(&native_params, media_types, enable_application_layer_encryption ? 1 : 0);
+
     if (native_params.audio_param) {
         delete native_params.audio_param;
     }
     if (native_params.video_param) {
         delete native_params.video_param;
     }
-    
+    if (native_params.ds_param) {
+        delete native_params.ds_param;
+    }
+
     throwIfError(result, "configure");
 }
 
@@ -546,13 +632,13 @@ void Client::enableDeskshare(bool enable) {
 
 void Client::updateMediaConfiguration(int mediaType, bool enable) {
 
-    if (enable) { 
+    if (enable) {
         enabled_media_types_ |= mediaType;
     } else {
         enabled_media_types_ &= mediaType;
     }
-    
-    if (sdk_) {
+
+    if (sdk_ && sdk_opened_) {
         try {
             configure(media_params_, enabled_media_types_, false);
         } catch (const Exception& e) {
@@ -576,7 +662,11 @@ void Client::setOnUserUpdate(UserUpdateFn callback) {
         lock_guard<mutex> lock(mutex_);
         user_update_callback_ = std::move(callback);
     }
-    subscribeEvent({EVENT_ACTIVE_SPEAKER_CHANGE, EVENT_PARTICIPANT_JOIN, EVENT_PARTICIPANT_LEAVE});
+    subscribeEvent({
+        (int)EVENT_TYPE::ACTIVE_SPEAKER_CHANGE,
+        (int)EVENT_TYPE::PARTICIPANT_JOIN,
+        (int)EVENT_TYPE::PARTICIPANT_LEAVE,
+    });
 }
 
 void Client::setOnDeskshareData(DsDataFn callback){
@@ -589,21 +679,21 @@ void Client::setOnDeskshareData(DsDataFn callback){
 void Client::setOnAudioData(AudioDataFn callback) {
     lock_guard<mutex> lock(mutex_);
     audio_data_callback_ = std::move(callback);
-    
+
     updateMediaConfiguration(MediaType::AUDIO);
 }
 
 void Client::setOnVideoData(VideoDataFn callback) {
     lock_guard<mutex> lock(mutex_);
     video_data_callback_ = std::move(callback);
-    
+
     updateMediaConfiguration(MediaType::VIDEO);
 }
 
 void Client::setOnTranscriptData(TranscriptDataFn callback) {
     lock_guard<mutex> lock(mutex_);
     transcript_data_callback_ = std::move(callback);
-    
+
     updateMediaConfiguration(MediaType::TRANSCRIPT);
 }
 
@@ -639,7 +729,7 @@ void Client::subscribeEvent(const std::vector<int>& events) {
 
     // Already joined - subscribe immediately (release lock first to avoid holding during SDK call)
     mutex_.unlock();
-    int result = rtms_subscribe_event(sdk_, const_cast<int*>(events.data()), static_cast<int>(events.size()));
+    int result = sdk_->subscribe_event(const_cast<int*>(events.data()), static_cast<int>(events.size()));
     mutex_.lock();
 
     if (result != RTMS_SDK_OK) {
@@ -660,7 +750,7 @@ void Client::unsubscribeEvent(const std::vector<int>& events) {
         throw Exception(RTMS_SDK_INVALID_STATUS, "SDK not initialized");
     }
 
-    int result = rtms_unsubscribe_event(sdk_, const_cast<int*>(events.data()), static_cast<int>(events.size()));
+    int result = sdk_->unsubscribe_event(const_cast<int*>(events.data()), static_cast<int>(events.size()));
     throwIfError(result, "unsubscribe_event");
 
     // Remove from tracked events
@@ -727,33 +817,73 @@ void Client::setAudioParams(const AudioParams& audio_params)
     }
 }
 
-void Client::join(const string& meeting_uuid, const string& rtms_stream_id, 
+void Client::setTranscriptParams(const TranscriptParams& transcript_params)
+{
+    media_params_.setTranscriptParams(transcript_params);
+
+    // If transcript is already enabled, reconfigure with the new params
+    if (enabled_media_types_ & MediaType::TRANSCRIPT) {
+        try {
+            configure(media_params_, enabled_media_types_, false, false);
+        } catch (const Exception& e) {
+            cerr << "Warning: Failed to reconfigure transcript params: " << e.what() << endl;
+        }
+    }
+}
+
+void Client::setProxy(const string& proxy_type, const string& proxy_url)
+{
+    int result = sdk_->set_proxy(proxy_type.c_str(), proxy_url.c_str());
+    if (result != 0) {
+        throw Exception(result, "setProxy failed: Operation failed");
+    }
+}
+
+void Client::subscribeVideo(int user_id, bool subscribe)
+{
+    int result = sdk_->send_subscript_video(user_id, subscribe);
+    throwIfError(result, "subscribeVideo");
+}
+
+void Client::setOnParticipantVideo(ParticipantVideoFn callback)
+{
+    {
+        lock_guard<mutex> lock(mutex_);
+        participant_video_callback_ = std::move(callback);
+    }
+    subscribeEvent({
+        (int)EVENT_TYPE::PARTICIPANT_VIDEO_ON,
+        (int)EVENT_TYPE::PARTICIPANT_VIDEO_OFF,
+    });
+}
+
+void Client::setOnVideoSubscribed(VideoSubscribedFn callback)
+{
+    lock_guard<mutex> lock(mutex_);
+    video_subscribed_callback_ = std::move(callback);
+}
+
+void Client::join(const string& meeting_uuid, const string& rtms_stream_id,
                     const string& signature, const string& server_url, int timeout) {
-    struct rtms_csdk_ops ops;
-    memset(&ops, 0, sizeof(ops));
-    ops.on_join_confirm = &Client::handleJoinConfirm;
-    ops.on_session_update = &Client::handleSessionUpdate;
-    ops.on_user_update = &Client::handleUserUpdate;
-    ops.on_ds_data = &Client::handleDsData;
-    ops.on_audio_data = &Client::handleAudioData;
-    ops.on_video_data = &Client::handleVideoData;
-    ops.on_transcript_data = &Client::handleTranscriptData;
-    ops.on_leave = &Client::handleLeave;
-    ops.on_event_ex = &Client::handleEventEx;
-    
-    int result = rtms_set_callbacks(sdk_, &ops);
-    throwIfError(result, "set_callbacks");
-    
-    if (enabled_media_types_ > 0 && !media_params_updated_) {
+    // Register this client as the sink — replaces the old static callback registry
+    int result = sdk_->open(this);
+    throwIfError(result, "open");
+    sdk_opened_ = true;
+
+    // Apply any media configuration that was registered before join() via
+    // setOnAudioData / setOnVideoData / setVideoParams etc. Those calls stored
+    // the state in media_params_ / enabled_media_types_ but deferred the actual
+    // sdk_->config() call until now (after open).
+    if (enabled_media_types_ > 0) {
         try {
             configure(media_params_, enabled_media_types_, false);
         } catch (const Exception& e) {
             cerr << "Warning: Failed to configure media types before join: " << e.what() << endl;
         }
     }
-    
-    result = rtms_join(sdk_, meeting_uuid.c_str(), rtms_stream_id.c_str(),
-                      signature.c_str(), server_url.c_str(), timeout);
+
+    result = sdk_->join(meeting_uuid.c_str(), rtms_stream_id.c_str(),
+                        signature.c_str(), server_url.c_str(), timeout);
     throwIfError(result, "join");
 
     lock_guard<mutex> lock(mutex_);
@@ -762,33 +892,28 @@ void Client::join(const string& meeting_uuid, const string& rtms_stream_id,
 }
 
 void Client::poll() {
-    int result = rtms_poll(sdk_);
+    int result = sdk_->poll();
     throwIfError(result, "poll");
 }
 
+void Client::markClosed() {
+    lock_guard<mutex> lock(mutex_);
+    sdk_opened_ = false;
+}
+
 void Client::release() {
-    int result = rtms_release(sdk_);
+    sdk_->leave(0);
 
-    // Always clean up, even if release returned an error
-    {
-        lock_guard<mutex> lock(registry_mutex_);
-        sdk_registry_.erase(sdk_);
-    }
-
-    // Reset join state
     {
         lock_guard<mutex> lock(mutex_);
+        sdk_opened_ = false;
         join_confirmed_ = false;
         pending_event_subscriptions_.clear();
         subscribed_events_.clear();
     }
 
+    rtms_sdk_provider::instance()->release_sdk(sdk_);
     sdk_ = nullptr;
-
-    // RTMS_SDK_NOT_EXIST means the resource was already released — that's fine
-    if (result != RTMS_SDK_OK && result != RTMS_SDK_NOT_EXIST) {
-        throwIfError(result, "release");
-    }
 }
 
 string Client::uuid() const {
@@ -831,23 +956,15 @@ void Client::throwIfError(int result, const string& operation) const {
     }
 }
 
-Client* Client::getClient(struct rtms_csdk* sdk) {
-    lock_guard<mutex> lock(registry_mutex_);
-    auto it = sdk_registry_.find(sdk);
-    if (it == sdk_registry_.end()) {
-        return nullptr;
-    }
-    return it->second;
-}
-
 void Client::processPendingSubscriptions() {
     // Called with mutex_ already held
     if (pending_event_subscriptions_.empty()) return;
 
     // Process all pending subscriptions now that we're joined
-    int result = rtms_subscribe_event(sdk_,
-                                       const_cast<int*>(pending_event_subscriptions_.data()),
-                                       static_cast<int>(pending_event_subscriptions_.size()));
+    int result = sdk_->subscribe_event(
+        const_cast<int*>(pending_event_subscriptions_.data()),
+        static_cast<int>(pending_event_subscriptions_.size())
+    );
 
     if (result == RTMS_SDK_OK) {
         // Move pending to subscribed
@@ -861,120 +978,124 @@ void Client::processPendingSubscriptions() {
     pending_event_subscriptions_.clear();
 }
 
-void Client::handleJoinConfirm(struct rtms_csdk* sdk, int reason) {
-    Client* client = getClient(sdk);
-    if (client) {
-        lock_guard<mutex> lock(client->mutex_);
+// ============================================================================
+// rtms_sdk_sink virtual overrides
+// ============================================================================
 
-        // Mark as joined FIRST
-        client->join_confirmed_ = true;
+void Client::on_join_confirm(int reason) {
+    lock_guard<mutex> lock(mutex_);
 
-        // Process any pending event subscriptions before user callback
-        client->processPendingSubscriptions();
+    // Mark as joined FIRST
+    join_confirmed_ = true;
 
-        // Then invoke user callback
-        if (client->join_confirm_callback_) {
-            client->join_confirm_callback_(reason);
-        }
+    // Process any pending event subscriptions before user callback
+    processPendingSubscriptions();
+
+    // Then invoke user callback
+    if (join_confirm_callback_) {
+        join_confirm_callback_(reason);
     }
 }
 
-void Client::handleSessionUpdate(struct rtms_csdk* sdk, int op, struct session_info* sess) {
-    Client* client = getClient(sdk);
-    if (client && sess) {
-        lock_guard<mutex> lock(client->mutex_);
-        if (client->session_update_callback_) {
+void Client::on_session_update(int op, struct session_info* sess) {
+    if (sess) {
+        lock_guard<mutex> lock(mutex_);
+        if (session_update_callback_) {
             Session session(*sess);
-            client->session_update_callback_(op, session);
+            session_update_callback_(op, session);
         }
     }
 }
 
-void Client::handleUserUpdate(struct rtms_csdk* sdk, int op, struct participant_info* pi) {
-    Client* client = getClient(sdk);
-    if (client && pi) {
-        lock_guard<mutex> lock(client->mutex_);
-        if (client->user_update_callback_) {
+void Client::on_user_update(int op, struct participant_info* pi) {
+    if (pi) {
+        lock_guard<mutex> lock(mutex_);
+        if (user_update_callback_) {
             Participant participant(*pi);
-            client->user_update_callback_(op, participant);
+            user_update_callback_(op, participant);
         }
     }
 }
 
-void Client::handleDsData(rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, rtms_metadata* md) {
-    Client* client = getClient(sdk);
-    if (client && buf && size > 0 && md) {
-        lock_guard<mutex> lock(client->mutex_);
-        if (client->ds_data_callback_) {
-            vector<uint8_t> data(buf, buf + size);
+void Client::on_ds_data(unsigned char* data_buf, int size, uint64_t timestamp, struct rtms_metadata* md) {
+    if (data_buf && size > 0 && md) {
+        lock_guard<mutex> lock(mutex_);
+        if (ds_data_callback_) {
+            vector<uint8_t> data(data_buf, data_buf + size);
             Metadata metadata(*md);
-            client->ds_data_callback_(data, timestamp, metadata);
+            ds_data_callback_(data, timestamp, metadata);
         }
     }
 }
 
-void Client::handleAudioData(struct rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, struct rtms_metadata* md) {
-    Client* client = getClient(sdk);
-    if (client && buf && size > 0 && md) {
+void Client::on_audio_data(unsigned char* data_buf, int size, uint64_t timestamp, struct rtms_metadata* md) {
+    if (data_buf && size > 0 && md) {
 #ifdef RTMS_DEBUG
         cerr << "[DEBUG AUDIO] md->user_id=" << md->user_id
              << " md->user_name=" << (md->user_name ? md->user_name : "(null)") << endl;
 #endif
-        lock_guard<mutex> lock(client->mutex_);
-        if (client->audio_data_callback_) {
-            vector<uint8_t> data(buf, buf + size);
+        lock_guard<mutex> lock(mutex_);
+        if (audio_data_callback_) {
+            vector<uint8_t> data(data_buf, data_buf + size);
             Metadata metadata(*md);
-            client->audio_data_callback_(data, timestamp, metadata);
+            audio_data_callback_(data, timestamp, metadata);
         }
     }
 }
 
-void Client::handleVideoData(struct rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, struct rtms_metadata* md) {
-    Client* client = getClient(sdk);
-    if (client && buf && size > 0 && md) {
-        lock_guard<mutex> lock(client->mutex_);
-        if (client->video_data_callback_) {
-            vector<uint8_t> data(buf, buf + size);
+void Client::on_video_data(unsigned char* data_buf, int size, uint64_t timestamp, struct rtms_metadata* md) {
+    if (data_buf && size > 0 && md) {
+        lock_guard<mutex> lock(mutex_);
+        if (video_data_callback_) {
+            vector<uint8_t> data(data_buf, data_buf + size);
             Metadata metadata(*md);
-            client->video_data_callback_(data, timestamp, metadata);
+            video_data_callback_(data, timestamp, metadata);
         }
     }
 }
 
-void Client::handleTranscriptData(struct rtms_csdk* sdk, unsigned char* buf, int size, uint64_t timestamp, struct rtms_metadata* md) {
-    Client* client = getClient(sdk);
-    if (client && buf && size > 0 && md) {
+void Client::on_transcript_data(unsigned char* data_buf, int size, uint64_t timestamp, struct rtms_metadata* md) {
+    if (data_buf && size > 0 && md) {
 #ifdef RTMS_DEBUG
         cerr << "[DEBUG TRANSCRIPT] md->user_id=" << md->user_id
              << " md->user_name=" << (md->user_name ? md->user_name : "(null)") << endl;
 #endif
-        lock_guard<mutex> lock(client->mutex_);
-        if (client->transcript_data_callback_) {
-            vector<uint8_t> data(buf, buf + size);
+        lock_guard<mutex> lock(mutex_);
+        if (transcript_data_callback_) {
+            vector<uint8_t> data(data_buf, data_buf + size);
             Metadata metadata(*md);
-            client->transcript_data_callback_(data, timestamp, metadata);
+            transcript_data_callback_(data, timestamp, metadata);
         }
     }
 }
 
-void Client::handleLeave(struct rtms_csdk* sdk, int reason) {
-    Client* client = getClient(sdk);
-    if (client) {
-        lock_guard<mutex> lock(client->mutex_);
-        if (client->leave_callback_) {
-            client->leave_callback_(reason);
+void Client::on_leave(int reason) {
+    lock_guard<mutex> lock(mutex_);
+    if (leave_callback_) {
+        leave_callback_(reason);
+    }
+}
+
+void Client::on_event_ex(const std::string& compact_str) {
+    if (!compact_str.empty()) {
+        lock_guard<mutex> lock(mutex_);
+        if (event_ex_callback_) {
+            event_ex_callback_(compact_str);
         }
     }
 }
 
-void Client::handleEventEx(struct rtms_csdk* sdk, const char* buf, int size) {
-    Client* client = getClient(sdk);
-    if (client && buf && size > 0) {
-        lock_guard<mutex> lock(client->mutex_);
-        if (client->event_ex_callback_) {
-            string event_data(buf, size);
-            client->event_ex_callback_(event_data);
-        }
+void Client::on_participant_video(std::vector<int> users, bool is_on) {
+    lock_guard<mutex> lock(mutex_);
+    if (participant_video_callback_) {
+        participant_video_callback_(users, is_on);
+    }
+}
+
+void Client::on_video_subscript_resp(int user_id, int status, std::string error) {
+    lock_guard<mutex> lock(mutex_);
+    if (video_subscribed_callback_) {
+        video_subscribed_callback_(user_id, status, error);
     }
 }
 

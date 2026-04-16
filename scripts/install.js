@@ -87,8 +87,13 @@ function installPrebuild() {
   try {
     log('Attempting to download prebuilt binary...');
 
-    // Use prebuild-install to download from GitHub releases
-    execSync('prebuild-install -r napi', {
+    // Use prebuild-install to download from GitHub releases.
+    // During `npm install`, npm augments PATH with node_modules/.bin/ so
+    // the bare command works. When called directly (e.g. CI with --force),
+    // PATH isn't augmented, so resolve from local node_modules/.bin/ if present.
+    const localBin = join(__dirname, '..', 'node_modules', '.bin', 'prebuild-install');
+    const prebuildCmd = existsSync(localBin) ? localBin : 'prebuild-install';
+    execSync(`${prebuildCmd} -r napi`, {
       stdio: 'inherit',
       env: process.env
     });
@@ -109,10 +114,12 @@ function installPrebuild() {
  * Main install function
  */
 function main() {
-  // Detect development mode (git repo exists)
+  // Detect development mode (git repo exists).
+  // Pass --force to bypass this check (e.g. CI extracting a downloaded prebuild).
   const isDevelopment = existsSync(join(__dirname, '..', '.git'));
+  const isForced = process.argv.includes('--force');
 
-  if (isDevelopment) {
+  if (isDevelopment && !isForced) {
     // In dev mode, skip prebuild - developers use `task build`
     process.exit(0);
   }

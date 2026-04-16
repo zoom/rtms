@@ -196,6 +196,58 @@ jobs:
   # TEST JOBS - Test against pre-built artifacts
   # ============================================================================
 
+  # C++ unit tests — mock SDK replaces the binary; real headers downloaded via check-deps
+  test-cpp-linux:
+    name: Test C++ Core (Linux)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js (for check-deps.js SDK download)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24.x'
+
+    - name: Install CMake
+      run: sudo apt-get install -y cmake
+
+    - name: Download SDK headers
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: node scripts/check-deps.js
+
+    - name: Build and run C++ tests
+      run: |
+        cmake -B build/tests -DRTMS_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Debug
+        cmake --build build/tests --target rtms_tests -j$(nproc)
+        cd build/tests && ctest --output-on-failure
+
+  test-cpp-macos:
+    name: Test C++ Core (macOS)
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js (for check-deps.js SDK download)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24.x'
+
+    - name: Download SDK headers
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: node scripts/check-deps.js
+
+    - name: Build and run C++ tests
+      run: |
+        cmake -B build/tests -DRTMS_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Debug
+        cmake --build build/tests --target rtms_tests -j$(sysctl -n hw.logicalcpu)
+        cd build/tests && ctest --output-on-failure
+
   # Test Node.js SDK on Linux using pre-built prebuilds
   test-nodejs-linux:
     name: Test Node.js SDK on Linux (Node ${{ matrix.node-version }})
@@ -203,7 +255,7 @@ jobs:
     needs: [build-nodejs-linux]
     strategy:
       matrix:
-        node-version: ['20.3.0', '24.x']  # Test minimum (N-API v9) and latest LTS
+        node-version: ['22.x', '24.x']  # Test current LTS and latest LTS
       fail-fast: false  # Continue testing other versions if one fails
 
     steps:
@@ -224,8 +276,16 @@ jobs:
     - name: Install dependencies
       run: npm install
 
+    - name: Extract native prebuild
+      # install.js skips extraction when .git exists (dev mode detection).
+      # --force bypasses that check so the full install flow runs in CI.
+      run: node scripts/install.js --force
+
+    - name: Compile TypeScript
+      run: npx tsc
+
     - name: Run Node.js tests
-      run: npx jest tests/rtms.test.ts
+      run: npx jest tests/ts/rtms.test.ts tests/ts/rtms.wrapper.test.ts
 
   # Test Node.js SDK on macOS using pre-built prebuilds
   test-nodejs-macos:
@@ -251,8 +311,16 @@ jobs:
     - name: Install dependencies
       run: npm install
 
+    - name: Extract native prebuild
+      # Use install.js so macOS framework archives (.framework.tar.gz) are
+      # extracted after prebuild-install runs. --force bypasses dev-mode check.
+      run: node scripts/install.js --force
+
+    - name: Compile TypeScript
+      run: npx tsc
+
     - name: Run Node.js tests
-      run: npx jest tests/rtms.test.ts
+      run: npx jest tests/ts/rtms.test.ts tests/ts/rtms.wrapper.test.ts
 
   # Integration test: npm pack → install → load (validates end-user install flow)
   test-nodejs-integration-macos:
@@ -279,7 +347,7 @@ jobs:
       run: npm install
 
     - name: Run integration test (npm pack → install → load)
-      run: npx jest tests/pack-install.test.js --testTimeout=120000
+      run: npx jest tests/ts/pack-install.test.js --testTimeout=120000
 
   # Test Python SDK on Linux using pre-built wheels
   test-python-linux:
@@ -323,7 +391,7 @@ jobs:
       run: pip install pytest python-dotenv
 
     - name: Run Python tests
-      run: pytest tests/test_rtms.py -v
+      run: pytest tests/py/test_rtms.py -v
 
   # Test Python SDK on macOS using pre-built wheels
   test-python-macos:
@@ -367,7 +435,7 @@ jobs:
       run: pip install pytest python-dotenv
 
     - name: Run Python tests
-      run: pytest tests/test_rtms.py -v
+      run: pytest tests/py/test_rtms.py -v
 
   # ============================================================================
   # VERSION CHECK & PUBLISH TRIGGERS
@@ -377,7 +445,7 @@ jobs:
   check-version-change:
     name: Check for Version Changes
     runs-on: ubuntu-latest
-    needs: [test-nodejs-linux, test-nodejs-macos, test-nodejs-integration-macos, test-python-linux, test-python-macos]
+    needs: [test-cpp-linux, test-cpp-macos, test-nodejs-linux, test-nodejs-macos, test-nodejs-integration-macos, test-python-linux, test-python-macos]
     if: |
       success() &&
       github.event_name == 'push' &&
@@ -467,7 +535,7 @@ jobs:
   build-docs:
     name: Build Documentation
     runs-on: ubuntu-latest
-    needs: [test-nodejs-linux, test-nodejs-macos, test-python-linux, test-python-macos]
+    needs: [test-cpp-linux, test-cpp-macos, test-nodejs-linux, test-nodejs-macos, test-python-linux, test-python-macos]
     # Only run on main/master branches and if tests pass, or via workflow_dispatch
     if: |
       success() &&

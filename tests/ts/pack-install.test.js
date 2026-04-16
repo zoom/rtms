@@ -168,8 +168,6 @@ describe('npm pack → install → load integration', () => {
       throw new Error(`Native module not found at ${buildDir}/rtms.node`);
     }
 
-    console.log(`Using build artifacts from: ${buildDir}`);
-
     // Create tarball from current package
     const output = execSync('npm pack --json', { encoding: 'utf8' });
     const packages = JSON.parse(output);
@@ -268,6 +266,23 @@ describe('npm pack → install → load integration', () => {
       import rtms from '@zoom/rtms';
       const client = new rtms.Client();
       console.log(typeof client.join === 'function' ? 'OK' : 'FAIL');
+    `;
+
+    const result = execSync(`node -e "${testScript}"`, {
+      cwd: tempDir,
+      encoding: 'utf8'
+    });
+
+    expect(result.trim()).toBe('OK');
+  });
+
+  test('Client.setProxy is a function', () => {
+    installWithLocalBuild(tempDir, tarballPath, buildDir);
+
+    const testScript = `
+      import rtms from '@zoom/rtms';
+      const client = new rtms.Client();
+      console.log(typeof client.setProxy === 'function' ? 'OK' : 'FAIL');
     `;
 
     const result = execSync(`node -e "${testScript}"`, {

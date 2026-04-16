@@ -107,7 +107,7 @@ tasks:
           for wheel in dist/py/*linux_x86_64*.whl; do
             if [ -f "$wheel" ]; then
               echo "Repairing: $wheel"
-              auditwheel repair "$wheel" --exclude librtmsdk.so.0 -w dist/py
+              auditwheel repair "$wheel" --plat manylinux_2_34_x86_64 --exclude librtmsdk.so.0 -w dist/py
               rm "$wheel"
               echo "Wheel repaired successfully"
             fi
@@ -216,13 +216,13 @@ tasks:
     desc: "Run Node.js tests (local)"
     deps: [build:js]
     cmds:
-      - npx jest tests/rtms.test.ts
+      - npx jest tests/ts/rtms.test.ts tests/ts/rtms.wrapper.test.ts
 
   test:js:integration:
     desc: "Run npm pack → install → load integration test"
     deps: [build:js]
     cmds:
-      - npx jest tests/pack-install.test.js --testTimeout=120000
+      - npx jest tests/ts/pack-install.test.js --testTimeout=120000
 
   test:js:linux:
     desc: "Run Node.js tests in Linux Docker"
@@ -230,16 +230,23 @@ tasks:
       - docker compose run --rm test-js
 
   test:py:
-    desc: "Run Python tests (local)"
+    desc: "Run Python tests (local darwin)"
     deps: [build:py]
     cmds:
-      - python -m pip install --find-links=dist/py rtms
-      - pytest tests/test_rtms.py -v
+      - .venv/bin/pip install --force-reinstall --find-links=dist/py rtms --quiet
+      - .venv/bin/pytest tests/py/test_rtms.py -v
 
   test:py:linux:
     desc: "Run Python tests in Linux Docker"
     cmds:
       - docker compose run --rm test-py
+
+  test:cpp:
+    desc: "Build and run C++ unit tests (no SDK binary required)"
+    cmds:
+      - cmake -B build/tests -DRTMS_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Debug
+      - cmake --build build/tests --target rtms_tests -j$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
+      - cd build/tests && ctest --output-on-failure
 
   test:local:
     desc: "Run all tests locally"

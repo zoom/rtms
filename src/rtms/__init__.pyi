@@ -4,6 +4,8 @@ Real-Time Media Streaming SDK for Python
 """
 
 from typing import Callable, Dict, Any, Optional, List, Literal, TypedDict
+from concurrent.futures import Executor
+from typing import Awaitable, Coroutine
 
 # ============================================================================
 # Data Classes
@@ -33,12 +35,42 @@ class Participant:
     @property
     def name(self) -> str: ...
 
+class AiTargetLanguage:
+    """A single target language entry from an AI interpreter stream"""
+    @property
+    def lid(self) -> int: ...
+    @property
+    def toneId(self) -> int: ...
+    @property
+    def voiceId(self) -> str: ...
+    @property
+    def engine(self) -> str: ...
+
+class AiInterpreter:
+    """AI interpreter metadata attached to an audio stream"""
+    @property
+    def lid(self) -> int: ...
+    @property
+    def timestamp(self) -> int: ...
+    @property
+    def channelNum(self) -> int: ...
+    @property
+    def sampleRate(self) -> int: ...
+    @property
+    def targets(self) -> list[AiTargetLanguage]: ...
+
 class Metadata:
     """Metadata about a participant in a Zoom meeting"""
     @property
     def userName(self) -> str: ...
     @property
     def userId(self) -> int: ...
+    @property
+    def startTs(self) -> int: ...
+    @property
+    def endTs(self) -> int: ...
+    @property
+    def aiInterpreter(self) -> AiInterpreter: ...
 
 # ============================================================================
 # Parameter Classes
@@ -199,11 +231,102 @@ EventExCallback = Callable[[str], None]
 # ============================================================================
 # Client Class
 # ============================================================================
+# EventLoop and EventLoopPool
+# ============================================================================
+
+class EventLoop:
+    """
+    An SDK I/O thread that owns one or more Client lifecycles.
+
+    Manages alloc/join/poll/release on a single dedicated OS thread, satisfying
+    the C SDK's thread-affinity requirement.
+    """
+    def __init__(self, poll_interval: float = 0.01, name: Optional[str] = None) -> None: ...
+
+    @property
+    def client_count(self) -> int: ...
+
+    def add(self, client: 'Client') -> None:
+        """Assign a client to this loop. Must be called before client.join()."""
+        ...
+
+    def run(self, stop_on_empty: bool = False) -> None:
+        """Run the event loop on the current thread (blocking)."""
+        ...
+
+    async def run_async(self, stop_on_empty: bool = False) -> None:
+        """Run the event loop as an asyncio coroutine."""
+        ...
+
+    def start(self) -> 'EventLoop':
+        """Start the event loop in a background daemon thread. Returns self."""
+        ...
+
+    def stop(self) -> None:
+        """Signal the loop to stop after the current poll cycle."""
+        ...
+
+    def join(self, timeout: Optional[float] = None) -> None:
+        """Wait for the background thread to finish (only valid after start())."""
+        ...
+
+
+class EventLoopPool:
+    """
+    A pool of EventLoop threads for distributing clients across N SDK I/O threads.
+
+    Example::
+
+        pool = rtms.EventLoopPool(threads=4)
+
+        @rtms.on_webhook_event
+        def handle(payload):
+            client = rtms.Client(executor=EXECUTOR)
+            client.on_audio_data(on_audio)
+            pool.add(client)
+            client.join(payload['payload'])
+
+        await pool.run_async()
+    """
+    def __init__(
+        self,
+        threads: int = 4,
+        poll_interval: float = 0.01,
+        strategy: Literal['least_loaded', 'round_robin'] = 'least_loaded',
+    ) -> None: ...
+
+    @property
+    def loops(self) -> List[EventLoop]: ...
+
+    @property
+    def client_count(self) -> int: ...
+
+    def add(self, client: 'Client') -> EventLoop:
+        """Route client to a loop per the strategy. Returns the assigned EventLoop."""
+        ...
+
+    def run(self, stop_on_empty: bool = False) -> None:
+        """Run all loops. Starts N-1 as background threads, runs last on current thread."""
+        ...
+
+    async def run_async(self, stop_on_empty: bool = False) -> None:
+        """Run all loops as concurrent asyncio coroutines."""
+        ...
+
+    def stop(self) -> None:
+        """Stop all loops."""
+        ...
+
+
+# ============================================================================
 
 class Client:
     """RTMS Client for connecting to Zoom real-time media streams"""
 
-    def __init__(self) -> None: ...
+    def __init__(self, executor: Optional[Executor] = None) -> None: ...
+
+    def __enter__(self) -> "Client": ...
+    def __exit__(self, *_: Any) -> bool: ...
 
     @staticmethod
     def initialize(ca_path: str, is_verify_cert: int = 1, agent: Optional[str] = None) -> None:
@@ -220,6 +343,7 @@ class Client:
         meeting_uuid: Optional[str] = None,
         webinar_uuid: Optional[str] = None,
         session_id: Optional[str] = None,
+        engagement_id: Optional[str] = None,
         rtms_stream_id: Optional[str] = None,
         server_urls: Optional[str] = None,
         signature: Optional[str] = None,
@@ -235,6 +359,7 @@ class Client:
         For Meeting SDK events (meeting.rtms_started), use meeting_uuid.
         For Webinar events (webinar.rtms_started), use webinar_uuid.
         For Video SDK events (session.rtms_started), use session_id.
+        For ZCC events (engagement.rtms_started), use engagement_id.
         """
         ...
 
@@ -258,47 +383,129 @@ class Client:
         """Get meeting UUID"""
         ...
 
-    def streamId(self) -> str:
+    def stream_id(self) -> str:
         """Get stream ID"""
         ...
+    def streamId(self) -> str:
+        """Get stream ID (legacy camelCase alias)"""
+        ...
 
-    def enableAudio(self, enable: bool) -> None:
+    def enable_audio(self, enable: bool) -> None:
         """Enable/disable audio streaming"""
         ...
+    def enableAudio(self, enable: bool) -> None:
+        """Enable/disable audio streaming (legacy camelCase alias)"""
+        ...
 
-    def enableVideo(self, enable: bool) -> None:
+    def enable_video(self, enable: bool) -> None:
         """Enable/disable video streaming"""
         ...
+    def enableVideo(self, enable: bool) -> None:
+        """Enable/disable video streaming (legacy camelCase alias)"""
+        ...
 
-    def enableTranscript(self, enable: bool) -> None:
+    def enable_transcript(self, enable: bool) -> None:
         """Enable/disable transcript streaming"""
         ...
+    def enableTranscript(self, enable: bool) -> None:
+        """Enable/disable transcript streaming (legacy camelCase alias)"""
+        ...
 
-    def enableDeskshare(self, enable: bool) -> None:
+    def enable_deskshare(self, enable: bool) -> None:
         """Enable/disable deskshare streaming"""
         ...
+    def enableDeskshare(self, enable: bool) -> None:
+        """Enable/disable deskshare streaming (legacy camelCase alias)"""
+        ...
 
-    def setAudioParams(self, params: AudioParams) -> None:
+    def set_audio_params(self, params: AudioParams) -> None:
         """Set audio parameters"""
         ...
+    def setAudioParams(self, params: AudioParams) -> None:
+        """Set audio parameters (legacy camelCase alias)"""
+        ...
 
-    def setVideoParams(self, params: VideoParams) -> None:
+    def set_video_params(self, params: VideoParams) -> None:
         """Set video parameters"""
         ...
+    def setVideoParams(self, params: VideoParams) -> None:
+        """Set video parameters (legacy camelCase alias)"""
+        ...
 
-    def setDeskshareParams(self, params: DeskshareParams) -> None:
+    def set_deskshare_params(self, params: DeskshareParams) -> None:
         """Set deskshare parameters"""
         ...
+    def setDeskshareParams(self, params: DeskshareParams) -> None:
+        """Set deskshare parameters (legacy camelCase alias)"""
+        ...
 
-    def onJoinConfirm(self, callback: Callable[[int], None]) -> None:
+    def set_transcript_params(self, params: TranscriptParams) -> None:
+        """Set transcript parameters"""
+        ...
+    def setTranscriptParams(self, params: TranscriptParams) -> None:
+        """Set transcript parameters (legacy camelCase alias)"""
+        ...
+
+    def set_proxy(self, proxy_type: str, proxy_url: str) -> None:
+        """Configure a proxy for SDK connections"""
+        ...
+    def setProxy(self, proxy_type: str, proxy_url: str) -> None:
+        """Configure a proxy for SDK connections (legacy camelCase alias)"""
+        ...
+
+    def on_join_confirm(self, callback: Callable[[int], None]) -> None:
         """Register join confirm callback"""
         ...
-
-    def onSessionUpdate(self, callback: Callable[[int, Session], None]) -> None:
-        """Register session update callback"""
+    def onJoinConfirm(self, callback: Callable[[int], None]) -> None:
+        """Register join confirm callback (legacy camelCase alias)"""
         ...
 
-    def onParticipantEvent(self, callback: ParticipantEventCallback) -> bool:
+    def on_session_update(self, callback: Callable[[int, Session], None]) -> None:
+        """Register session update callback"""
+        ...
+    def onSessionUpdate(self, callback: Callable[[int, Session], None]) -> None:
+        """Register session update callback (legacy camelCase alias)"""
+        ...
+
+    def on_user_update(self, callback: Callable[[int, Participant], None]) -> None:
+        """Register user update callback"""
+        ...
+    def onUserUpdate(self, callback: Callable[[int, Participant], None]) -> None:
+        """Register user update callback (legacy camelCase alias)"""
+        ...
+
+    def _wrap_callback(self, callback: Callable) -> Callable:
+        """Wrap a callback for executor or asyncio dispatch."""
+        ...
+
+    def on_audio_data(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
+        """Register audio data callback. Supports executor and async coroutines."""
+        ...
+    onAudioData: Callable  # camelCase alias
+
+    def on_video_data(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
+        """Register video data callback. Supports executor and async coroutines."""
+        ...
+    onVideoData: Callable  # camelCase alias
+
+    def on_deskshare_data(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
+        """Register deskshare data callback. Supports executor and async coroutines."""
+        ...
+    onDeskshareData: Callable  # camelCase alias
+
+    def on_transcript_data(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
+        """Register transcript data callback. Supports executor and async coroutines."""
+        ...
+    onTranscriptData: Callable  # camelCase alias
+
+    def on_leave(self, callback: Callable[[int], None]) -> None:
+        """Register leave callback"""
+        ...
+    def onLeave(self, callback: Callable[[int], None]) -> None:
+        """Register leave callback (legacy camelCase alias)"""
+        ...
+
+    def on_participant_event(self, callback: ParticipantEventCallback) -> bool:
         """
         Register participant join/leave event callback.
 
@@ -314,8 +521,11 @@ class Client:
             True if callback was set successfully
         """
         ...
+    def onParticipantEvent(self, callback: ParticipantEventCallback) -> bool:
+        """Register participant join/leave event callback (legacy camelCase alias)"""
+        ...
 
-    def onActiveSpeakerEvent(self, callback: ActiveSpeakerEventCallback) -> bool:
+    def on_active_speaker_event(self, callback: ActiveSpeakerEventCallback) -> bool:
         """
         Register active speaker change event callback.
 
@@ -331,8 +541,11 @@ class Client:
             True if callback was set successfully
         """
         ...
+    def onActiveSpeakerEvent(self, callback: ActiveSpeakerEventCallback) -> bool:
+        """Register active speaker change event callback (legacy camelCase alias)"""
+        ...
 
-    def onSharingEvent(self, callback: SharingEventCallback) -> bool:
+    def on_sharing_event(self, callback: SharingEventCallback) -> bool:
         """
         Register sharing start/stop event callback.
 
@@ -350,8 +563,11 @@ class Client:
             True if callback was set successfully
         """
         ...
+    def onSharingEvent(self, callback: SharingEventCallback) -> bool:
+        """Register sharing start/stop event callback (legacy camelCase alias)"""
+        ...
 
-    def onMediaConnectionInterrupted(self, callback: Callable[[int], None]) -> bool:
+    def on_media_connection_interrupted(self, callback: Callable[[int], None]) -> bool:
         """
         Register media connection interrupted event callback.
 
@@ -364,8 +580,11 @@ class Client:
             True if callback was set successfully
         """
         ...
+    def onMediaConnectionInterrupted(self, callback: Callable[[int], None]) -> bool:
+        """Register media connection interrupted event callback (legacy camelCase alias)"""
+        ...
 
-    def onEventEx(self, callback: EventExCallback) -> bool:
+    def on_event_ex(self, callback: EventExCallback) -> bool:
         """
         Register raw JSON event callback.
 
@@ -380,32 +599,15 @@ class Client:
             True if callback was set successfully
         """
         ...
-
-    def onAudioData(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
-        """Register audio data callback"""
+    def onEventEx(self, callback: EventExCallback) -> bool:
+        """Register raw JSON event callback (legacy camelCase alias)"""
         ...
 
-    def onVideoData(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
-        """Register video data callback"""
-        ...
-
-    def onDeskshareData(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
-        """Register deskshare data callback"""
-        ...
-
-    def onTranscriptData(self, callback: Callable[[bytes, int, int, Metadata], None]) -> None:
-        """Register transcript data callback"""
-        ...
-
-    def onLeave(self, callback: Callable[[int], None]) -> None:
-        """Register leave callback"""
-        ...
-
-    def subscribeEvent(self, events: List[int]) -> bool:
+    def subscribe_event(self, events: List[int]) -> bool:
         """
         Subscribe to receive specific event types.
 
-        Note: Typed event callbacks (onParticipantEvent, onActiveSpeakerEvent, etc.)
+        Note: Typed event callbacks (on_participant_event, on_active_speaker_event, etc.)
         automatically subscribe to their respective events.
 
         Args:
@@ -415,8 +617,11 @@ class Client:
             True if subscription was successful
         """
         ...
+    def subscribeEvent(self, events: List[int]) -> bool:
+        """Subscribe to event types (legacy camelCase alias)"""
+        ...
 
-    def unsubscribeEvent(self, events: List[int]) -> bool:
+    def unsubscribe_event(self, events: List[int]) -> bool:
         """
         Unsubscribe from specific event types.
 
@@ -426,6 +631,9 @@ class Client:
         Returns:
             True if unsubscription was successful
         """
+        ...
+    def unsubscribeEvent(self, events: List[int]) -> bool:
+        """Unsubscribe from event types (legacy camelCase alias)"""
         ...
 
     def on_webhook_event(
@@ -466,7 +674,7 @@ USER_LEAVE: int
 
 # ============================================================================
 # Constants - Event Types (for subscribeEvent/unsubscribeEvent)
-# These match RTMS_EVENT_TYPE from Zoom's C SDK
+# These match EVENT_TYPE from Zoom's C SDK
 # ============================================================================
 
 EVENT_UNDEFINED: int
@@ -477,6 +685,8 @@ EVENT_PARTICIPANT_LEAVE: int
 EVENT_SHARING_START: int
 EVENT_SHARING_STOP: int
 EVENT_MEDIA_CONNECTION_INTERRUPTED: int
+EVENT_PARTICIPANT_VIDEO_ON: int
+EVENT_PARTICIPANT_VIDEO_OFF: int
 EVENT_CONSUMER_ANSWERED: int
 EVENT_CONSUMER_END: int
 EVENT_USER_ANSWERED: int
@@ -500,26 +710,38 @@ SESS_STATUS_ACTIVE: int
 SESS_STATUS_PAUSED: int
 
 # ============================================================================
-# Parameter Dictionaries
+# Parameter Enums
 # ============================================================================
 
-AudioContentType: Dict[str, int]
-AudioCodec: Dict[str, int]
-AudioSampleRate: Dict[str, int]
-AudioChannel: Dict[str, int]
-AudioDataOption: Dict[str, int]
+from enum import IntEnum
 
-VideoContentType: Dict[str, int]
-VideoCodec: Dict[str, int]
-VideoResolution: Dict[str, int]
-VideoDataOption: Dict[str, int]
+class AudioContentType(IntEnum): ...
+class AudioCodec(IntEnum): ...
+class AudioSampleRate(IntEnum): ...
+class AudioChannel(IntEnum): ...
 
-MediaDataType: Dict[str, int]
-SessionState: Dict[str, int]
-StreamState: Dict[str, int]
-EventType: Dict[str, int]
-MessageType: Dict[str, int]
-StopReason: Dict[str, int]
+class DataOption(IntEnum):
+    UNDEFINED: int
+    AUDIO_MIXED_STREAM: int
+    AUDIO_MULTI_STREAMS: int
+    VIDEO_SINGLE_ACTIVE_STREAM: int
+    VIDEO_SINGLE_INDIVIDUAL_STREAM: int
+    VIDEO_MIXED_GALLERY_VIEW: int
+
+AudioDataOption = DataOption  # legacy alias
+VideoDataOption = DataOption  # legacy alias
+
+class VideoContentType(IntEnum): ...
+class VideoCodec(IntEnum): ...
+class VideoResolution(IntEnum): ...
+
+class MediaDataType(IntEnum): ...
+class SessionState(IntEnum): ...
+class StreamState(IntEnum): ...
+class EventType(IntEnum): ...
+class MessageType(IntEnum): ...
+class StopReason(IntEnum): ...
+class TranscriptLanguage(IntEnum): ...
 
 # ============================================================================
 # SDK Initialization Functions
@@ -605,35 +827,56 @@ on_webhook_event = onWebhookEvent
 # Event Loop Functions
 # ============================================================================
 
-def run(poll_interval: float = 0.01, stop_on_empty: bool = False) -> None:
+def run(
+    poll_interval: float = 0.01,
+    stop_on_empty: bool = False,
+    executor: Optional[Executor] = None,
+) -> None:
     """
-    Start the RTMS event loop.
+    Start the RTMS event loop (blocking).
 
-    This function blocks and handles:
-    - Polling all active clients
-    - Processing pending operations from other threads (like webhook handlers)
-    - Graceful shutdown on KeyboardInterrupt
-
-    With this function, you can create clients and call join() directly from
-    webhook handlers without manual queue management.
+    Polls all active clients in a loop, processing webhook-triggered joins and
+    dispatching callbacks. Blocks until KeyboardInterrupt or rtms.stop() is called.
 
     Args:
         poll_interval: Time in seconds between poll cycles (default: 0.01 = 10ms)
         stop_on_empty: If True, stop when no clients remain (default: False)
+        executor: Optional global executor for callback dispatch on all clients that
+            do not have their own executor set.
 
     Example:
         >>> import rtms
-        >>>
-        >>> clients = {}
-        >>>
         >>> @rtms.onWebhookEvent
         >>> def handle(payload):
         >>>     client = rtms.Client()
-        >>>     clients[payload['payload']['rtms_stream_id']] = client
-        >>>     client.onTranscriptData(lambda d,s,t,m: print(m.userName, d))
+        >>>     client.on_transcript_data(lambda d,s,t,m: print(m.userName, d))
         >>>     client.join(payload['payload'])
-        >>>
-        >>> rtms.run()  # Blocks until interrupted
+        >>> rtms.run()
+    """
+    ...
+
+async def run_async(
+    poll_interval: float = 0.01,
+    stop_on_empty: bool = False,
+    executor: Optional[Executor] = None,
+) -> None:
+    """
+    Start the RTMS event loop as an asyncio coroutine.
+
+    Drop-in async replacement for rtms.run(). Uses asyncio.sleep() instead of
+    time.sleep(), yielding control back to the event loop between poll cycles so
+    it composes naturally with aiohttp, FastAPI, asyncpg, and other async frameworks.
+
+    Args:
+        poll_interval: Time in seconds between poll cycles (default: 0.01 = 10ms)
+        stop_on_empty: If True, stop when no clients remain (default: False)
+        executor: Optional global executor for callback dispatch.
+
+    Example:
+        >>> import asyncio, rtms
+        >>> async def main():
+        >>>     await asyncio.gather(rtms.run_async(), my_server.start())
+        >>> asyncio.run(main())
     """
     ...
 
@@ -641,7 +884,8 @@ def stop() -> None:
     """
     Signal the event loop to stop.
 
-    Call this from another thread to gracefully stop the rtms.run() loop.
+    Call this from another thread or coroutine to gracefully stop rtms.run()
+    or rtms.run_async().
     """
     ...
 

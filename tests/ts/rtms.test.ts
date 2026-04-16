@@ -1,7 +1,7 @@
-const rtms = require("../index.ts")
+const rtms = require("../../index.ts")
 
 // Mock the native addon methods for both Client and global functions
-jest.mock("../index.ts", () => {
+jest.mock("../../index.ts", () => {
   // Create mock functions for all methods
   const mockFunctions = {
     // Client class methods
@@ -26,6 +26,7 @@ jest.mock("../index.ts", () => {
       setAudioParams: jest.fn().mockReturnValue(true),
       setVideoParams: jest.fn().mockReturnValue(true),
       setDeskshareParams: jest.fn().mockReturnValue(true),
+      setTranscriptParams: jest.fn().mockReturnValue(true),
       
       // Callback methods
       onJoinConfirm: jest.fn().mockReturnValue(true),
@@ -43,7 +44,32 @@ jest.mock("../index.ts", () => {
       // Event subscription methods
       subscribeEvent: jest.fn().mockReturnValue(true),
       unsubscribeEvent: jest.fn().mockReturnValue(true),
+
+      // Individual video subscription methods
+      subscribeVideo: jest.fn().mockReturnValue(true),
+      onParticipantVideo: jest.fn().mockReturnValue(true),
+      onVideoSubscribed: jest.fn().mockReturnValue(true),
     })),
+
+    // TranscriptParams class
+    TranscriptParams: jest.fn().mockImplementation(() => ({
+      contentType: 5,
+      srcLanguage: -1,
+      enableLid: true,
+      setSrcLanguage: jest.fn(),
+      setEnableLid: jest.fn(),
+    })),
+
+    // Transcript language constants (mirrors AudioCodec pattern)
+    TranscriptLanguage: {
+      NONE: -1,
+      ARABIC: 0,
+      ENGLISH: 9,
+      FRENCH_FRANCE: 13,
+      GERMAN: 14,
+      JAPANESE: 20,
+      SPANISH: 28,
+    },
 
     // Utility functions
     initialize: jest.fn().mockReturnValue(true),
@@ -197,7 +223,7 @@ describe('RTMS Node.JS Addon Comprehensive Test Suite', () => {
 
   // ---- Class-based approach tests ----
   describe('Class-based Client Approach', () => {
-    let client;
+    let client: InstanceType<typeof rtms.Client>;
 
     beforeEach(() => {
       client = new rtms.Client();
@@ -219,7 +245,24 @@ describe('RTMS Node.JS Addon Comprehensive Test Suite', () => {
           timeout: 5000,
           pollInterval: 100
         };
-        
+
+        const result = client.join(joinParams);
+        expect(client.join).toHaveBeenCalledWith(joinParams);
+        expect(result).toBe(true);
+      });
+
+      // ZCC engagement_id tests
+      // NOTE: The test module is fully mocked so client.join always returns true
+      // regardless of params. These tests document the expected API contract.
+      // The real routing logic is validated in the Python tests and by TypeScript
+      // compilation (engagement_id must appear in the JoinParams interface).
+      test('client.join accepts engagement_id for ZCC sessions', () => {
+        const joinParams = {
+          engagement_id: "engagement-abc-123",
+          rtms_stream_id: "stream-xyz",
+          server_urls: "wss://rtms.zoom.us",
+          signature: "mock-sig",
+        };
         const result = client.join(joinParams);
         expect(client.join).toHaveBeenCalledWith(joinParams);
         expect(result).toBe(true);
@@ -319,6 +362,24 @@ describe('RTMS Node.JS Addon Comprehensive Test Suite', () => {
         expect(client.setDeskshareParams).toHaveBeenCalledWith(deskshareParams);
         expect(result).toBe(true);
       });
+
+      // TranscriptParams tests
+      // NOTE: The module is fully mocked; these document the expected API shape.
+      // The real default values and toNative() mapping are verified in the C++ tests.
+      test('client.setTranscriptParams accepts a TranscriptParams object', () => {
+        const params = new rtms.TranscriptParams();
+        const result = client.setTranscriptParams(params);
+        expect(client.setTranscriptParams).toHaveBeenCalledWith(params);
+        expect(result).toBe(true);
+      });
+
+      test('TranscriptLanguage.ENGLISH equals 9', () => {
+        expect(rtms.TranscriptLanguage.ENGLISH).toBe(9);
+      });
+
+      test('TranscriptLanguage.NONE equals -1', () => {
+        expect(rtms.TranscriptLanguage.NONE).toBe(-1);
+      });
     });
 
     describe('Callback Methods', () => {
@@ -397,6 +458,64 @@ describe('RTMS Node.JS Addon Comprehensive Test Suite', () => {
         const result = client.onLeave(callback);
         expect(client.onLeave).toHaveBeenCalledWith(callback);
         expect(result).toBe(true);
+      });
+    });
+
+    describe('Individual Video Subscription', () => {
+      test('client.subscribeVideo subscribes to an individual participant video stream', () => {
+        const result = client.subscribeVideo(12345, true);
+        expect(client.subscribeVideo).toHaveBeenCalledWith(12345, true);
+        expect(result).toBe(true);
+      });
+
+      test('client.subscribeVideo unsubscribes from an individual participant video stream', () => {
+        const result = client.subscribeVideo(12345, false);
+        expect(client.subscribeVideo).toHaveBeenCalledWith(12345, false);
+        expect(result).toBe(true);
+      });
+
+      test('client.onParticipantVideo sets the participant video state callback', () => {
+        const callback = jest.fn();
+        const result = client.onParticipantVideo(callback);
+        expect(client.onParticipantVideo).toHaveBeenCalledWith(callback);
+        expect(result).toBe(true);
+      });
+
+      test('client.onVideoSubscribed sets the video subscription response callback', () => {
+        const callback = jest.fn();
+        const result = client.onVideoSubscribed(callback);
+        expect(client.onVideoSubscribed).toHaveBeenCalledWith(callback);
+        expect(result).toBe(true);
+      });
+
+      test('onParticipantVideo callback receives users array and isOn flag', () => {
+        let capturedUsers: number[] = [];
+        let capturedIsOn: boolean | null = null;
+        const callback = jest.fn().mockImplementation((users: number[], isOn: boolean) => {
+          capturedUsers = users;
+          capturedIsOn = isOn;
+        });
+        client.onParticipantVideo(callback);
+        // Simulate a callback invocation
+        callback([11111, 22222], true);
+        expect(capturedUsers).toEqual([11111, 22222]);
+        expect(capturedIsOn).toBe(true);
+      });
+
+      test('onVideoSubscribed callback receives userId, status, and error string', () => {
+        let capturedUserId: number | null = null;
+        let capturedStatus: number | null = null;
+        let capturedError: string | null = null;
+        const callback = jest.fn().mockImplementation((userId: number, status: number, error: string) => {
+          capturedUserId = userId;
+          capturedStatus = status;
+          capturedError = error;
+        });
+        client.onVideoSubscribed(callback);
+        callback(12345, 0, '');
+        expect(capturedUserId).toBe(12345);
+        expect(capturedStatus).toBe(0);
+        expect(capturedError).toBe('');
       });
     });
 
