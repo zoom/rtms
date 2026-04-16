@@ -292,6 +292,108 @@ rtms.run(executor=ThreadPoolExecutor(max_workers=32))
 
 Callbacks without an executor continue to run inline — identical to v1.0 behavior.
 
+## Explicit Event Loops
+
+By default, `rtms.run()` and `rtms.run_async()` manage a single implicit event loop. For more control — multiple threads, custom routing, or independent loop lifecycles — use `EventLoop` and `EventLoopPool` directly.
+
+### EventLoop
+
+An `EventLoop` owns a set of clients and drives their poll cycles on a single thread. Clients added to a loop have their C SDK handle allocated on that loop's thread, satisfying the SDK's thread-affinity requirement.
+
+```python
+import rtms
+
+loop = rtms.EventLoop(poll_interval=0.01, name='my-loop')
+
+@rtms.on_webhook_event
+def handle(payload):
+    if 'rtms_started' not in payload.get('event', ''):
+        return
+    client = rtms.Client()
+
+    @client.on_transcript_data
+    def _(data, size, timestamp, metadata):
+        print(f'{metadata.userName}: {data.decode()}')
+
+    loop.add(client)           # assigns client to this loop's thread
+    client.join(payload['payload'])
+
+loop.run()                     # blocks current thread
+```
+
+`EventLoop` methods:
+
+| Method | Description |
+|---|---|
+| `add(client)` | Assign a client to this loop. Must be called before `join()`. |
+| `run(stop_on_empty=False)` | Block the current thread, polling all clients. |
+| `run_async(stop_on_empty=False)` | Async equivalent — `await` between poll cycles. |
+| `start()` | Run in a background daemon thread. Returns `self` for chaining. |
+| `stop()` | Signal the loop to stop after the current poll cycle. |
+| `join(timeout=None)` | Wait for the background thread to finish (after `start()`). |
+| `client_count` | Property — number of clients on this loop. |
+
+### EventLoopPool
+
+An `EventLoopPool` manages N `EventLoop` threads and routes each new client to a loop automatically:
+
+```python
+from concurrent.futures import ThreadPoolExecutor
+import rtms
+
+pool = rtms.EventLoopPool(threads=4, strategy='least_loaded')
+executor = ThreadPoolExecutor(max_workers=32)
+
+@rtms.on_webhook_event
+def handle(payload):
+    if 'rtms_started' not in payload.get('event', ''):
+        return
+    client = rtms.Client(executor=executor)
+
+    @client.on_audio_data
+    def _(data, size, timestamp, metadata):
+        process_audio(data)
+
+    pool.add(client)           # routed to the loop with fewest clients
+    client.join(payload['payload'])
+
+pool.run()                     # blocks; N-1 loops run as daemon threads
+```
+
+Constructor parameters:
+
+| Parameter | Default | Description |
+|---|---|---|
+| `threads` | 4 | Number of SDK I/O threads |
+| `poll_interval` | 0.01 | Seconds between poll cycles per loop |
+| `strategy` | `'least_loaded'` | `'least_loaded'` or `'round_robin'` |
+
+`EventLoopPool` methods:
+
+| Method | Description |
+|---|---|
+| `add(client)` | Route a client to a loop per the strategy. Returns the assigned `EventLoop`. |
+| `run(stop_on_empty=False)` | Start N-1 loops as daemon threads, run the last on the current thread. |
+| `run_async(stop_on_empty=False)` | Run all loops as concurrent asyncio coroutines. |
+| `stop()` | Stop all loops. |
+| `client_count` | Property — total clients across all loops. |
+| `loops` | Property — the underlying `List[EventLoop]`. |
+
+### Stopping the Event Loop
+
+Call `rtms.stop()` to shut down the default event loop from another thread or coroutine:
+
+```python
+import signal
+import rtms
+
+signal.signal(signal.SIGTERM, lambda *_: rtms.stop())
+
+rtms.run()  # stops cleanly on SIGTERM
+```
+
+For explicit `EventLoop` or `EventLoopPool` instances, call their `.stop()` method directly.
+
 ## Scaling Strategy
 
 The Python SDK provides a layered set of primitives for scaling from a single meeting to hundreds of concurrent streams.
@@ -376,15 +478,43 @@ asyncio.run(main())
 - **Coroutine dispatch**: `asyncio.run_coroutine_threadsafe` bridges SDK callbacks to the loop
 - **Composable**: runs alongside any other async service on the same loop
 
-### Layer 4 — Multi-process
+### Layer 4 — Multi-thread (EventLoopPool)
 
-Appropriate for 50+ concurrent meetings. Each process runs its own `rtms.run()` loop; a load balancer routes webhook events to available workers.
+Appropriate for 25–100+ concurrent meetings in a single process. Distributes clients across N SDK I/O threads so no single thread is overwhelmed.
+
+```python
+from concurrent.futures import ThreadPoolExecutor
+import rtms
+
+pool = rtms.EventLoopPool(threads=4)
+executor = ThreadPoolExecutor(max_workers=32)
+
+@rtms.on_webhook_event
+def handle(payload):
+    if 'rtms_started' not in payload.get('event', ''):
+        return
+    client = rtms.Client(executor=executor)
+    client.on_transcript_data(write_to_database)
+    pool.add(client)           # routed to least-loaded loop
+    client.join(payload['payload'])
+
+pool.run()
+```
+
+- **Thread count**: 1 thread per ~25 clients is a reasonable starting point
+- **Routing**: `'least_loaded'` (default) or `'round_robin'`
+- **Monitoring**: `pool.client_count` and `loop.client_count` for load visibility
+- **Composable**: works with executor dispatch and `run_async()`
+
+### Layer 5 — Multi-process
+
+Appropriate when a single process can't keep up. Each process runs its own event loop (or pool); a load balancer routes webhook events to available workers.
 
 ```
 Zoom → Load Balancer (nginx/HAProxy)
-         ├── Worker 0 (rtms.run(), meetings 0..N)
-         ├── Worker 1 (rtms.run(), meetings N..2N)
-         └── Worker 2 (rtms.run(), meetings 2N..3N)
+         ├── Worker 0 (pool.run(), meetings 0..N)
+         ├── Worker 1 (pool.run(), meetings N..2N)
+         └── Worker 2 (pool.run(), meetings 2N..3N)
 ```
 
 Use a message queue (Redis pub/sub, RabbitMQ, Kafka) to distribute join requests:
@@ -412,9 +542,10 @@ rtms.run()
 | Prototyping / light callbacks | Layer 1 — inline |
 | CPU-bound (ASR, video) | Layer 2 — executor |
 | Async framework (FastAPI, aiohttp) | Layer 3 — run_async |
-| 50+ concurrent meetings | Layer 4 — multi-process |
+| 25–100 concurrent meetings | Layer 4 — EventLoopPool |
+| Beyond single-process capacity | Layer 5 — multi-process |
 
-All layers use the same `Client` API. You can mix layers — e.g. Layer 3 for the web server plus Layer 2 executors for heavy callbacks — without any API changes.
+All layers use the same `Client` API. You can mix layers — e.g. Layer 3 for the web server, Layer 2 executors for heavy callbacks, and Layer 4 for multi-threaded polling — without any API changes.
 
 ## Environment Setup
 
