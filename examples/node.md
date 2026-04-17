@@ -53,29 +53,40 @@ Use the raw callback form `(payload, req, res)` to access headers directly:
 
 ```javascript
 import rtms from "@zoom/rtms";
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
+
+const WEBHOOK_SECRET = process.env.ZM_RTMS_WEBHOOK_SECRET;
+if (!WEBHOOK_SECRET) {
+    throw new Error("ZM_RTMS_WEBHOOK_SECRET is not set");
+}
 
 function verifySignature(body, timestamp, signature) {
-    const message = `v0:${timestamp}:${body}`;
-    const expected = "v0=" + createHmac("sha256", process.env.ZM_RTMS_WEBHOOK_SECRET)
-        .update(message)
+    if (!signature || !timestamp) return false;
+    const expected = "v0=" + createHmac("sha256", WEBHOOK_SECRET)
+        .update(`v0:${timestamp}:${body}`)
         .digest("hex");
-    return expected === signature;
+    if (signature.length !== expected.length) return false;
+    return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
 }
 
 rtms.onWebhookEvent((payload, req, res) => {
-    const signature  = req.headers["x-zm-signature"];
-    const timestamp  = req.headers["x-zm-request-timestamp"];
-
-    // Zoom endpoint validation challenge — respond before processing events
-    if (req.headers["x-zm-webhook-validator"]) {
-        const token = req.headers["x-zm-webhook-validator"];
+    // Endpoint validation: Zoom POSTs this once when the webhook URL is set
+    // or changed. Respond with plainToken + HMAC-SHA256(plainToken, secret)
+    // to prove the endpoint holds the secret.
+    if (payload.event === "endpoint.url_validation") {
+        const plainToken = payload.payload?.plainToken;
+        const encryptedToken = createHmac("sha256", WEBHOOK_SECRET)
+            .update(plainToken)
+            .digest("hex");
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ plainToken: token }));
+        res.end(JSON.stringify({ plainToken, encryptedToken }));
         return;
     }
 
-    if (!signature || !timestamp || !verifySignature(JSON.stringify(payload), timestamp, signature)) {
+    const signature = req.headers["x-zm-signature"];
+    const timestamp = req.headers["x-zm-request-timestamp"];
+
+    if (!verifySignature(JSON.stringify(payload), timestamp, signature)) {
         res.writeHead(401);
         res.end(JSON.stringify({ error: "Unauthorized" }));
         return;
