@@ -60,14 +60,7 @@ def verify_signature(body: str, timestamp: str, signature: str) -> bool:
 def handle_webhook(payload, request, response):
     signature = request.headers.get('x-zm-signature', '')
     timestamp = request.headers.get('x-zm-request-timestamp', '')
-
-    # Zoom endpoint validation challenge
-    validator = request.headers.get('x-zm-webhook-validator')
-    if validator:
-        response.set_status(200)
-        response.send({'plainToken': validator})
-        return
-
+    
     if not verify_signature(str(payload), timestamp, signature):
         response.set_status(401)
         response.send({'error': 'Unauthorized'})
