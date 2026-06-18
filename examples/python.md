@@ -45,9 +45,11 @@ For the specific event names for your product, see the [product guides](../READM
 import rtms
 import hmac
 import hashlib
+import json
 import os
 
-def verify_signature(body: str, timestamp: str, signature: str) -> bool:
+def verify_signature(payload: dict, timestamp: str, signature: str) -> bool:
+    body = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
     message = f"v0:{timestamp}:{body}"
     expected = "v0=" + hmac.new(
         os.environ["ZM_RTMS_WEBHOOK_SECRET"].encode(),
@@ -61,7 +63,7 @@ def handle_webhook(payload, request, response):
     signature = request.headers.get('x-zm-signature', '')
     timestamp = request.headers.get('x-zm-request-timestamp', '')
     
-    if not verify_signature(str(payload), timestamp, signature):
+    if not verify_signature(payload, timestamp, signature):
         response.set_status(401)
         response.send({'error': 'Unauthorized'})
         return
@@ -77,6 +79,8 @@ def handle_webhook(payload, request, response):
 
 rtms.run()
 ```
+
+Zoom signs the canonical JSON body, the same string JavaScript produces with `JSON.stringify(payload)`. The two `json.dumps` flags reproduce that exact string: `separators=(",", ":")` drops the whitespace Python adds after `:` and `,`, and `ensure_ascii=False` keeps non-ASCII characters as literals instead of `\uXXXX` escapes. Passing `str(payload)` instead hashes Python's `dict` repr (single quotes), so the HMAC never matches and every webhook is rejected with a 401.
 
 ## Context Manager
 
