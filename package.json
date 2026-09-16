@@ -1,6 +1,6 @@
 {
   "name": "@zoom/rtms",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Node.js Wrapper for the Zoom RTMS C SDK",
   "main": "./build/Release/index.js",
   "types": "rtms.d.ts",
@@ -82,5 +82,9 @@
   "license": "MIT",
   "engines": {
     "node": ">=22.0.0"
+  },
+  "allowScripts": {
+    "fsevents@2.3.3": true,
+    "unrs-resolver@1.11.1": true
   }
 }
