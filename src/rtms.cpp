@@ -577,7 +577,8 @@ void Client::configure(const MediaParams& params, int media_types, bool enable_a
         }
     }
 
-    if (!media_params_.hasAudioParams() && !media_params_.hasVideoParams() && !media_params_.hasDeskshareParams()) {
+    if (!media_params_.hasAudioParams() && !media_params_.hasVideoParams() &&
+        !media_params_.hasDeskshareParams() && !media_params_.hasTranscriptParams()) {
 #ifdef RTMS_DEBUG
         cerr << "[DEBUG CONFIG] Calling config with NULL params, media_types=" << media_types << endl;
 #endif
@@ -609,6 +610,9 @@ void Client::configure(const MediaParams& params, int media_types, bool enable_a
     }
     if (native_params.ds_param) {
         delete native_params.ds_param;
+    }
+    if (native_params.tr_param) {
+        delete native_params.tr_param;
     }
 
     throwIfError(result, "configure");

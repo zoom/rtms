@@ -840,21 +840,37 @@ TEST_CASE("MediaParams toNative() produces non-null tr_param when set", "[params
     delete n.tr_param;
 }
 
-TEST_CASE("Client::setTranscriptParams calls config with updated params", "[client][transcript]") {
+TEST_CASE("Transcript-only clients preserve configured transcript settings", "[client][transcript]") {
     R _;
     Client c;
-    // Enable transcript first so the reconfigure path runs
-    c.setOnTranscriptData([](const std::vector<uint8_t>&, uint64_t, const Metadata&) {});
-    // Must join first — configure() is deferred until after open() sets sdk_opened_=true
-    c.join("u", "s", "sig", "url");
-    int calls_before = g_mock_state.config_calls;
-
     TranscriptParams tp;
-    tp.setSrcLanguage(14); // LANGUAGE_ID_GERMAN
-    c.setTranscriptParams(tp);
+    tp.setSrcLanguage((int)TRANSCRIPT_LANGUAGE::JAPANESE);
+    tp.setEnableLid(false);
 
-    // Should have called config() again with the updated params
-    CHECK(g_mock_state.config_calls > calls_before);
+    SECTION("parameters configured before the transcript callback") {
+        c.setTranscriptParams(tp);
+        c.setOnTranscriptData([](const std::vector<uint8_t>&, uint64_t, const Metadata&) {});
+        c.join("u", "s", "sig", "url");
+    }
+
+    SECTION("parameters configured after the transcript callback") {
+        c.setOnTranscriptData([](const std::vector<uint8_t>&, uint64_t, const Metadata&) {});
+        c.setTranscriptParams(tp);
+        c.join("u", "s", "sig", "url");
+    }
+
+    SECTION("parameters updated after joining") {
+        c.setOnTranscriptData([](const std::vector<uint8_t>&, uint64_t, const Metadata&) {});
+        c.join("u", "s", "sig", "url");
+        CHECK_FALSE(g_mock_state.last_transcript_params.has_value());
+        c.setTranscriptParams(tp);
+    }
+
+    CHECK(g_mock_state.last_media_types == Client::TRANSCRIPT);
+    REQUIRE(g_mock_state.last_transcript_params.has_value());
+    CHECK(g_mock_state.last_transcript_params->content_type == tp.contentType());
+    CHECK(g_mock_state.last_transcript_params->src_language == tp.srcLanguage());
+    CHECK(g_mock_state.last_transcript_params->enable_lid == tp.enableLid());
 }
 
 // ============================================================================

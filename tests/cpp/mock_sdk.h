@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <optional>
 
 struct MockSdkState {
     // --- Configurable return values ---
@@ -64,6 +65,7 @@ struct MockSdkState {
     // config()
     int last_media_types = 0;
     int last_ale         = 0;           // application layer encryption flag
+    std::optional<transcript_parameters> last_transcript_params;
 
     // set_proxy()
     std::string last_proxy_type;

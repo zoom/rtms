@@ -31,6 +31,10 @@ int rtms_sdk::config(struct media_parameters* params, int media_types, int ale, 
     ++g_mock_state.config_calls;
     g_mock_state.last_media_types = media_types;
     g_mock_state.last_ale         = ale;
+    g_mock_state.last_transcript_params.reset();
+    if (params && params->tr_param) {
+        g_mock_state.last_transcript_params = *params->tr_param;
+    }
     return g_mock_state.config_result;
 }
 
